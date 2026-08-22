@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GGS Studio — Recording, Mixing & Mastering</title>
+<link rel="icon" type="image/png" href="assets/Logo_NoBG.png">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.169.0/build/three.module.js"
+  }
+}
+</script>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+<div id="bg-dark"></div>
+
+<nav>
+  <div class="logo"><img src="assets/Logo_NoBG.png" alt="GGS Studio"></div>
+  <div class="nav-links" id="navLinks">
+    <a href="#services">Services</a>
+    <a href="#room">The Room</a>
+    <a href="#book">Booking</a>
+  </div>
+  <a href="#book" class="nav-cta">Book Now</a>
+  <button class="burger" id="burgerBtn" aria-label="Toggle menu" aria-expanded="false" aria-controls="navLinks">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<section class="hero">
+  <div class="hero-eyebrow">Cebu's independent recording studio</div>
+  <h1>Track it.<br>Mix it.<br><span class="out">Ship it.</span></h1>
+  <p class="hero-sub">GGS Studio is a one-room recording space built for artists who'd rather be making the song than fighting the gear. Analog-warmed signal chain, a mixer who actually listens, and a calendar you can book yourself — right now.</p>
+  <div class="hero-actions">
+    <a href="#book" class="btn-primary">Book a session
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    </a>
+    <a href="#services" class="btn-ghost">See rates ↓</a>
+  </div>
+  <div class="waveform" id="heroWave"></div>
+</section>
+
+<div class="marquee">
+  <div class="marquee-track" id="marqueeTrack">
+    <span>RECORDING</span><span>MIXING</span><span>MASTERING</span><span>VOCAL PRODUCTION</span><span>SESSION MUSICIANS</span><span>PODCAST TRACKING</span>
+  </div>
+</div>
+
+<section id="services">
+  <div class="section-head" data-reveal>
+    <div>
+      <div class="section-tag">What we do</div>
+      <h2>Services & rates</h2>
+    </div>
+    <p class="section-note">Hourly or by the project — every session includes an engineer, so you never touch a fader unless you want to.</p>
+  </div>
+  <div class="services" data-reveal>
+    <div class="service">
+      <span class="num mono">01</span>
+      <h3>Room rate</h3>
+      <p>Base rate for the treated live room, analog console, and full mic locker — engineer included. Billed hourly, no minimum.</p>
+      <span class="price">₱350 / hr</span>
+    </div>
+    <div class="service">
+      <span class="num mono">02</span>
+      <h3>Recording add-on</h3>
+      <p>Full-band or solo tracking session, on top of the room rate. Flat fee per session, regardless of length.</p>
+      <span class="price">+ ₱300 flat</span>
+    </div>
+    <div class="service">
+      <span class="num mono">03</span>
+      <h3>Mixing add-on</h3>
+      <p>Stem or session-file mixing with two rounds of revisions, delivered as radio-ready masters plus stems. Flat fee on top of room time.</p>
+      <span class="price">+ ₱200 flat</span>
+    </div>
+  </div>
+</section>
+
+<section class="gear" id="room">
+  <div class="gear-grid">
+    <div class="gear-copy" data-reveal>
+      <div class="section-tag">The room</div>
+      <h2>Built around the signal, not the logo wall</h2>
+      <p class="section-note" style="max-width:460px; margin-top:18px;">Every session runs through a Zoom LiveTrak L-12 — a 12-channel mixer with 4 mic/line inputs, built-in effects, and simultaneous multi-track recording straight to SD. Simple, clean, and reliable. No gimmicks — just a chain that gets out of the way.</p>
+      <div class="stat-row">
+        <div class="stat"><b>12ch</b><span>Zoom L-12 mixer</span></div>
+        <div class="stat"><b>4</b><span>XLR/TRS mic inputs</span></div>
+        <div class="stat"><b>14-trk</b><span>Simultaneous SD recording</span></div>
+      </div>
+    </div>
+    <div class="gear-visual" data-reveal>
+      <div class="console" id="consoleGrid"></div>
+    </div>
+  </div>
+</section>
+
+<section class="booking" id="book">
+  <div class="section-head" data-reveal>
+    <div>
+      <div class="section-tag">Reserve your slot</div>
+      <h2>Book now</h2>
+    </div>
+    <p class="section-note">Pick a service, a date, and a time — we'll confirm by email within a few hours.</p>
+  </div>
+
+  <div class="book-grid">
+    <div class="book-form" data-reveal>
+      <form id="bookingForm">
+        <div class="field">
+          <label>Name</label>
+          <input type="text" placeholder="Your name" required>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label>Email</label>
+            <input type="email" placeholder="you@email.com" required>
+          </div>
+          <div class="field">
+            <label>Service</label>
+            <select required>
+              <option value="">Choose one</option>
+              <option>Room only — ₱450/hr</option>
+              <option>Room + Recording — ₱450/hr + ₱300</option>
+              <option>Room + Mixing — ₱450/hr + ₱200</option>
+              <option>Room + Recording + Mixing — ₱450/hr + ₱500</option>
+            </select>
+          </div>
+        </div>
+        <div class="field">
+          <label>Date</label>
+          <input type="date" required>
+        </div>
+        <div class="field">
+          <label>Preferred time</label>
+          <div class="slot-picker" id="slotPicker">
+            <button type="button" class="slot">10:00 AM</button>
+            <button type="button" class="slot">1:00 PM</button>
+            <button type="button" class="slot">4:00 PM</button>
+            <button type="button" class="slot">7:00 PM</button>
+          </div>
+        </div>
+        <div class="submit-row">
+          <button type="submit" class="book-submit">Confirm booking request</button>
+        </div>
+        <div class="confirm-msg" id="confirmMsg">✓ Request received — GGS Studio will confirm your slot by email shortly.</div>
+      </form>
+    </div>
+
+    <div class="book-side" data-reveal>
+      <div class="section-tag">Why book direct</div>
+      <h2>No middleman, no markup</h2>
+      <ul class="book-list">
+        <li><span class="tick">→</span>Talk directly to the engineer working your session, before and after you book.</li>
+        <li><span class="tick">→</span>Reschedule free up to 24 hours ahead, no questions asked.</li>
+        <li><span class="tick">→</span>First-timers get a 15-minute walkthrough of the room before the clock starts.</li>
+        <li><span class="tick">→</span>Every session leaves with rough mixes the same day.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-top">
+    <div class="footer-cta" data-reveal>
+      <div class="section-tag">Ready when you are</div>
+      <h2>Let's make<br>something.</h2>
+      <a href="#book" class="btn-primary">Book Now
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+    </div>
+    <div class="footer-cols">
+      <div class="footer-col">
+        <h5>Studio</h5>
+        <a href="#services">Services</a>
+        <a href="#room">The room</a>
+      </div>
+      <div class="footer-col">
+        <h5>Contact</h5>
+        <a href="mailto:hello@ggsstudio.ph">hello@ggsstudio.ph</a>
+        <a href="tel:+639170000000">+63 917 000 0000</a>
+        <a href="#">Lapu-Lapu City, Cebu</a>
+      </div>
+      <div class="footer-col">
+        <h5>Follow</h5>
+        <a href="#">Instagram</a>
+        <a href="#">YouTube</a>
+        <a href="#">Spotify</a>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <span>© 2026 GGS Studio. All tracks stay yours.</span>
+    <span>Analog in. Digital out.</span>
+  </div>
+</footer>
+
+<script>
+  // hero waveform
+  const wave = document.getElementById('heroWave');
+  for(let i=0;i<60;i++){
+    const bar = document.createElement('span');
+    const h = 15 + Math.random()*55;
+    bar.style.height = h + '%';
+    bar.style.animationDelay = (Math.random()*1.4) + 's';
+    bar.style.animationDuration = (1 + Math.random()*0.8) + 's';
+    wave.appendChild(bar);
+  }
+
+  // marquee duplicate for seamless loop
+  const track = document.getElementById('marqueeTrack');
+  track.innerHTML += track.innerHTML;
+
+  // console knobs
+  const console_ = document.getElementById('consoleGrid');
+  for(let i=0;i<32;i++){
+    const k = document.createElement('div');
+    k.className = 'knob';
+    k.style.setProperty('--r', (Math.random()*280 - 140) + 'deg');
+    console_.appendChild(k);
+  }
+
+  // mobile nav
+  const burger = document.getElementById('burgerBtn');
+  const navLinks = document.getElementById('navLinks');
+  burger.addEventListener('click', ()=>{
+    const open = navLinks.classList.toggle('open');
+    burger.classList.toggle('open', open);
+    burger.setAttribute('aria-expanded', open);
+  });
+  navLinks.querySelectorAll('a').forEach(a=>{
+    a.addEventListener('click', ()=>{
+      navLinks.classList.remove('open');
+      burger.classList.remove('open');
+      burger.setAttribute('aria-expanded', 'false');
+    });
+  });
+
+  // slot picker
+  document.querySelectorAll('.slot').forEach(s=>{
+    s.addEventListener('click', ()=>{
+      document.querySelectorAll('.slot').forEach(x=>x.classList.remove('active'));
+      s.classList.add('active');
+    });
+  });
+
+  // booking form
+  document.getElementById('bookingForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    document.getElementById('confirmMsg').style.display = 'block';
+    this.querySelector('.book-submit').textContent = 'Request sent ✓';
+  });
+
+  // reveal on scroll
+  const revealEls = document.querySelectorAll('[data-reveal]');
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(en=>{ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target);} });
+  }, {threshold:0.15});
+  revealEls.forEach(el=>io.observe(el));
+</script>
+
+<script type="module">
+  import * as THREE from 'three';
+
+  const canvas = document.getElementById('bg-canvas');
+  const darkOverlay = document.getElementById('bg-dark');
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth, window.innerHeight);
+
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.set(0, 0, 9);
+
+  const GOLD = 0xd7ae5c;
+  const TEAL = 0x2fb8b0;
+
+  scene.add(new THREE.AmbientLight(0x445566, 0.6));
+  const keyLight = new THREE.PointLight(GOLD, 22, 40);
+  keyLight.position.set(4, 3, 8);
+  scene.add(keyLight);
+  const rimLight = new THREE.PointLight(TEAL, 14, 40);
+  rimLight.position.set(-5, -2, -6);
+  scene.add(rimLight);
+
+  // ---------- ambient particle field ("signal cloud") ----------
+  const PARTICLE_COUNT = 600;
+  const positions = new Float32Array(PARTICLE_COUNT * 3);
+  const speeds = new Float32Array(PARTICLE_COUNT);
+  for (let i = 0; i < PARTICLE_COUNT; i++) {
+    positions[i * 3] = (Math.random() - 0.5) * 40;
+    positions[i * 3 + 1] = (Math.random() - 0.5) * 24;
+    positions[i * 3 + 2] = (Math.random() - 0.5) * 30 - 6;
+    speeds[i] = 0.05 + Math.random() * 0.18;
+  }
+  const particleGeometry = new THREE.BufferGeometry();
+  particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  const particles = new THREE.Points(particleGeometry, new THREE.PointsMaterial({
+    color: GOLD, size: 0.05, transparent: true, opacity: 0.35, depthWrite: false,
+  }));
+  scene.add(particles);
+
+  // ---------- a pair of studio headphones, built from primitives ----------
+  const headphones = new THREE.Group();
+
+  const cupMaterial = new THREE.MeshStandardMaterial({ color: 0x1a1410, roughness: 0.35, metalness: 0.5 });
+  const padMaterial = new THREE.MeshStandardMaterial({ color: 0x2a2018, roughness: 0.8, metalness: 0.1 });
+  const trimMaterial = new THREE.MeshStandardMaterial({ color: GOLD, roughness: 0.3, metalness: 0.7 });
+
+  // headband: a half-torus arcing over the top, ends resting at y=0 locally
+  const bandRadius = 1.35;
+  const band = new THREE.Mesh(new THREE.TorusGeometry(bandRadius, 0.1, 16, 64, Math.PI), cupMaterial);
+  band.position.y = 0.9;
+  headphones.add(band);
+
+  [-1, 1].forEach((side) => {
+    const yoke = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.2, 12), cupMaterial);
+    yoke.position.set(side * bandRadius, 0.3, 0);
+    headphones.add(yoke);
+
+    const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.5, 32), cupMaterial);
+    cup.rotation.z = Math.PI / 2;
+    cup.position.set(side * (bandRadius + 0.05), -0.35, 0);
+    headphones.add(cup);
+
+    const pad = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.15, 16, 32), padMaterial);
+    pad.rotation.y = Math.PI / 2;
+    pad.position.set(side * (bandRadius + 0.05 + side * 0.22), -0.35, 0);
+    headphones.add(pad);
+
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.02, 8, 32), trimMaterial);
+    ring.rotation.y = Math.PI / 2;
+    ring.position.set(side * (bandRadius + 0.05 + side * 0.26), -0.35, 0);
+    headphones.add(ring);
+  });
+
+  // compress width and stretch height slightly so it reads as a proper headphone silhouette, then enlarge
+  headphones.scale.set(0.85, 1.15, 1);
+  headphones.scale.multiplyScalar(1.7);
+  headphones.position.set(3.4, 0.2, 0);
+  headphones.rotation.y = -0.35;
+  scene.add(headphones);
+
+  // ---------- scroll progress: fades headphones and darkens the whole scene ----------
+  function getScrollProgress() {
+    const max = document.documentElement.scrollHeight - window.innerHeight;
+    return max > 0 ? Math.min(Math.max(window.scrollY / max, 0), 1) : 0;
+  }
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  let mouseX = 0, mouseY = 0;
+  window.addEventListener('pointermove', (e) => {
+    mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
+    mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
+  });
+
+  const clock = new THREE.Clock();
+
+  function render() {
+    const t = clock.getElapsedTime();
+    const progress = getScrollProgress();
+
+    headphones.rotation.y = -0.35 + t * 0.1 + progress * 0.6;
+    headphones.position.y = 0.2 + Math.sin(t * 0.6) * 0.1;
+
+    keyLight.intensity = 22 * (1 - progress * 0.85);
+    rimLight.intensity = 14 * (1 - progress * 0.85);
+    particles.material.opacity = 0.35 * (1 - progress * 0.7);
+    darkOverlay.style.opacity = progress * 0.82;
+
+    camera.position.x += (mouseX * 0.4 - camera.position.x) * 0.04;
+    camera.position.y += (-mouseY * 0.3 - camera.position.y) * 0.04;
+    camera.lookAt(headphones.position.x * 0.3, 0, 0);
+
+    const pos = particleGeometry.attributes.position.array;
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      pos[i * 3 + 1] += speeds[i] * 0.02;
+      if (pos[i * 3 + 1] > 12) pos[i * 3 + 1] = -12;
+    }
+    particleGeometry.attributes.position.needsUpdate = true;
+    particles.rotation.y = t * 0.02;
+
+    renderer.render(scene, camera);
+  }
+
+  function animate() {
+    requestAnimationFrame(animate);
+    render();
+  }
+
+  if (!reduceMotion) {
+    animate();
+  } else {
+    render();
+  }
+</script>
+
+</body>
+</html>
