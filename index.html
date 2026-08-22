@@ -6,18 +6,8 @@
 <title>GGS Studio — Recording, Mixing & Mastering</title>
 <link rel="icon" type="image/png" href="assets/Logo_NoBG.png">
 <link rel="stylesheet" href="style.css">
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://unpkg.com/three@0.169.0/build/three.module.js"
-  }
-}
-</script>
 </head>
 <body>
-
-<canvas id="bg-canvas"></canvas>
-<div id="bg-dark"></div>
 
 <nav>
   <div class="logo"><img src="assets/Logo_NoBG.png" alt="GGS Studio"></div>
@@ -33,16 +23,20 @@
 </nav>
 
 <section class="hero">
-  <div class="hero-eyebrow">Cebu's independent recording studio</div>
-  <h1>Track it.<br>Mix it.<br><span class="out">Ship it.</span></h1>
-  <p class="hero-sub">GGS Studio is a one-room recording space built for artists who'd rather be making the song than fighting the gear. Analog-warmed signal chain, a mixer who actually listens, and a calendar you can book yourself — right now.</p>
-  <div class="hero-actions">
-    <a href="#book" class="btn-primary">Book a session
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-    </a>
-    <a href="#services" class="btn-ghost">See rates ↓</a>
+  <div class="hero-grid">
+    <div class="hero-content">
+      <div class="hero-eyebrow">Cebu's independent recording studio</div>
+      <h1>Track it.<br>Mix it.<br><span class="out">Ship it.</span></h1>
+      <p class="hero-sub">GGS Studio is a one-room recording space built for artists who'd rather be making the song than fighting the gear. Analog-warmed signal chain, a mixer who actually listens, and a calendar you can book yourself — right now.</p>
+      <div class="hero-actions">
+        <a href="#book" class="btn-primary">Book a session
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </a>
+        <a href="#services" class="btn-ghost">See rates ↓</a>
+      </div>
+    </div>
+    <div class="hero-slideshow" id="heroSlideshow" aria-hidden="true"></div>
   </div>
-  <div class="waveform" id="heroWave"></div>
 </section>
 
 <div class="marquee">
@@ -94,6 +88,7 @@
       </div>
     </div>
     <div class="gear-visual" data-reveal>
+      <div class="waveform" id="heroWave"></div>
       <div class="console" id="consoleGrid"></div>
     </div>
   </div>
@@ -113,41 +108,46 @@
       <form id="bookingForm">
         <div class="field">
           <label>Name</label>
-          <input type="text" placeholder="Your name" required>
+          <input type="text" id="fName" placeholder="Your name" required>
         </div>
         <div class="field-row">
           <div class="field">
             <label>Email</label>
-            <input type="email" placeholder="you@email.com" required>
+            <input type="email" id="fEmail" placeholder="you@email.com" required>
           </div>
           <div class="field">
             <label>Service</label>
-            <select required>
+            <select id="fService" required>
               <option value="">Choose one</option>
-              <option>Room only — ₱450/hr</option>
-              <option>Room + Recording — ₱450/hr + ₱300</option>
-              <option>Room + Mixing — ₱450/hr + ₱200</option>
-              <option>Room + Recording + Mixing — ₱450/hr + ₱500</option>
+              <option value="room">Room only</option>
+              <option value="recording">Room + Recording</option>
+              <option value="mixing">Room + Mixing</option>
+              <option value="both">Room + Recording + Mixing</option>
             </select>
           </div>
         </div>
         <div class="field">
           <label>Date</label>
-          <input type="date" required>
+          <input type="date" id="fDate" required>
         </div>
-        <div class="field">
-          <label>Preferred time</label>
-          <div class="slot-picker" id="slotPicker">
-            <button type="button" class="slot">10:00 AM</button>
-            <button type="button" class="slot">1:00 PM</button>
-            <button type="button" class="slot">4:00 PM</button>
-            <button type="button" class="slot">7:00 PM</button>
+        <div class="field-row">
+          <div class="field">
+            <label>Start time</label>
+            <input type="time" id="fStart" step="1800" required>
           </div>
+          <div class="field">
+            <label>End time</label>
+            <input type="time" id="fEnd" step="1800" required>
+          </div>
+        </div>
+        <div class="booking-summary" id="bookingSummary">
+          <div><span>Duration</span><strong id="sumDuration">—</strong></div>
+          <div><span>Total price</span><strong id="sumPrice">—</strong></div>
         </div>
         <div class="submit-row">
           <button type="submit" class="book-submit">Confirm booking request</button>
         </div>
-        <div class="confirm-msg" id="confirmMsg">✓ Request received — GGS Studio will confirm your slot by email shortly.</div>
+        <div class="confirm-msg" id="confirmMsg"></div>
       </form>
     </div>
 
@@ -155,9 +155,7 @@
       <div class="section-tag">Why book direct</div>
       <h2>No middleman, no markup</h2>
       <ul class="book-list">
-        <li><span class="tick">→</span>Talk directly to the engineer working your session, before and after you book.</li>
         <li><span class="tick">→</span>Reschedule free up to 24 hours ahead, no questions asked.</li>
-        <li><span class="tick">→</span>First-timers get a 15-minute walkthrough of the room before the clock starts.</li>
         <li><span class="tick">→</span>Every session leaves with rough mixes the same day.</li>
       </ul>
     </div>
@@ -187,9 +185,7 @@
       </div>
       <div class="footer-col">
         <h5>Follow</h5>
-        <a href="#">Instagram</a>
-        <a href="#">YouTube</a>
-        <a href="#">Spotify</a>
+        <a href="https://www.facebook.com/profile.php?id=61589919255165" target="_blank" rel="noopener">Facebook</a>
       </div>
     </div>
   </div>
@@ -240,20 +236,110 @@
     });
   });
 
-  // slot picker
-  document.querySelectorAll('.slot').forEach(s=>{
-    s.addEventListener('click', ()=>{
-      document.querySelectorAll('.slot').forEach(x=>x.classList.remove('active'));
-      s.classList.add('active');
-    });
-  });
+  // booking form — fetches live rates from the backend, previews the
+  // duration + price as the visitor fills the form, then submits to /api/bookings
+  (function initBookingForm(){
+    const form = document.getElementById('bookingForm');
+    const serviceEl = document.getElementById('fService');
+    const dateEl = document.getElementById('fDate');
+    const startEl = document.getElementById('fStart');
+    const endEl = document.getElementById('fEnd');
+    const sumDuration = document.getElementById('sumDuration');
+    const sumPrice = document.getElementById('sumPrice');
+    const confirmMsg = document.getElementById('confirmMsg');
+    const submitBtn = form.querySelector('.book-submit');
 
-  // booking form
-  document.getElementById('bookingForm').addEventListener('submit', function(e){
-    e.preventDefault();
-    document.getElementById('confirmMsg').style.display = 'block';
-    this.querySelector('.book-submit').textContent = 'Request sent ✓';
-  });
+    // mirrors pricing.js — used immediately so the live preview works even if
+    // the backend is slow, offline, or unreachable; a successful /api/config
+    // fetch simply refreshes it in case rates change server-side.
+    let config = {
+      rates: {
+        hourly: 350,
+        addons: { room: 0, recording: 300, mixing: 200, both: 500 },
+      },
+    };
+
+    function formatPeso(amount){
+      return '₱' + amount.toLocaleString('en-PH');
+    }
+
+    function to12Hour(time){
+      const [h, m] = time.split(':').map(Number);
+      const period = h >= 12 ? 'PM' : 'AM';
+      const hour = ((h + 11) % 12) + 1;
+      return `${hour}:${String(m).padStart(2, '0')} ${period}`;
+    }
+
+    function updateSummary(){
+      if (!config || !serviceEl.value || !startEl.value || !endEl.value){
+        sumDuration.textContent = '—';
+        sumPrice.textContent = '—';
+        return;
+      }
+      const [sh, sm] = startEl.value.split(':').map(Number);
+      const [eh, em] = endEl.value.split(':').map(Number);
+      const rawDuration = ((eh * 60 + em) - (sh * 60 + sm)) / 60;
+      if (rawDuration <= 0){
+        sumDuration.textContent = 'End must be after start';
+        sumPrice.textContent = '—';
+        return;
+      }
+      const duration = Math.ceil(rawDuration * 10) / 10;
+      const price = Math.ceil(config.rates.hourly * duration + config.rates.addons[serviceEl.value]);
+      sumDuration.textContent = `${duration} hr${duration !== 1 ? 's' : ''}`;
+      sumPrice.textContent = formatPeso(price);
+    }
+
+    // refresh from the server in the background; if this fails, the local
+    // fallback rates above keep the preview (and, if needed, the price shown
+    // in error states) working without interruption.
+    fetch('/api/config')
+      .then(res => res.json())
+      .then(cfg => { config = cfg; updateSummary(); })
+      .catch(() => {});
+
+    [serviceEl, startEl, endEl].forEach(el => el.addEventListener('input', updateSummary));
+
+    form.addEventListener('submit', async function(e){
+      e.preventDefault();
+      confirmMsg.classList.remove('error');
+
+      const payload = {
+        name: document.getElementById('fName').value,
+        email: document.getElementById('fEmail').value,
+        service: serviceEl.value,
+        date: dateEl.value,
+        startTime: startEl.value,
+        endTime: endEl.value,
+      };
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Sending…';
+
+      try{
+        const res = await fetch('/api/bookings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.error || 'Something went wrong.');
+
+        confirmMsg.textContent = `✓ Booked — ${data.serviceLabel} on ${data.date}, ${to12Hour(data.startTime)} to ${to12Hour(data.endTime)}. Total: ${formatPeso(data.price)}. GGS Studio will confirm by email shortly.`;
+        confirmMsg.style.display = 'block';
+        submitBtn.textContent = 'Request sent ✓';
+        form.reset();
+        updateSummary();
+      }catch(err){
+        confirmMsg.textContent = `⚠ ${err.message}`;
+        confirmMsg.classList.add('error');
+        confirmMsg.style.display = 'block';
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Confirm booking request';
+      }
+    });
+  })();
 
   // reveal on scroll
   const revealEls = document.querySelectorAll('[data-reveal]');
@@ -261,149 +347,80 @@
     entries.forEach(en=>{ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target);} });
   }, {threshold:0.15});
   revealEls.forEach(el=>io.observe(el));
-</script>
 
-<script type="module">
-  import * as THREE from 'three';
+  // hero slideshow — reads whatever images exist in assets/slideshow/ at load time,
+  // so dropping new files in that folder is enough; nothing here needs editing.
+  (function initHeroSlideshow(){
+    const SLIDESHOW_DIR = 'assets/slideshow/';
+    const EXTENSIONS = ['jpg','jpeg','png','webp'];
+    const el = document.getElementById('heroSlideshow');
+    if (!el) return;
 
-  const canvas = document.getElementById('bg-canvas');
-  const darkOverlay = document.getElementById('bg-dark');
-  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(window.innerWidth, window.innerHeight);
-
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 100);
-  camera.position.set(0, 0, 9);
-
-  const GOLD = 0xd7ae5c;
-  const TEAL = 0x2fb8b0;
-
-  scene.add(new THREE.AmbientLight(0x445566, 0.6));
-  const keyLight = new THREE.PointLight(GOLD, 22, 40);
-  keyLight.position.set(4, 3, 8);
-  scene.add(keyLight);
-  const rimLight = new THREE.PointLight(TEAL, 14, 40);
-  rimLight.position.set(-5, -2, -6);
-  scene.add(rimLight);
-
-  // ---------- ambient particle field ("signal cloud") ----------
-  const PARTICLE_COUNT = 600;
-  const positions = new Float32Array(PARTICLE_COUNT * 3);
-  const speeds = new Float32Array(PARTICLE_COUNT);
-  for (let i = 0; i < PARTICLE_COUNT; i++) {
-    positions[i * 3] = (Math.random() - 0.5) * 40;
-    positions[i * 3 + 1] = (Math.random() - 0.5) * 24;
-    positions[i * 3 + 2] = (Math.random() - 0.5) * 30 - 6;
-    speeds[i] = 0.05 + Math.random() * 0.18;
-  }
-  const particleGeometry = new THREE.BufferGeometry();
-  particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  const particles = new THREE.Points(particleGeometry, new THREE.PointsMaterial({
-    color: GOLD, size: 0.05, transparent: true, opacity: 0.35, depthWrite: false,
-  }));
-  scene.add(particles);
-
-  // ---------- a pair of studio headphones, built from primitives ----------
-  const headphones = new THREE.Group();
-
-  const cupMaterial = new THREE.MeshStandardMaterial({ color: 0x1a1410, roughness: 0.35, metalness: 0.5 });
-  const padMaterial = new THREE.MeshStandardMaterial({ color: 0x2a2018, roughness: 0.8, metalness: 0.1 });
-  const trimMaterial = new THREE.MeshStandardMaterial({ color: GOLD, roughness: 0.3, metalness: 0.7 });
-
-  // headband: a half-torus arcing over the top, ends resting at y=0 locally
-  const bandRadius = 1.35;
-  const band = new THREE.Mesh(new THREE.TorusGeometry(bandRadius, 0.1, 16, 64, Math.PI), cupMaterial);
-  band.position.y = 0.9;
-  headphones.add(band);
-
-  [-1, 1].forEach((side) => {
-    const yoke = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.2, 12), cupMaterial);
-    yoke.position.set(side * bandRadius, 0.3, 0);
-    headphones.add(yoke);
-
-    const cup = new THREE.Mesh(new THREE.CylinderGeometry(0.62, 0.62, 0.5, 32), cupMaterial);
-    cup.rotation.z = Math.PI / 2;
-    cup.position.set(side * (bandRadius + 0.05), -0.35, 0);
-    headphones.add(cup);
-
-    const pad = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.15, 16, 32), padMaterial);
-    pad.rotation.y = Math.PI / 2;
-    pad.position.set(side * (bandRadius + 0.05 + side * 0.22), -0.35, 0);
-    headphones.add(pad);
-
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.02, 8, 32), trimMaterial);
-    ring.rotation.y = Math.PI / 2;
-    ring.position.set(side * (bandRadius + 0.05 + side * 0.26), -0.35, 0);
-    headphones.add(ring);
-  });
-
-  // compress width and stretch height slightly so it reads as a proper headphone silhouette, then enlarge
-  headphones.scale.set(0.85, 1.15, 1);
-  headphones.scale.multiplyScalar(1.7);
-  headphones.position.set(3.4, 0.2, 0);
-  headphones.rotation.y = -0.35;
-  scene.add(headphones);
-
-  // ---------- scroll progress: fades headphones and darkens the whole scene ----------
-  function getScrollProgress() {
-    const max = document.documentElement.scrollHeight - window.innerHeight;
-    return max > 0 ? Math.min(Math.max(window.scrollY / max, 0), 1) : 0;
-  }
-
-  window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-  });
-
-  let mouseX = 0, mouseY = 0;
-  window.addEventListener('pointermove', (e) => {
-    mouseX = (e.clientX / window.innerWidth - 0.5) * 2;
-    mouseY = (e.clientY / window.innerHeight - 0.5) * 2;
-  });
-
-  const clock = new THREE.Clock();
-
-  function render() {
-    const t = clock.getElapsedTime();
-    const progress = getScrollProgress();
-
-    headphones.rotation.y = -0.35 + t * 0.1 + progress * 0.6;
-    headphones.position.y = 0.2 + Math.sin(t * 0.6) * 0.1;
-
-    keyLight.intensity = 22 * (1 - progress * 0.85);
-    rimLight.intensity = 14 * (1 - progress * 0.85);
-    particles.material.opacity = 0.35 * (1 - progress * 0.7);
-    darkOverlay.style.opacity = progress * 0.82;
-
-    camera.position.x += (mouseX * 0.4 - camera.position.x) * 0.04;
-    camera.position.y += (-mouseY * 0.3 - camera.position.y) * 0.04;
-    camera.lookAt(headphones.position.x * 0.3, 0, 0);
-
-    const pos = particleGeometry.attributes.position.array;
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
-      pos[i * 3 + 1] += speeds[i] * 0.02;
-      if (pos[i * 3 + 1] > 12) pos[i * 3 + 1] = -12;
+    function loadImage(src){
+      return new Promise((resolve)=>{
+        const img = new Image();
+        img.onload = () => resolve(src);
+        img.onerror = () => resolve(null);
+        img.src = src;
+      });
     }
-    particleGeometry.attributes.position.needsUpdate = true;
-    particles.rotation.y = t * 0.02;
 
-    renderer.render(scene, camera);
-  }
+    // preferred: ask the server for a real directory listing (works on most
+    // static/dev servers that expose autoindex, e.g. `npx serve`, Apache, nginx).
+    async function fromDirectoryListing(){
+      try{
+        const res = await fetch(SLIDESHOW_DIR, { cache: 'no-store' });
+        if (!res.ok) return [];
+        const html = await res.text();
+        const hrefs = Array.from(html.matchAll(/href="([^"?#]+)"/gi)).map(m => m[1]);
+        const files = hrefs.filter(h => EXTENSIONS.some(ext => h.toLowerCase().endsWith('.' + ext)));
+        return files.map(f => SLIDESHOW_DIR + f.split('/').pop());
+      }catch(e){
+        return [];
+      }
+    }
 
-  function animate() {
-    requestAnimationFrame(animate);
-    render();
-  }
+    // fallback: probe sequential filenames (1.jpg, 2.png, …) since some static
+    // hosts don't expose directory listings at all.
+    async function fromSequentialProbe(){
+      const found = [];
+      let misses = 0;
+      for (let i = 1; i <= 60 && misses < 4; i++){
+        const attempts = EXTENSIONS.map(ext => loadImage(`${SLIDESHOW_DIR}${i}.${ext}`));
+        const results = await Promise.all(attempts);
+        const hit = results.find(Boolean);
+        if (hit) { found.push(hit); misses = 0; }
+        else { misses++; }
+      }
+      return found;
+    }
 
-  if (!reduceMotion) {
-    animate();
-  } else {
-    render();
-  }
+    async function buildSlides(){
+      let sources = await fromDirectoryListing();
+      if (sources.length === 0) sources = await fromSequentialProbe();
+      if (sources.length === 0) { el.classList.add('empty'); return; }
+
+      sources.forEach((src, i) => {
+        const img = document.createElement('img');
+        img.src = src;
+        img.alt = '';
+        if (i === 0) img.classList.add('active');
+        el.appendChild(img);
+      });
+
+      if (sources.length > 1 && !window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+        let current = 0;
+        setInterval(() => {
+          const slides = el.querySelectorAll('img');
+          slides[current].classList.remove('active');
+          current = (current + 1) % slides.length;
+          slides[current].classList.add('active');
+        }, 4200);
+      }
+    }
+
+    buildSlides();
+  })();
 </script>
 
 </body>
