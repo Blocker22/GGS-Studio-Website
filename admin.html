@@ -8,24 +8,25 @@
 <link rel="stylesheet" href="style.css">
 <style>
   body{overflow-x:hidden;}
-  .admin-shell{display:flex; min-height:100vh;}
-  .admin-sidebar{
-    width:230px; flex-shrink:0; background:var(--panel); border-right:1px solid var(--line);
-    padding:28px 18px; display:flex; flex-direction:column; position:sticky; top:0; height:100vh;
+  .admin-shell{display:flex; flex-direction:column; min-height:100vh;}
+  .admin-header{
+    display:flex; align-items:center; gap:28px; flex-wrap:wrap;
+    background:var(--panel); border-bottom:1px solid var(--line);
+    padding:14px 28px; position:sticky; top:0; z-index:50;
   }
-  .admin-brand{display:flex; align-items:center; gap:10px; padding:0 6px 26px;}
-  .admin-brand img{width:34px; height:34px; object-fit:contain;}
+  .admin-brand{display:flex; align-items:center; gap:10px;}
+  .admin-brand img{width:32px; height:32px; object-fit:contain;}
   .admin-brand-name{font-size:0.85rem; font-weight:600;}
-  .admin-brand-tag{font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--gold);}
-  .admin-nav{display:flex; flex-direction:column; gap:3px; flex:1;}
+  .admin-brand-tag{font-size:0.6rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--gold);}
+  .admin-nav{display:flex; flex-wrap:wrap; gap:3px; flex:1; overflow-x:auto;}
   .admin-nav button{
-    text-align:left; background:none; border:none; color:rgba(238,244,244,0.8);
-    font-family:var(--sans); font-size:0.85rem; padding:10px 12px; border-radius:3px; cursor:pointer;
+    white-space:nowrap; background:none; border:none; color:rgba(238,244,244,0.8);
+    font-family:var(--sans); font-size:0.82rem; padding:9px 13px; border-radius:3px; cursor:pointer;
   }
   .admin-nav button:hover{background:var(--panel-2);}
   .admin-nav button.active{background:var(--gold); color:var(--ink); font-weight:600;}
-  .admin-user{border-top:1px solid var(--line); padding-top:14px; margin-top:14px;}
-  .admin-user-name{font-size:0.78rem; opacity:0.7; margin-bottom:8px; word-break:break-all;}
+  .admin-user{display:flex; align-items:center; gap:12px; flex-shrink:0;}
+  .admin-user-name{font-size:0.78rem; opacity:0.7; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .admin-main{flex:1; padding:36px 42px; overflow-x:auto; min-width:0;}
   .admin-main h1{font-size:1.35rem; margin-bottom:26px;}
   .a-card{background:var(--panel); border:1px solid var(--line); border-radius:4px;}
@@ -84,10 +85,9 @@
   .list-item:hover{background:var(--panel-2);}
   .list-item.active{background:var(--panel-2);}
   @media (max-width:900px){
-    .admin-shell{flex-direction:column;}
-    .admin-sidebar{width:100%; height:auto; position:static; flex-direction:row; overflow-x:auto;}
-    .admin-nav{flex-direction:row;}
-    .admin-user{display:none;}
+    .admin-header{padding:12px 16px; gap:14px;}
+    .admin-brand-name, .admin-brand-tag{display:none;}
+    .admin-user-name{display:none;}
     .admin-main{padding:24px 18px;}
     .stat-grid{grid-template-columns:1fr 1fr;}
     .two-col{grid-template-columns:1fr;}
@@ -121,7 +121,7 @@
 </div>
 
 <div id="adminShell" class="admin-shell" style="display:none;">
-  <aside class="admin-sidebar">
+  <header class="admin-header">
     <div class="admin-brand">
       <img src="assets/Logo_NoBG.png" alt="GGS Studio">
       <div>
@@ -141,9 +141,9 @@
     </nav>
     <div class="admin-user">
       <div class="admin-user-name" id="adminUserName"></div>
-      <button class="a-btn-ghost" id="logoutBtn" style="width:100%;">Log out</button>
+      <button class="a-btn-ghost" id="logoutBtn">Log out</button>
     </div>
-  </aside>
+  </header>
 
   <main class="admin-main">
     <section class="tab-section active" id="tab-dashboard">
