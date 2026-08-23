@@ -200,7 +200,7 @@ async function main() {
 
     const { data } = await supabase
       .from('bookings')
-      .select('*, rooms(id,name), profiles!bookings_customer_id_fkey(id,full_name), booking_services(service_id, services(name))')
+      .select('*, rooms(id,name), profiles!bookings_customer_id_fkey(id,full_name), booking_services(service_id, services(name)), payments(amount, status)')
       .gte('start_at', from.toISOString())
       .lte('start_at', to.toISOString())
       .order('start_at');
@@ -365,7 +365,7 @@ async function main() {
 
     const { data, error } = await supabase
       .from('bookings')
-      .select('*, rooms(id,name), profiles!bookings_customer_id_fkey(id,full_name), booking_services(service_id, services(name))')
+      .select('*, rooms(id,name), profiles!bookings_customer_id_fkey(id,full_name), booking_services(service_id, services(name)), payments(amount, status)')
       .order('start_at', { ascending: false });
     if (error) {
       document.getElementById('bookingsBody').innerHTML = `<tr><td colspan="7">Error: ${error.message}</td></tr>`;
@@ -403,11 +403,12 @@ async function main() {
     const body = document.getElementById('bookingsBody');
     body.innerHTML = '';
     if (filtered.length === 0) {
-      body.appendChild(el('tr', {}, el('td', { colspan: '7', style: 'text-align:center;opacity:0.5;padding:24px;' }, 'No bookings match these filters.')));
+      body.appendChild(el('tr', {}, el('td', { colspan: '8', style: 'text-align:center;opacity:0.5;padding:24px;' }, 'No bookings match these filters.')));
       return;
     }
 
     filtered.forEach((b) => {
+      const paid = paidAmount(b);
       const actions = el('div', { class: 'row-flex' });
       if (b.status === 'pending') {
         actions.append(
@@ -421,6 +422,9 @@ async function main() {
           el('button', { class: 'a-btn-ghost', onclick: () => cancelBooking(b.id) }, 'Cancel'),
         );
       }
+      if (paid < Number(b.total_price) && b.status !== 'cancelled') {
+        actions.append(el('button', { class: 'a-btn-ghost', onclick: () => markPaid(b) }, 'Mark Paid'));
+      }
       actions.append(el('button', { class: 'a-btn-ghost', onclick: () => openEditModal(b) }, 'Edit'));
       body.appendChild(
         el('tr', {}, [
@@ -429,11 +433,39 @@ async function main() {
           el('td', {}, b.profiles?.full_name || '—'),
           el('td', { style: 'opacity:0.6;' }, (b.booking_services || []).map((bs) => bs.services?.name).filter(Boolean).join(', ') || '—'),
           el('td', {}, peso(b.total_price)),
+          el('td', {}, paymentPill(b)),
           el('td', {}, el('span', { class: `pill pill-${b.status}` }, b.status.replace('_', ' '))),
           el('td', {}, actions),
         ]),
       );
     });
+  }
+
+  function paidAmount(booking) {
+    return (booking.payments || [])
+      .filter((p) => p.status === 'succeeded' || p.status === 'partially_refunded')
+      .reduce((s, p) => s + Number(p.amount), 0);
+  }
+
+  function paymentPill(booking) {
+    const paid = paidAmount(booking);
+    const total = Number(booking.total_price);
+    if (paid <= 0) return el('span', { class: 'pill pill-cancelled' }, 'Unpaid');
+    if (paid >= total) return el('span', { class: 'pill pill-confirmed' }, 'Paid');
+    return el('span', { class: 'pill pill-pending' }, `Partial (${peso(paid)})`);
+  }
+
+  async function markPaid(booking) {
+    const remaining = Number(booking.total_price) - paidAmount(booking);
+    const input = prompt(`Amount received in cash (₱), leave blank for full remaining balance ₱${Math.round(remaining)}:`);
+    if (input === null) return;
+    const amount = input.trim() ? Number(input) : undefined;
+    try {
+      await callFunction('mark-paid', { booking_id: booking.id, amount });
+      loadBookings();
+    } catch (err) {
+      alert(err.message);
+    }
   }
 
   ['fltStatus', 'fltSearch', 'fltFrom', 'fltTo'].forEach((id) => {
@@ -561,7 +593,42 @@ async function main() {
     });
     enforceMixingRule();
 
+    renderEbPaymentStatus(booking);
     editBackdrop.classList.add('open');
+  }
+
+  function renderEbPaymentStatus(booking) {
+    const paid = paidAmount(booking);
+    const total = Number(booking.total_price);
+    const statusEl = document.getElementById('ebPaymentStatus');
+    const btn = document.getElementById('ebMarkPaidBtn');
+    if (paid >= total) {
+      statusEl.textContent = `Paid in full (${peso(paid)})`;
+      statusEl.style.color = 'var(--teal)';
+      btn.style.display = 'none';
+    } else if (paid > 0) {
+      statusEl.textContent = `Partially paid — ${peso(paid)} of ${peso(total)}`;
+      statusEl.style.color = 'var(--gold)';
+      btn.style.display = '';
+    } else {
+      statusEl.textContent = `Unpaid — ${peso(total)} due`;
+      statusEl.style.color = '#e5876f';
+      btn.style.display = '';
+    }
+    btn.onclick = async () => {
+      const remaining = total - paid;
+      const input = prompt(`Amount received in cash (₱), leave blank for full remaining balance ₱${Math.round(remaining)}:`);
+      if (input === null) return;
+      const amount = input.trim() ? Number(input) : undefined;
+      try {
+        const result = await callFunction('mark-paid', { booking_id: booking.id, amount });
+        booking.payments = [...(booking.payments || []), { amount: result.payment.amount, status: result.payment.status }];
+        renderEbPaymentStatus(booking);
+        loadBookings();
+      } catch (err) {
+        alert(err.message);
+      }
+    };
   }
 
   function enforceMixingRule() {
@@ -938,7 +1005,7 @@ async function main() {
     const body = document.getElementById('paymentsBody');
     body.innerHTML = '';
     if (!data || data.length === 0) {
-      body.appendChild(el('tr', {}, el('td', { colspan: '9', style: 'text-align:center;opacity:0.5;padding:24px;' }, 'No payments yet — Stripe may still be disabled in Settings.')));
+      body.appendChild(el('tr', {}, el('td', { colspan: '10', style: 'text-align:center;opacity:0.5;padding:24px;' }, 'No payments recorded yet — use "Mark Paid" on a booking to log a cash payment.')));
       return;
     }
     data.forEach((p) => {
@@ -948,6 +1015,7 @@ async function main() {
           el('td', {}, d(p.created_at)),
           el('td', {}, p.bookings?.rooms?.name || ''),
           el('td', {}, p.bookings?.profiles?.full_name || '—'),
+          el('td', {}, el('span', { class: 'pill', style: p.method === 'cash' ? 'color:var(--gold);border-color:var(--gold-dim);' : 'color:var(--teal);border-color:var(--teal);' }, p.method)),
           el('td', {}, p.type),
           el('td', {}, peso(p.amount)),
           el('td', {}, peso(p.refunded_amount)),
