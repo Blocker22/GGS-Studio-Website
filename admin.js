@@ -105,7 +105,13 @@ async function main() {
     return true;
   }
 
-  supabase.auth.onAuthStateChange(async () => {
+  supabase.auth.onAuthStateChange(async (event) => {
+    // INITIAL_SESSION fires immediately on page load — the boot sequence at
+    // the bottom of this file already handles that first load. TOKEN_REFRESHED
+    // fires silently every ~hour and doesn't need a re-render. Reacting to
+    // both here duplicated every loaded tab's content (e.g. dashboard stat
+    // cards rendering twice) via a race with the boot call.
+    if (event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') return;
     const ok = await checkAccess();
     if (ok) loadActiveTab();
   });
