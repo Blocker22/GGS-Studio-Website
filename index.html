@@ -127,7 +127,6 @@
               <option value="">Choose one</option>
               <option value="room">Room only</option>
               <option value="recording">Room + Recording</option>
-              <option value="mixing">Room + Mixing</option>
               <option value="both">Room + Recording + Mixing</option>
             </select>
           </div>
@@ -270,60 +269,46 @@
   // hero slideshow — reads whatever images exist in assets/slideshow/ at load time,
   // so dropping new files in that folder is enough; nothing here needs editing.
   (function initHeroSlideshow(){
+    // Slideshow images are always pre-optimized .webp (assets/slideshow/1.webp,
+    // 2.webp, …) — no other formats to probe for, and GitHub Pages doesn't
+    // serve directory listings, so we go straight to a numbered-filename
+    // probe. All candidates are requested in parallel (the browser handles
+    // connection pooling) rather than one-at-a-time, and slides render as
+    // soon as they arrive instead of waiting for the whole set.
     const SLIDESHOW_DIR = 'assets/slideshow/';
-    const EXTENSIONS = ['jpg','jpeg','png','webp'];
+    const MAX_PROBE = 40;
     const el = document.getElementById('heroSlideshow');
     if (!el) return;
 
     function loadImage(src){
       return new Promise((resolve)=>{
         const img = new Image();
+        img.decoding = 'async';
         img.onload = () => resolve(src);
         img.onerror = () => resolve(null);
         img.src = src;
       });
     }
 
-    // preferred: ask the server for a real directory listing (works on most
-    // static/dev servers that expose autoindex, e.g. `npx serve`, Apache, nginx).
-    async function fromDirectoryListing(){
-      try{
-        const res = await fetch(SLIDESHOW_DIR, { cache: 'no-store' });
-        if (!res.ok) return [];
-        const html = await res.text();
-        const hrefs = Array.from(html.matchAll(/href="([^"?#]+)"/gi)).map(m => m[1]);
-        const files = hrefs.filter(h => EXTENSIONS.some(ext => h.toLowerCase().endsWith('.' + ext)));
-        return files.map(f => SLIDESHOW_DIR + f.split('/').pop());
-      }catch(e){
-        return [];
-      }
-    }
-
-    // fallback: probe sequential filenames (1.jpg, 2.png, …) since some static
-    // hosts don't expose directory listings at all.
-    async function fromSequentialProbe(){
-      const found = [];
-      let misses = 0;
-      for (let i = 1; i <= 60 && misses < 4; i++){
-        const attempts = EXTENSIONS.map(ext => loadImage(`${SLIDESHOW_DIR}${i}.${ext}`));
-        const results = await Promise.all(attempts);
-        const hit = results.find(Boolean);
-        if (hit) { found.push(hit); misses = 0; }
-        else { misses++; }
-      }
-      return found;
-    }
-
     async function buildSlides(){
-      let sources = await fromDirectoryListing();
-      if (sources.length === 0) sources = await fromSequentialProbe();
+      const probes = Array.from({ length: MAX_PROBE }, (_, i) => loadImage(`${SLIDESHOW_DIR}${i + 1}.webp`));
+      const results = await Promise.all(probes);
+
+      // stop at the first gap so a missing middle file doesn't leave a hole
+      const sources = [];
+      for (const src of results){
+        if (!src) break;
+        sources.push(src);
+      }
       if (sources.length === 0) { el.classList.add('empty'); return; }
 
       sources.forEach((src, i) => {
         const img = document.createElement('img');
         img.src = src;
         img.alt = '';
-        if (i === 0) img.classList.add('active');
+        img.loading = i === 0 ? 'eager' : 'lazy';
+        img.decoding = i === 0 ? 'sync' : 'async';
+        if (i === 0) { img.fetchPriority = 'high'; img.classList.add('active'); }
         el.appendChild(img);
       });
 

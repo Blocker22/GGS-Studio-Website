@@ -147,8 +147,9 @@ export async function initBooking() {
   }
 
   function addonServiceIds(service) {
+    // Mixing is never offered on its own — you can't mix a session you
+    // didn't record here, so it's only ever paired with recording.
     if (service === 'recording') return [servicesBySlug.recording?.id].filter(Boolean);
-    if (service === 'mixing') return [servicesBySlug.mixing?.id].filter(Boolean);
     if (service === 'both') return [servicesBySlug.recording?.id, servicesBySlug.mixing?.id].filter(Boolean);
     return [];
   }

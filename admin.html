@@ -93,6 +93,39 @@
   .list-item{padding:12px 16px; border-bottom:1px solid rgba(238,244,244,0.06); cursor:pointer;}
   .list-item:hover{background:var(--panel-2);}
   .list-item.active{background:var(--panel-2);}
+
+  .view-toggle{display:flex; gap:2px; background:var(--panel); border:1px solid var(--line); border-radius:3px; padding:3px;}
+  .view-toggle button{background:none; border:none; color:rgba(238,244,244,0.7); font-family:var(--sans); font-size:0.78rem; padding:7px 14px; border-radius:2px; cursor:pointer;}
+  .view-toggle button.active{background:var(--gold); color:var(--ink); font-weight:600;}
+
+  .cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:3px; overflow:hidden;}
+  .cal-dow{background:var(--panel-2); padding:8px; text-align:center; font-size:0.68rem; letter-spacing:0.06em; text-transform:uppercase; opacity:0.5;}
+  .cal-day{background:var(--panel); min-height:100px; padding:6px; display:flex; flex-direction:column; gap:3px;}
+  .cal-day.other-month{opacity:0.35;}
+  .cal-day.today{background:rgba(215,174,92,0.06);}
+  .cal-daynum{font-size:0.72rem; opacity:0.6; margin-bottom:2px;}
+  .cal-chip{
+    font-size:0.68rem; padding:3px 6px; border-radius:2px; cursor:pointer; white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis; border-left:2px solid var(--gold-dim);
+    background:rgba(215,174,92,0.08); color:var(--cream);
+  }
+  .cal-chip.status-confirmed{border-color:var(--teal); background:rgba(47,184,176,0.08);}
+  .cal-chip.status-cancelled{border-color:#7a4331; background:rgba(229,135,111,0.08); opacity:0.6;}
+  .cal-chip.status-completed, .cal-chip.status-no_show{border-color:var(--line); opacity:0.5;}
+  .cal-chip:hover{filter:brightness(1.3);}
+  .cal-more{font-size:0.65rem; opacity:0.5; cursor:pointer;}
+  @media (max-width:900px){
+    .cal-day{min-height:70px; font-size:0.7rem;}
+  }
+
+  .modal-backdrop{
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:200;
+    align-items:center; justify-content:center; padding:20px; overflow-y:auto;
+  }
+  .modal-backdrop.open{display:flex;}
+  .modal-box{width:100%; max-width:520px; padding:28px; max-height:90vh; overflow-y:auto;}
+  .modal-box h2{font-size:1.1rem; margin-bottom:20px;}
+  .modal-close-row{display:flex; justify-content:flex-end; gap:10px; margin-top:22px;}
   @media (max-width:900px){
     .admin-shell{flex-direction:column;}
     .admin-sidebar{width:100%; height:auto; position:static; flex-direction:row; overflow-x:auto;}
@@ -166,7 +199,13 @@
     </section>
 
     <section class="tab-section" id="tab-bookings">
-      <h1>Bookings</h1>
+      <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:26px; flex-wrap:wrap; gap:12px;">
+        <h1 style="margin-bottom:0;">Bookings</h1>
+        <div class="view-toggle" id="bookingsViewToggle">
+          <button type="button" data-view="list" class="active">List</button>
+          <button type="button" data-view="calendar">Calendar</button>
+        </div>
+      </div>
       <div class="a-card filter-row">
         <div>
           <label class="a-label">Customer</label>
@@ -193,13 +232,25 @@
         </div>
         <button class="a-btn-ghost" id="fltReset">Reset</button>
       </div>
-      <div class="a-card" style="overflow-x:auto;">
+      <div class="a-card" id="bookingsListView" style="overflow-x:auto;">
         <table class="a-table">
           <thead><tr>
             <th>When</th><th>Room</th><th>Customer</th><th>Add-ons</th><th>Total</th><th>Status</th><th>Actions</th>
           </tr></thead>
           <tbody id="bookingsBody"></tbody>
         </table>
+      </div>
+
+      <div class="a-card" id="bookingsCalendarView" style="display:none; padding:20px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:18px;">
+          <div style="display:flex; gap:8px;">
+            <button type="button" class="a-btn-ghost" id="calPrev">‹ Prev</button>
+            <button type="button" class="a-btn-ghost" id="calToday">Today</button>
+            <button type="button" class="a-btn-ghost" id="calNext">Next ›</button>
+          </div>
+          <div class="a-label" id="calMonthLabel" style="margin:0; font-size:0.9rem; color:var(--cream);"></div>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
       </div>
 
       <div class="a-card" style="margin-top:30px;">
@@ -342,6 +393,57 @@
       </div>
     </section>
   </main>
+</div>
+
+<div class="modal-backdrop" id="editModalBackdrop">
+  <div class="a-card modal-box">
+    <h2>Edit booking</h2>
+    <form id="editBookingForm" class="form-grid full">
+      <div>
+        <label class="a-label">Room</label>
+        <select class="a-input" id="ebRoom" required></select>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+        <div>
+          <label class="a-label">Date</label>
+          <input type="date" class="a-input" id="ebDate" required>
+        </div>
+        <div>
+          <label class="a-label">Start time</label>
+          <input type="time" class="a-input" id="ebStart" step="1800" required>
+        </div>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+        <div>
+          <label class="a-label">Duration (hrs)</label>
+          <input type="number" class="a-input" id="ebDuration" min="0.5" step="0.5" required>
+        </div>
+        <div>
+          <label class="a-label">Status</label>
+          <select class="a-input" id="ebStatus">
+            <option value="pending">Pending</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="no_show">No-show</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="a-label">Add-ons</label>
+        <div id="ebServices" class="row-flex"></div>
+      </div>
+      <div>
+        <label class="a-label">Notes</label>
+        <input class="a-input" id="ebNotes">
+      </div>
+      <div class="form-actions modal-close-row">
+        <button type="button" class="a-btn-ghost" id="ebCancelBtn">Cancel</button>
+        <button type="submit" class="a-btn-gold">Save changes</button>
+      </div>
+      <div class="msg" id="ebMsg"></div>
+    </form>
+  </div>
 </div>
 
 <script type="module" src="admin.js"></script>

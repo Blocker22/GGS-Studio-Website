@@ -201,7 +201,7 @@ async function main() {
 
     const { data, error } = await supabase
       .from('bookings')
-      .select('*, rooms(id,name), profiles!bookings_customer_id_fkey(id,full_name), booking_services(services(name))')
+      .select('*, rooms(id,name), profiles!bookings_customer_id_fkey(id,full_name), booking_services(service_id, services(name))')
       .order('start_at', { ascending: false });
     if (error) {
       document.getElementById('bookingsBody').innerHTML = `<tr><td colspan="7">Error: ${error.message}</td></tr>`;
@@ -209,6 +209,7 @@ async function main() {
     }
     allBookings = data || [];
     renderBookings();
+    renderCalendar();
     populateNewBookingForm();
 
     if (!bookingsChannel) {
@@ -256,6 +257,7 @@ async function main() {
           el('button', { class: 'a-btn-ghost', onclick: () => cancelBooking(b.id) }, 'Cancel'),
         );
       }
+      actions.append(el('button', { class: 'a-btn-ghost', onclick: () => openEditModal(b) }, 'Edit'));
       body.appendChild(
         el('tr', {}, [
           el('td', {}, dt(b.start_at)),
@@ -276,6 +278,178 @@ async function main() {
   document.getElementById('fltReset').addEventListener('click', () => {
     ['fltStatus', 'fltSearch', 'fltFrom', 'fltTo'].forEach((id) => (document.getElementById(id).value = ''));
     renderBookings();
+    renderCalendar();
+  });
+
+  // ---------- Bookings: List / Calendar toggle ----------
+  const listView = document.getElementById('bookingsListView');
+  const calView = document.getElementById('bookingsCalendarView');
+  document.getElementById('bookingsViewToggle').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-view]');
+    if (!btn) return;
+    document.querySelectorAll('#bookingsViewToggle button').forEach((b) => b.classList.toggle('active', b === btn));
+    const isCalendar = btn.dataset.view === 'calendar';
+    listView.style.display = isCalendar ? 'none' : '';
+    calView.style.display = isCalendar ? '' : 'none';
+    if (isCalendar) renderCalendar();
+  });
+
+  // ---------- Bookings: Calendar ----------
+  let calDate = new Date();
+  const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  document.getElementById('calPrev').addEventListener('click', () => {
+    calDate = new Date(calDate.getFullYear(), calDate.getMonth() - 1, 1);
+    renderCalendar();
+  });
+  document.getElementById('calNext').addEventListener('click', () => {
+    calDate = new Date(calDate.getFullYear(), calDate.getMonth() + 1, 1);
+    renderCalendar();
+  });
+  document.getElementById('calToday').addEventListener('click', () => {
+    calDate = new Date();
+    renderCalendar();
+  });
+
+  function renderCalendar() {
+    const grid = document.getElementById('calGrid');
+    if (!grid || calView.style.display === 'none') return;
+    const year = calDate.getFullYear();
+    const month = calDate.getMonth();
+    document.getElementById('calMonthLabel').textContent = calDate.toLocaleDateString('en-PH', { month: 'long', year: 'numeric' });
+
+    const firstOfMonth = new Date(year, month, 1);
+    const startOffset = firstOfMonth.getDay();
+    const gridStart = new Date(year, month, 1 - startOffset);
+    const today = new Date();
+    const todayKey = today.toDateString();
+
+    const byDay = {};
+    allBookings.forEach((b) => {
+      const key = new Date(b.start_at).toDateString();
+      (byDay[key] = byDay[key] || []).push(b);
+    });
+
+    grid.innerHTML = '';
+    DOW.forEach((d) => grid.appendChild(el('div', { class: 'cal-dow' }, d)));
+
+    for (let i = 0; i < 42; i++) {
+      const cellDate = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i);
+      const key = cellDate.toDateString();
+      const dayBookings = (byDay[key] || []).sort((a, b) => new Date(a.start_at) - new Date(b.start_at));
+      const cell = el('div', {
+        class: `cal-day${cellDate.getMonth() !== month ? ' other-month' : ''}${key === todayKey ? ' today' : ''}`,
+      });
+      cell.appendChild(el('div', { class: 'cal-daynum' }, String(cellDate.getDate())));
+      const visible = dayBookings.slice(0, 3);
+      visible.forEach((b) => {
+        const time = new Date(b.start_at).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
+        cell.appendChild(
+          el('div', {
+            class: `cal-chip status-${b.status}`,
+            onclick: () => openEditModal(b),
+          }, `${time} ${b.rooms?.name || ''}`),
+        );
+      });
+      if (dayBookings.length > 3) {
+        cell.appendChild(el('div', { class: 'cal-more' }, `+${dayBookings.length - 3} more`));
+      }
+      grid.appendChild(cell);
+    }
+  }
+
+  // ---------- Edit booking modal ----------
+  const editBackdrop = document.getElementById('editModalBackdrop');
+  const editForm = document.getElementById('editBookingForm');
+  let editingBookingId = null;
+
+  function openEditModal(booking) {
+    editingBookingId = booking.id;
+    document.getElementById('ebMsg').style.display = 'none';
+
+    const roomSel = document.getElementById('ebRoom');
+    roomSel.innerHTML = roomsCache.map((r) => `<option value="${r.id}">${r.name}</option>`).join('');
+    roomSel.value = booking.room_id;
+
+    const start = new Date(booking.start_at);
+    const end = new Date(booking.end_at);
+    document.getElementById('ebDate').value = start.toISOString().slice(0, 10);
+    document.getElementById('ebStart').value = start.toTimeString().slice(0, 5);
+    document.getElementById('ebDuration').value = ((end - start) / 3600000).toFixed(1);
+    document.getElementById('ebStatus').value = booking.status;
+    document.getElementById('ebNotes').value = booking.notes || '';
+
+    const selectedIds = new Set((booking.booking_services || []).map((bs) => bs.service_id));
+    const svcWrap = document.getElementById('ebServices');
+    svcWrap.innerHTML = '';
+    const recordingSvc = servicesCache.find((s) => s.slug === 'recording');
+    const mixingSvc = servicesCache.find((s) => s.slug === 'mixing');
+    servicesCache.forEach((s) => {
+      const cb = el('input', { type: 'checkbox', value: s.id });
+      cb.checked = selectedIds.has(s.id);
+      if (s.id === mixingSvc?.id) {
+        cb.addEventListener('change', enforceMixingRule);
+      }
+      if (s.id === recordingSvc?.id) {
+        cb.addEventListener('change', enforceMixingRule);
+      }
+      svcWrap.appendChild(el('label', { style: 'display:flex;align-items:center;gap:6px;font-size:0.82rem;' }, [cb, ` ${s.name}`]));
+    });
+    enforceMixingRule();
+
+    editBackdrop.classList.add('open');
+  }
+
+  function enforceMixingRule() {
+    const svcWrap = document.getElementById('ebServices');
+    const recordingSvc = servicesCache.find((s) => s.slug === 'recording');
+    const mixingSvc = servicesCache.find((s) => s.slug === 'mixing');
+    if (!recordingSvc || !mixingSvc) return;
+    const recordingCb = svcWrap.querySelector(`input[value="${recordingSvc.id}"]`);
+    const mixingCb = svcWrap.querySelector(`input[value="${mixingSvc.id}"]`);
+    if (!recordingCb || !mixingCb) return;
+    mixingCb.disabled = !recordingCb.checked;
+    if (!recordingCb.checked) mixingCb.checked = false;
+  }
+
+  function closeEditModal() {
+    editBackdrop.classList.remove('open');
+    editingBookingId = null;
+  }
+  document.getElementById('ebCancelBtn').addEventListener('click', closeEditModal);
+  editBackdrop.addEventListener('click', (e) => {
+    if (e.target === editBackdrop) closeEditModal();
+  });
+
+  editForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msg = document.getElementById('ebMsg');
+    msg.style.display = 'none';
+
+    const date = document.getElementById('ebDate').value;
+    const start = document.getElementById('ebStart').value;
+    const duration = Number(document.getElementById('ebDuration').value);
+    const startAt = new Date(`${date}T${start}:00`);
+    const endAt = new Date(startAt.getTime() + duration * 3600000);
+    const serviceIds = Array.from(document.getElementById('ebServices').querySelectorAll('input:checked')).map((i) => i.value);
+
+    try {
+      await callFunction('update-booking', {
+        booking_id: editingBookingId,
+        room_id: document.getElementById('ebRoom').value,
+        start_at: startAt.toISOString(),
+        end_at: endAt.toISOString(),
+        status: document.getElementById('ebStatus').value,
+        notes: document.getElementById('ebNotes').value,
+        service_ids: serviceIds,
+      });
+      closeEditModal();
+      loadBookings();
+    } catch (err) {
+      msg.textContent = err.message;
+      msg.classList.add('error');
+      msg.style.display = 'block';
+    }
   });
 
   async function setStatus(id, status) {
@@ -308,13 +482,21 @@ async function main() {
     }
     roomSel.innerHTML = roomsCache.filter((r) => r.is_active).map((r) => `<option value="${r.id}">${r.name}</option>`).join('');
     svcWrap.innerHTML = '';
+    const recordingSvc = servicesCache.find((s) => s.slug === 'recording');
+    const mixingSvc = servicesCache.find((s) => s.slug === 'mixing');
+    const enforceNb = () => {
+      const recordingCb = svcWrap.querySelector(`input[value="${recordingSvc?.id}"]`);
+      const mixingCb = svcWrap.querySelector(`input[value="${mixingSvc?.id}"]`);
+      if (!recordingCb || !mixingCb) return;
+      mixingCb.disabled = !recordingCb.checked;
+      if (!recordingCb.checked) mixingCb.checked = false;
+    };
     servicesCache.filter((s) => s.is_active).forEach((s) => {
-      const label = el('label', { style: 'display:flex;align-items:center;gap:6px;font-size:0.82rem;' }, [
-        el('input', { type: 'checkbox', value: s.id }),
-        ` ${s.name}`,
-      ]);
-      svcWrap.appendChild(label);
+      const cb = el('input', { type: 'checkbox', value: s.id });
+      if (s.id === recordingSvc?.id || s.id === mixingSvc?.id) cb.addEventListener('change', enforceNb);
+      svcWrap.appendChild(el('label', { style: 'display:flex;align-items:center;gap:6px;font-size:0.82rem;' }, [cb, ` ${s.name}`]));
     });
+    enforceNb();
   }
 
   document.getElementById('newBookingForm').addEventListener('submit', async (e) => {
