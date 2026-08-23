@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Bookings — GGS Studio</title>
+<link rel="icon" type="image/png" href="assets/Logo_NoBG.png">
+<link rel="stylesheet" href="style.css">
+<style>
+  .account-wrap{max-width:900px; margin:0 auto; padding:160px 24px 100px;}
+  .account-head{margin-bottom:40px;}
+  .booking-card{
+    background:var(--panel); border:1px solid var(--line); border-radius:4px;
+    padding:24px 28px; margin-bottom:16px;
+    display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap;
+  }
+  .booking-card h3{font-size:1.05rem; margin-bottom:6px;}
+  .booking-card .meta{font-size:0.85rem; opacity:0.7; margin-bottom:4px;}
+  .status-pill{
+    display:inline-block; font-size:0.7rem; letter-spacing:0.06em; text-transform:uppercase;
+    padding:4px 10px; border-radius:20px; border:1px solid var(--line); margin-bottom:10px;
+  }
+  .status-pending{color:var(--gold); border-color:var(--gold-dim);}
+  .status-confirmed{color:var(--teal); border-color:var(--teal);}
+  .status-cancelled{color:#e5876f; border-color:#7a4331;}
+  .status-completed, .status-no_show{opacity:0.6;}
+  .booking-actions{display:flex; gap:10px; flex-wrap:wrap;}
+  .booking-actions button{
+    font-family:var(--sans); font-size:0.78rem; padding:9px 16px; border-radius:3px; cursor:pointer;
+    background:transparent; color:var(--cream); border:1px solid var(--line);
+  }
+  .booking-actions button:hover{border-color:var(--gold-dim);}
+  .section-sub{font-size:0.75rem; letter-spacing:0.08em; text-transform:uppercase; opacity:0.55; margin:34px 0 14px;}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo"><img src="assets/Logo_NoBG.png" alt="GGS Studio"></div>
+  <div class="nav-links" id="navLinks">
+    <a href="index.html#services">Services</a>
+    <a href="index.html#book">Booking</a>
+    <a href="account.html">My Bookings</a>
+  </div>
+  <a href="index.html#book" class="nav-cta">Book Now</a>
+</nav>
+
+<div class="account-wrap">
+  <div class="account-head">
+    <div class="section-tag">Your account</div>
+    <h2>My bookings</h2>
+  </div>
+
+  <div id="signedOutMsg" style="display:none;">
+    <p class="muted">Sign in from the <a href="index.html#book" style="color:var(--gold);">booking page</a> to view your bookings.</p>
+  </div>
+
+  <div id="bookingsRoot" style="display:none;">
+    <div class="section-sub">Upcoming</div>
+    <div id="upcomingList"><p class="muted">Loading…</p></div>
+    <div class="section-sub">Past</div>
+    <div id="pastList"></div>
+  </div>
+</div>
+
+<script type="module">
+  import { getSupabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase-client.js';
+
+  const FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
+
+  function formatPeso(amount){ return '₱' + Math.round(amount).toLocaleString('en-PH'); }
+  function fmtRange(start, end){
+    const s = new Date(start), e = new Date(end);
+    const dateStr = s.toLocaleDateString('en-PH', { month:'short', day:'numeric', year:'numeric' });
+    const timeStr = `${s.toLocaleTimeString('en-PH',{hour:'numeric',minute:'2-digit'})} – ${e.toLocaleTimeString('en-PH',{hour:'numeric',minute:'2-digit'})}`;
+    return `${dateStr} · ${timeStr}`;
+  }
+
+  async function callFunction(name, session, body){
+    const res = await fetch(`${FUNCTIONS_URL}/${name}`, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', apikey: SUPABASE_ANON_KEY, Authorization:`Bearer ${session.access_token}` },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Something went wrong.');
+    return data;
+  }
+
+  function renderBooking(b, session, supabase, onChange){
+    const card = document.createElement('div');
+    card.className = 'booking-card';
+    const room = b.rooms?.name || 'Room';
+    const services = (b.booking_services || []).map(bs => bs.services?.name).filter(Boolean).join(', ');
+    const canModify = ['pending','confirmed'].includes(b.status) && new Date(b.start_at) > new Date();
+
+    card.innerHTML = `
+      <div>
+        <span class="status-pill status-${b.status}">${b.status.replace('_',' ')}</span>
+        <h3>${room}</h3>
+        <div class="meta">${fmtRange(b.start_at, b.end_at)}</div>
+        ${services ? `<div class="meta">Add-ons: ${services}</div>` : ''}
+        <div class="meta">Total: ${formatPeso(b.total_price)}</div>
+      </div>
+      <div class="booking-actions">
+        ${canModify ? `<button data-action="cancel">Cancel</button>` : ''}
+      </div>
+    `;
+
+    const cancelBtn = card.querySelector('[data-action="cancel"]');
+    if (cancelBtn){
+      cancelBtn.addEventListener('click', async () => {
+        if (!confirm('Cancel this booking?')) return;
+        cancelBtn.disabled = true;
+        try{
+          await callFunction('cancel-booking', session, { booking_id: b.id, reason: 'Cancelled by customer' });
+          onChange();
+        }catch(err){
+          alert(err.message);
+          cancelBtn.disabled = false;
+        }
+      });
+    }
+    return card;
+  }
+
+  async function loadBookings(supabase, session){
+    const upcomingList = document.getElementById('upcomingList');
+    const pastList = document.getElementById('pastList');
+    upcomingList.innerHTML = '';
+    pastList.innerHTML = '';
+
+    const { data: bookings, error } = await supabase
+      .from('bookings')
+      .select('*, rooms(name), booking_services(services(name))')
+      .order('start_at', { ascending: false });
+
+    if (error){
+      upcomingList.innerHTML = `<p class="muted">Could not load bookings: ${error.message}</p>`;
+      return;
+    }
+
+    const now = new Date();
+    const upcoming = (bookings || []).filter(b => new Date(b.start_at) >= now && b.status !== 'cancelled').reverse();
+    const past = (bookings || []).filter(b => new Date(b.start_at) < now || b.status === 'cancelled');
+
+    if (upcoming.length === 0) upcomingList.innerHTML = '<p class="muted">No upcoming bookings.</p>';
+    else upcoming.forEach(b => upcomingList.appendChild(renderBooking(b, session, supabase, () => loadBookings(supabase, session))));
+
+    if (past.length === 0) pastList.innerHTML = '<p class="muted">No past bookings yet.</p>';
+    else past.forEach(b => pastList.appendChild(renderBooking(b, session, supabase, () => loadBookings(supabase, session))));
+  }
+
+  (async function init(){
+    const supabase = await getSupabase();
+    const { data } = await supabase.auth.getSession();
+    if (!data.session){
+      document.getElementById('signedOutMsg').style.display = 'block';
+      return;
+    }
+    document.getElementById('bookingsRoot').style.display = 'block';
+    await loadBookings(supabase, data.session);
+  })();
+</script>
+
+</body>
+</html>
