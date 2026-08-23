@@ -8,6 +8,22 @@ import { getSupabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase-client.
 
 const FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
 
+const EYE_OPEN = '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/>';
+const EYE_OFF = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a20.6 20.6 0 0 1 5.06-5.94M9.9 4.24A10.6 10.6 0 0 1 12 4c7 0 11 7 11 7a20.6 20.6 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/>';
+
+function initPasswordToggles() {
+  document.querySelectorAll('[data-pw-toggle]').forEach((btn) => {
+    const input = document.getElementById(btn.dataset.pwToggle);
+    if (!input) return;
+    btn.addEventListener('click', () => {
+      const show = input.type === 'password';
+      input.type = show ? 'text' : 'password';
+      btn.querySelector('svg').innerHTML = show ? EYE_OFF : EYE_OPEN;
+      btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    });
+  });
+}
+
 function formatPeso(amount) {
   return '₱' + Math.round(amount).toLocaleString('en-PH');
 }
@@ -35,6 +51,7 @@ async function callFunction(name, session, body) {
 }
 
 export async function initBooking() {
+  initPasswordToggles();
   const supabase = await getSupabase();
 
   const form = document.getElementById('bookingForm');

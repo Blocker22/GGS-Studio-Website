@@ -155,7 +155,12 @@
           <p class="auth-step-note" id="authStepNote">One more step — create an account (or log in) to confirm this booking.</p>
           <div class="field">
             <label>Password</label>
-            <input type="password" id="authPassword" placeholder="••••••••" minlength="6">
+            <div class="pw-wrap">
+              <input type="password" id="authPassword" placeholder="••••••••" minlength="6">
+              <button type="button" class="pw-toggle" data-pw-toggle="authPassword" aria-label="Show password">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
           </div>
           <div class="confirm-msg" id="authMsg"></div>
         </div>
