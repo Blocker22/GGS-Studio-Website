@@ -24,7 +24,7 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="card w-full max-w-sm p-8">
         <div className="flex flex-col items-center mb-8">
-          <img src="/assets/Logo_NoBG.png" alt="GGS Studio" className="w-14 h-14 object-contain mb-3" />
+          <img src="../assets/Logo_NoBG.png" alt="GGS Studio" className="w-14 h-14 object-contain mb-3" />
           <h1 className="text-lg font-semibold">GGS Studio Admin</h1>
         </div>
 
