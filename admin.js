@@ -136,9 +136,7 @@ async function main() {
   // ---------- Dashboard ----------
   async function loadDashboard() {
     const statsEl = document.getElementById('dashStats');
-    const todayEl = document.getElementById('dashToday');
     statsEl.innerHTML = '';
-    todayEl.innerHTML = '<p style="opacity:0.5;font-size:0.85rem;">Loading…</p>';
 
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
@@ -165,20 +163,186 @@ async function main() {
     );
     statsEl.querySelectorAll('.text-gold-stat').forEach((n) => (n.style.color = 'var(--gold)'));
 
-    todayEl.innerHTML = '';
-    if (!today || today.length === 0) {
-      todayEl.appendChild(el('p', { style: 'opacity:0.5;font-size:0.85rem;' }, 'Nothing booked today.'));
-    } else {
-      today.forEach((b) => {
-        todayEl.appendChild(
-          el('div', { style: 'display:flex;justify-content:space-between;font-size:0.85rem;padding:8px 0;border-bottom:1px solid rgba(238,244,244,0.06);' }, [
-            el('span', {}, new Date(b.start_at).toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })),
-            el('span', { style: 'opacity:0.7;' }, b.rooms?.name || ''),
-            el('span', { class: `pill pill-${b.status}` }, b.status),
-          ]),
+    await loadDashboardCalendarData();
+    renderDashCalendar();
+    renderWeekSchedule();
+  }
+
+  // ---------- Dashboard: clickable calendar + weekly class-schedule ----------
+  const DOW_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const WEEK_DAY_START = 8; // 8am
+  const WEEK_DAY_END = 22; // 10pm
+  const WEEK_ROWS = (WEEK_DAY_END - WEEK_DAY_START) * 2; // 30-min rows
+
+  let dashCalDate = new Date();
+  let dashSelectedDate = new Date();
+  let weekStartDate = startOfWeek(new Date());
+  let dashBookingsCache = [];
+  let dashBookingsRangeLoaded = null;
+
+  function startOfWeek(d) {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate() - d.getDay());
+  }
+
+  function to12HourLabel(h) {
+    const period = h >= 12 ? 'PM' : 'AM';
+    const hour = ((h + 11) % 12) + 1;
+    return `${hour}${period}`;
+  }
+
+  async function loadDashboardCalendarData() {
+    if (roomsCache.length === 0) await loadRoomsServicesCache();
+    // covers the visible month view plus a wide buffer for week navigation
+    const from = new Date(dashCalDate.getFullYear(), dashCalDate.getMonth() - 2, 1);
+    const to = new Date(dashCalDate.getFullYear(), dashCalDate.getMonth() + 3, 0);
+    const rangeKey = `${from.toDateString()}_${to.toDateString()}`;
+    if (dashBookingsRangeLoaded === rangeKey) return;
+
+    const { data } = await supabase
+      .from('bookings')
+      .select('*, rooms(id,name), profiles!bookings_customer_id_fkey(id,full_name), booking_services(service_id, services(name))')
+      .gte('start_at', from.toISOString())
+      .lte('start_at', to.toISOString())
+      .order('start_at');
+    dashBookingsCache = data || [];
+    dashBookingsRangeLoaded = rangeKey;
+  }
+
+  function renderDashCalendar() {
+    const grid = document.getElementById('dashCalGrid');
+    if (!grid) return;
+    const year = dashCalDate.getFullYear();
+    const month = dashCalDate.getMonth();
+    document.getElementById('dashCalMonthLabel').textContent = dashCalDate.toLocaleDateString('en-PH', { month: 'long', year: 'numeric' });
+
+    const firstOfMonth = new Date(year, month, 1);
+    const gridStart = new Date(year, month, 1 - firstOfMonth.getDay());
+    const todayKey = new Date().toDateString();
+    const selectedKey = dashSelectedDate.toDateString();
+
+    const hasBooking = {};
+    dashBookingsCache.forEach((b) => {
+      if (b.status !== 'cancelled') hasBooking[new Date(b.start_at).toDateString()] = true;
+    });
+
+    grid.innerHTML = '';
+    DOW_SHORT.forEach((dw) => grid.appendChild(el('div', { class: 'cal-dow' }, dw)));
+
+    for (let i = 0; i < 42; i++) {
+      const cellDate = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i);
+      const key = cellDate.toDateString();
+      const cls = ['cal-day'];
+      if (cellDate.getMonth() !== month) cls.push('other-month');
+      if (key === todayKey) cls.push('today');
+      if (key === selectedKey) cls.push('selected');
+      const cell = el('div', { class: cls.join(' '), onclick: () => selectDashDate(cellDate) });
+      cell.appendChild(el('div', { class: 'cal-daynum' }, String(cellDate.getDate())));
+      if (hasBooking[key]) cell.appendChild(el('div', { class: 'cal-dot' }));
+      grid.appendChild(cell);
+    }
+  }
+
+  async function selectDashDate(dateObj) {
+    dashSelectedDate = dateObj;
+    weekStartDate = startOfWeek(dateObj);
+    if (dateObj.getMonth() !== dashCalDate.getMonth() || dateObj.getFullYear() !== dashCalDate.getFullYear()) {
+      dashCalDate = new Date(dateObj.getFullYear(), dateObj.getMonth(), 1);
+      await loadDashboardCalendarData();
+    }
+    renderDashCalendar();
+    renderWeekSchedule();
+  }
+
+  document.getElementById('dashCalPrev').addEventListener('click', async () => {
+    dashCalDate = new Date(dashCalDate.getFullYear(), dashCalDate.getMonth() - 1, 1);
+    await loadDashboardCalendarData();
+    renderDashCalendar();
+  });
+  document.getElementById('dashCalNext').addEventListener('click', async () => {
+    dashCalDate = new Date(dashCalDate.getFullYear(), dashCalDate.getMonth() + 1, 1);
+    await loadDashboardCalendarData();
+    renderDashCalendar();
+  });
+  document.getElementById('dashCalToday').addEventListener('click', () => {
+    dashCalDate = new Date();
+    selectDashDate(new Date());
+  });
+  document.getElementById('weekPrev').addEventListener('click', () => {
+    weekStartDate = new Date(weekStartDate.getFullYear(), weekStartDate.getMonth(), weekStartDate.getDate() - 7);
+    renderWeekSchedule();
+  });
+  document.getElementById('weekNext').addEventListener('click', () => {
+    weekStartDate = new Date(weekStartDate.getFullYear(), weekStartDate.getMonth(), weekStartDate.getDate() + 7);
+    renderWeekSchedule();
+  });
+
+  function renderWeekSchedule() {
+    const grid = document.getElementById('weekGrid');
+    if (!grid) return;
+    grid.setAttribute('style', `grid-template-rows: auto repeat(${WEEK_ROWS}, 26px);`);
+    grid.innerHTML = '';
+
+    const weekDates = Array.from({ length: 7 }, (_, i) => new Date(weekStartDate.getFullYear(), weekStartDate.getMonth(), weekStartDate.getDate() + i));
+    const todayKey = new Date().toDateString();
+
+    document.getElementById('weekRangeLabel').textContent =
+      `${weekDates[0].toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })} – ${weekDates[6].toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+
+    grid.appendChild(el('div', { class: 'wk-head corner' }));
+    weekDates.forEach((dObj) => {
+      grid.appendChild(
+        el('div', { class: `wk-head${dObj.toDateString() === todayKey ? ' today' : ''}` }, [
+          el('div', { class: 'd' }, DOW_SHORT[dObj.getDay()]),
+          el('div', {}, String(dObj.getDate())),
+        ]),
+      );
+    });
+
+    for (let h = WEEK_DAY_START; h < WEEK_DAY_END; h++) {
+      const rowStart = 2 + (h - WEEK_DAY_START) * 2;
+      grid.appendChild(el('div', { class: 'wk-timelabel', style: `grid-row:${rowStart} / span 2;` }, to12HourLabel(h)));
+    }
+    for (let col = 0; col < 7; col++) {
+      grid.appendChild(
+        el('div', {
+          class: 'wk-cell',
+          style: `grid-column:${col + 2}; grid-row:2 / span ${WEEK_ROWS}; background-image:repeating-linear-gradient(to bottom, transparent 0, transparent 51px, rgba(238,244,244,0.08) 51px, rgba(238,244,244,0.08) 52px);`,
+        }),
+      );
+    }
+
+    const weekEndExclusive = new Date(weekDates[6].getFullYear(), weekDates[6].getMonth(), weekDates[6].getDate() + 1);
+    dashBookingsCache
+      .filter((b) => {
+        const s = new Date(b.start_at);
+        return s >= weekDates[0] && s < weekEndExclusive;
+      })
+      .forEach((b) => {
+        const start = new Date(b.start_at);
+        const end = new Date(b.end_at);
+        const dayIdx = start.getDay();
+        const windowMinutes = WEEK_ROWS * 30;
+        const startMin = Math.max(0, (start.getHours() - WEEK_DAY_START) * 60 + start.getMinutes());
+        const endMin = Math.min(windowMinutes, (end.getHours() - WEEK_DAY_START) * 60 + end.getMinutes());
+        if (endMin <= 0 || startMin >= windowMinutes) return;
+        const rowStart = 2 + Math.floor(startMin / 30);
+        const rowEnd = Math.max(rowStart + 1, 2 + Math.ceil(endMin / 30));
+
+        grid.appendChild(
+          el(
+            'div',
+            {
+              class: `wk-block status-${b.status}`,
+              style: `grid-column:${dayIdx + 2}; grid-row:${rowStart} / ${rowEnd};`,
+              onclick: () => openEditModal(b),
+            },
+            [
+              el('b', {}, start.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })),
+              `${b.rooms?.name || ''} · ${b.profiles?.full_name || 'Customer'}`,
+            ],
+          ),
         );
       });
-    }
   }
 
   // ---------- Bookings ----------

@@ -118,6 +118,42 @@
     .cal-day{min-height:70px; font-size:0.7rem;}
   }
 
+  .dash-cal-layout{display:grid; grid-template-columns:300px 1fr; gap:20px; align-items:start; margin-bottom:10px;}
+  @media (max-width:1100px){ .dash-cal-layout{grid-template-columns:1fr;} }
+
+  .cal-day.selected{outline:1px solid var(--gold); outline-offset:-1px;}
+  .cal-day{cursor:pointer;}
+  .cal-dot{width:5px; height:5px; border-radius:50%; background:var(--gold); margin-top:auto;}
+
+  .week-grid{
+    display:grid; grid-template-columns:56px repeat(7, minmax(80px, 1fr));
+    border:1px solid var(--line); border-radius:3px; overflow:hidden;
+    background:var(--panel);
+  }
+  .wk-head{
+    background:var(--panel-2); padding:8px 4px; text-align:center; border-left:1px solid var(--line);
+    border-bottom:1px solid var(--line); font-size:0.72rem;
+  }
+  .wk-head.corner{border-left:none; background:var(--panel);}
+  .wk-head .d{opacity:0.5; text-transform:uppercase; font-size:0.6rem; letter-spacing:0.05em;}
+  .wk-head.today{color:var(--gold);}
+  .wk-timelabel{
+    grid-column:1; border-top:1px solid var(--line); border-right:1px solid var(--line);
+    font-size:0.65rem; opacity:0.5; padding:2px 6px; text-align:right;
+  }
+  .wk-cell{border-top:1px solid rgba(238,244,244,0.05); border-left:1px solid var(--line); position:relative;}
+  .wk-cell.hour-line{border-top:1px solid var(--line);}
+  .wk-block{
+    margin:1px 2px; padding:3px 6px; border-radius:2px; font-size:0.68rem; overflow:hidden;
+    border-left:2px solid var(--gold-dim); background:rgba(215,174,92,0.12); color:var(--cream);
+    cursor:pointer; line-height:1.3;
+  }
+  .wk-block.status-confirmed{border-color:var(--teal); background:rgba(47,184,176,0.12);}
+  .wk-block.status-cancelled{border-color:#7a4331; background:rgba(229,135,111,0.1); opacity:0.55;}
+  .wk-block.status-completed, .wk-block.status-no_show{border-color:var(--line); opacity:0.5;}
+  .wk-block:hover{filter:brightness(1.25);}
+  .wk-block b{display:block; font-weight:600;}
+
   .modal-backdrop{
     display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:200;
     align-items:center; justify-content:center; padding:20px; overflow-y:auto;
@@ -192,9 +228,31 @@
     <section class="tab-section active" id="tab-dashboard">
       <h1>Dashboard</h1>
       <div class="stat-grid" id="dashStats"></div>
-      <div class="a-card" style="padding:20px;">
-        <div class="a-label" style="margin-bottom:14px;">Today's schedule</div>
-        <div id="dashToday"></div>
+
+      <div class="dash-cal-layout">
+        <div class="a-card" style="padding:18px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+            <button type="button" class="a-btn-ghost" id="dashCalPrev">‹</button>
+            <div class="a-label" id="dashCalMonthLabel" style="margin:0; font-size:0.82rem; color:var(--cream);"></div>
+            <button type="button" class="a-btn-ghost" id="dashCalNext">›</button>
+          </div>
+          <div class="cal-grid" id="dashCalGrid"></div>
+          <button type="button" class="a-btn-ghost" id="dashCalToday" style="width:100%; margin-top:14px;">Today</button>
+        </div>
+
+        <div class="a-card" style="padding:18px; overflow-x:auto;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+            <div class="a-label" style="margin:0;">Weekly schedule</div>
+            <div style="display:flex; gap:8px; align-items:center;">
+              <button type="button" class="a-btn-ghost" id="weekPrev">‹ Prev week</button>
+              <span id="weekRangeLabel" style="font-size:0.78rem; opacity:0.7;"></span>
+              <button type="button" class="a-btn-ghost" id="weekNext">Next week ›</button>
+            </div>
+          </div>
+          <div id="weekScheduleWrap" style="min-width:640px;">
+            <div class="week-grid" id="weekGrid"></div>
+          </div>
+        </div>
       </div>
     </section>
 
