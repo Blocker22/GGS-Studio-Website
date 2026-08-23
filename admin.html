@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — GGS Studio</title>
+<link rel="icon" type="image/png" href="assets/Logo_NoBG.png">
+<link rel="stylesheet" href="style.css">
+<style>
+  body{overflow-x:hidden;}
+  .admin-shell{display:flex; min-height:100vh;}
+  .admin-sidebar{
+    width:230px; flex-shrink:0; background:var(--panel); border-right:1px solid var(--line);
+    padding:28px 18px; display:flex; flex-direction:column; position:sticky; top:0; height:100vh;
+  }
+  .admin-brand{display:flex; align-items:center; gap:10px; padding:0 6px 26px;}
+  .admin-brand img{width:34px; height:34px; object-fit:contain;}
+  .admin-brand-name{font-size:0.85rem; font-weight:600;}
+  .admin-brand-tag{font-size:0.62rem; letter-spacing:0.12em; text-transform:uppercase; color:var(--gold);}
+  .admin-nav{display:flex; flex-direction:column; gap:3px; flex:1;}
+  .admin-nav button{
+    text-align:left; background:none; border:none; color:rgba(238,244,244,0.8);
+    font-family:var(--sans); font-size:0.85rem; padding:10px 12px; border-radius:3px; cursor:pointer;
+  }
+  .admin-nav button:hover{background:var(--panel-2);}
+  .admin-nav button.active{background:var(--gold); color:var(--ink); font-weight:600;}
+  .admin-user{border-top:1px solid var(--line); padding-top:14px; margin-top:14px;}
+  .admin-user-name{font-size:0.78rem; opacity:0.7; margin-bottom:8px; word-break:break-all;}
+  .admin-main{flex:1; padding:36px 42px; overflow-x:auto; min-width:0;}
+  .admin-main h1{font-size:1.35rem; margin-bottom:26px;}
+  .a-card{background:var(--panel); border:1px solid var(--line); border-radius:4px;}
+  .a-label{font-size:0.68rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--gold); margin-bottom:6px; display:block;}
+  .a-input{
+    width:100%; background:var(--ink); border:1px solid var(--line); color:var(--cream);
+    padding:9px 11px; font-family:var(--sans); font-size:0.85rem; border-radius:3px; outline:none;
+    color-scheme:dark;
+  }
+  .a-input:focus{border-color:var(--gold);}
+  .a-btn-gold{
+    background:var(--gold); color:var(--ink); font-weight:600; border:none; border-radius:3px;
+    padding:10px 18px; font-size:0.82rem; cursor:pointer; font-family:var(--sans);
+  }
+  .a-btn-gold:hover{transform:translateY(-1px);}
+  .a-btn-ghost{
+    background:transparent; color:var(--cream); border:1px solid var(--line); border-radius:3px;
+    padding:8px 14px; font-size:0.78rem; cursor:pointer; font-family:var(--sans);
+  }
+  .a-btn-ghost:hover{border-color:var(--gold-dim);}
+  .stat-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:26px;}
+  .stat-box{padding:20px;}
+  .stat-box .val{font-size:1.6rem; font-weight:700; margin-top:4px;}
+  .a-table{width:100%; border-collapse:collapse; font-size:0.85rem;}
+  .a-table th{text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); font-size:0.68rem; letter-spacing:0.06em; text-transform:uppercase; opacity:0.5;}
+  .a-table td{padding:10px 12px; border-bottom:1px solid rgba(238,244,244,0.06); vertical-align:middle;}
+  .pill{display:inline-block; font-size:0.65rem; letter-spacing:0.05em; text-transform:uppercase; padding:3px 9px; border-radius:20px; border:1px solid var(--line);}
+  .pill-pending{color:var(--gold); border-color:var(--gold-dim);}
+  .pill-confirmed{color:var(--teal); border-color:var(--teal);}
+  .pill-cancelled{color:#e5876f; border-color:#7a4331;}
+  .pill-completed, .pill-no_show{opacity:0.6;}
+  .filter-row{display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; padding:16px; margin-bottom:20px;}
+  .filter-row > div{min-width:130px;}
+  .tab-section{display:none;}
+  .tab-section.active{display:block;}
+  .form-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px; padding:22px; max-width:560px;}
+  .form-grid.full{grid-template-columns:1fr;}
+  .form-actions{grid-column:1/-1; margin-top:6px;}
+  .row-flex{display:flex; gap:8px; flex-wrap:wrap;}
+  .msg{font-size:0.78rem; padding:10px 12px; border-radius:3px; border:1px dashed var(--gold-dim); color:var(--gold); margin-top:10px; display:none;}
+  .msg.error{color:#e5876f; border-color:#7a4331;}
+  .login-wrap{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;}
+  .login-card{width:100%; max-width:380px; padding:36px; text-align:center;}
+  .login-card img{width:56px; margin-bottom:10px;}
+  .two-col{display:grid; grid-template-columns:1fr 1.3fr; gap:20px;}
+  .list-item{padding:12px 16px; border-bottom:1px solid rgba(238,244,244,0.06); cursor:pointer;}
+  .list-item:hover{background:var(--panel-2);}
+  .list-item.active{background:var(--panel-2);}
+  @media (max-width:900px){
+    .admin-shell{flex-direction:column;}
+    .admin-sidebar{width:100%; height:auto; position:static; flex-direction:row; overflow-x:auto;}
+    .admin-nav{flex-direction:row;}
+    .admin-user{display:none;}
+    .admin-main{padding:24px 18px;}
+    .stat-grid{grid-template-columns:1fr 1fr;}
+    .two-col{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<div id="loginWrap" class="login-wrap">
+  <div class="a-card login-card">
+    <img src="assets/Logo_NoBG.png" alt="GGS Studio">
+    <h2 style="margin-bottom:22px;">Studio Admin</h2>
+    <form id="loginForm">
+      <div style="margin-bottom:14px; text-align:left;">
+        <label class="a-label">Email</label>
+        <input type="email" id="loginEmail" class="a-input" required>
+      </div>
+      <div style="margin-bottom:18px; text-align:left;">
+        <label class="a-label">Password</label>
+        <input type="password" id="loginPassword" class="a-input" required>
+      </div>
+      <button type="submit" class="a-btn-gold" style="width:100%;">Sign in</button>
+      <div class="msg" id="loginMsg"></div>
+    </form>
+  </div>
+</div>
+
+<div id="adminShell" class="admin-shell" style="display:none;">
+  <aside class="admin-sidebar">
+    <div class="admin-brand">
+      <img src="assets/Logo_NoBG.png" alt="GGS Studio">
+      <div>
+        <div class="admin-brand-name">GGS Studio</div>
+        <div class="admin-brand-tag">Admin</div>
+      </div>
+    </div>
+    <nav class="admin-nav" id="adminNav">
+      <button data-tab="dashboard" class="active">Dashboard</button>
+      <button data-tab="bookings">Bookings</button>
+      <button data-tab="customers">Customers</button>
+      <button data-tab="rooms">Rooms &amp; Services</button>
+      <button data-tab="availability">Availability</button>
+      <button data-tab="payments">Payments</button>
+      <button data-tab="staff">Staff</button>
+      <button data-tab="settings">Settings</button>
+    </nav>
+    <div class="admin-user">
+      <div class="admin-user-name" id="adminUserName"></div>
+      <button class="a-btn-ghost" id="logoutBtn" style="width:100%;">Log out</button>
+    </div>
+  </aside>
+
+  <main class="admin-main">
+    <section class="tab-section active" id="tab-dashboard">
+      <h1>Dashboard</h1>
+      <div class="stat-grid" id="dashStats"></div>
+      <div class="a-card" style="padding:20px;">
+        <div class="a-label" style="margin-bottom:14px;">Today's schedule</div>
+        <div id="dashToday"></div>
+      </div>
+    </section>
+
+    <section class="tab-section" id="tab-bookings">
+      <h1>Bookings</h1>
+      <div class="a-card filter-row">
+        <div>
+          <label class="a-label">Customer</label>
+          <input class="a-input" id="fltSearch" placeholder="Search name…">
+        </div>
+        <div>
+          <label class="a-label">Status</label>
+          <select class="a-input" id="fltStatus">
+            <option value="">All</option>
+            <option value="pending">Pending</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+            <option value="no_show">No-show</option>
+          </select>
+        </div>
+        <div>
+          <label class="a-label">From</label>
+          <input type="date" class="a-input" id="fltFrom">
+        </div>
+        <div>
+          <label class="a-label">To</label>
+          <input type="date" class="a-input" id="fltTo">
+        </div>
+        <button class="a-btn-ghost" id="fltReset">Reset</button>
+      </div>
+      <div class="a-card" style="overflow-x:auto;">
+        <table class="a-table">
+          <thead><tr>
+            <th>When</th><th>Room</th><th>Customer</th><th>Add-ons</th><th>Total</th><th>Status</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="bookingsBody"></tbody>
+        </table>
+      </div>
+
+      <div class="a-card" style="margin-top:30px;">
+        <div style="padding:20px 20px 0;"><div class="a-label">New booking (walk-in / phone)</div></div>
+        <form id="newBookingForm" class="form-grid">
+          <div>
+            <label class="a-label">Customer</label>
+            <select class="a-input" id="nbCustomer" required></select>
+          </div>
+          <div>
+            <label class="a-label">Room</label>
+            <select class="a-input" id="nbRoom" required></select>
+          </div>
+          <div>
+            <label class="a-label">Date</label>
+            <input type="date" class="a-input" id="nbDate" required>
+          </div>
+          <div>
+            <label class="a-label">Start time</label>
+            <input type="time" class="a-input" id="nbStart" step="1800" required>
+          </div>
+          <div>
+            <label class="a-label">Duration (hrs)</label>
+            <input type="number" class="a-input" id="nbDuration" value="1" min="1" max="12">
+          </div>
+          <div>
+            <label class="a-label">Add-ons</label>
+            <div id="nbServices" class="row-flex"></div>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="a-btn-gold">Create booking (confirmed)</button>
+            <div class="msg" id="nbMsg"></div>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="tab-section" id="tab-customers">
+      <h1>Customers</h1>
+      <div class="two-col">
+        <div class="a-card">
+          <div style="padding:14px;"><input class="a-input" id="custSearch" placeholder="Search customers…"></div>
+          <div id="custList" style="max-height:65vh; overflow-y:auto;"></div>
+        </div>
+        <div class="a-card" style="padding:24px;" id="custDetail">
+          <p style="opacity:0.5; font-size:0.85rem;">Select a customer to view their history.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="tab-section" id="tab-rooms">
+      <h1>Rooms &amp; Services</h1>
+      <div class="a-label" style="margin-bottom:10px;">Rooms</div>
+      <div id="roomsList" style="display:flex; flex-direction:column; gap:14px; margin-bottom:10px;"></div>
+      <div class="a-card" style="padding:18px; display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; margin-bottom:30px;">
+        <div><label class="a-label">New room name</label><input class="a-input" id="newRoomName"></div>
+        <div><label class="a-label">Hourly rate</label><input type="number" class="a-input" id="newRoomRate" value="350" style="width:110px;"></div>
+        <button class="a-btn-gold" id="addRoomBtn">Add room</button>
+      </div>
+
+      <div class="a-label" style="margin-bottom:10px;">Services / add-ons</div>
+      <div class="a-card" style="overflow-x:auto; margin-bottom:14px;">
+        <table class="a-table">
+          <thead><tr><th>Name</th><th>Price</th><th>Type</th><th>Active</th></tr></thead>
+          <tbody id="servicesBody"></tbody>
+        </table>
+      </div>
+      <div class="a-card" style="padding:18px; display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
+        <div><label class="a-label">New service name</label><input class="a-input" id="newSvcName"></div>
+        <div><label class="a-label">Price</label><input type="number" class="a-input" id="newSvcPrice" value="0" style="width:100px;"></div>
+        <div>
+          <label class="a-label">Type</label>
+          <select class="a-input" id="newSvcType"><option value="flat">Flat</option><option value="hourly">Hourly</option></select>
+        </div>
+        <button class="a-btn-gold" id="addSvcBtn">Add service</button>
+      </div>
+    </section>
+
+    <section class="tab-section" id="tab-availability">
+      <h1>Availability</h1>
+      <div style="max-width:280px; margin-bottom:20px;">
+        <label class="a-label">Room</label>
+        <select class="a-input" id="availRoom"></select>
+      </div>
+      <div id="availContent"></div>
+    </section>
+
+    <section class="tab-section" id="tab-payments">
+      <h1>Payments</h1>
+      <div class="a-card" style="overflow-x:auto;">
+        <table class="a-table">
+          <thead><tr>
+            <th>Date</th><th>Room</th><th>Customer</th><th>Type</th><th>Amount</th><th>Refunded</th><th>Status</th><th>Stripe ID</th><th>Actions</th>
+          </tr></thead>
+          <tbody id="paymentsBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="tab-section" id="tab-staff">
+      <h1>Staff accounts</h1>
+      <div class="a-card" style="overflow-x:auto; margin-bottom:24px;">
+        <table class="a-table">
+          <thead><tr><th>Name</th><th>Role</th><th>Since</th></tr></thead>
+          <tbody id="staffBody"></tbody>
+        </table>
+      </div>
+      <div class="a-card" id="inviteCard" style="padding:20px; display:none;">
+        <div class="a-label" style="margin-bottom:12px;">Invite new staff member</div>
+        <div class="row-flex" style="align-items:flex-end;">
+          <div><label class="a-label">Email</label><input class="a-input" id="inviteEmail"></div>
+          <div><label class="a-label">Full name</label><input class="a-input" id="inviteName"></div>
+          <div>
+            <label class="a-label">Role</label>
+            <select class="a-input" id="inviteRole"><option value="staff">Staff</option><option value="admin">Admin</option></select>
+          </div>
+          <button class="a-btn-gold" id="inviteBtn">Send invite</button>
+        </div>
+        <div class="msg" id="inviteMsg"></div>
+      </div>
+    </section>
+
+    <section class="tab-section" id="tab-settings">
+      <h1>Settings</h1>
+      <div class="a-card" style="padding:24px; max-width:480px; display:flex; flex-direction:column; gap:20px;">
+        <label style="display:flex; align-items:center; gap:10px; font-size:0.88rem;">
+          <input type="checkbox" id="setStripeEnabled"> Enable Stripe payments
+        </label>
+        <p style="font-size:0.75rem; opacity:0.5;">Requires STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET set as Supabase Edge Function secrets.</p>
+        <div>
+          <label class="a-label">Deposit percentage</label>
+          <input type="number" class="a-input" id="setDepositPct" style="width:100px;">
+        </div>
+        <div>
+          <label class="a-label">Reschedule / cancellation cutoff (hours)</label>
+          <input type="number" class="a-input" id="setCutoffHrs" style="width:100px;">
+        </div>
+        <button class="a-btn-gold" id="saveSettingsBtn" style="width:fit-content;">Save settings</button>
+        <div class="msg" id="settingsMsg"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script type="module" src="admin.js"></script>
+</body>
+</html>

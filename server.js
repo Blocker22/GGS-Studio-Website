@@ -1,19 +1,13 @@
 const express = require('express');
-const path = require('path');
-
-const app = express();
 const PORT = process.env.PORT || 3000;
 
-// All booking/business logic now lives in Supabase (Postgres + RLS + Edge
-// Functions) — this server just serves the static public site and the built
-// admin dashboard.
-app.use(express.static(__dirname));
+const app = express();
 
-const ADMIN_DIST = path.join(__dirname, 'admin-app', 'dist');
-app.use('/admin', express.static(ADMIN_DIST));
-app.get('/admin/*', (req, res) => {
-  res.sendFile(path.join(ADMIN_DIST, 'index.html'));
-});
+// All booking/business logic and the admin dashboard live entirely in static
+// files + Supabase (Postgres + RLS + Edge Functions) — this server is just a
+// static file host, used for local development. It has no bearing on the
+// GitHub Pages deployment, which serves these same files directly.
+app.use(express.static(__dirname));
 
 app.listen(PORT, () => {
   console.log(`GGS Studio server running at http://localhost:${PORT}`);
