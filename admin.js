@@ -854,7 +854,53 @@ async function main() {
     document.getElementById('setStripeEnabled').checked = get('stripe_enabled') === true;
     document.getElementById('setDepositPct').value = Number(get('deposit_percent') ?? 30);
     document.getElementById('setCutoffHrs').value = Number(get('reschedule_cutoff_hours') ?? 24);
+
+    const { data: sess } = await supabase.auth.getSession();
+    if (sess.session) {
+      document.getElementById('myEmail').value = sess.session.user.email || '';
+      document.getElementById('myName').value = profile?.full_name || '';
+    }
   }
+
+  function showAccountMsg(id, text, isError) {
+    const msg = document.getElementById(id);
+    msg.textContent = text;
+    msg.classList.toggle('error', !!isError);
+    msg.style.display = 'block';
+  }
+
+  document.getElementById('myNameForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const { data: sess } = await supabase.auth.getSession();
+    if (!sess.session) return;
+    const fullName = document.getElementById('myName').value.trim();
+    const { error } = await supabase.from('profiles').update({ full_name: fullName }).eq('id', sess.session.user.id);
+    if (error) showAccountMsg('myNameMsg', error.message, true);
+    else {
+      showAccountMsg('myNameMsg', '✓ Name updated.', false);
+      if (profile) profile.full_name = fullName;
+      document.getElementById('adminUserName').textContent = fullName || sess.session.user.email;
+    }
+  });
+
+  document.getElementById('myEmailForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('myEmail').value.trim();
+    const { error } = await supabase.auth.updateUser({ email });
+    if (error) showAccountMsg('myEmailMsg', error.message, true);
+    else showAccountMsg('myEmailMsg', '✓ Check your new inbox to confirm the email change.', false);
+  });
+
+  document.getElementById('myPasswordForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const password = document.getElementById('myPassword').value;
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) showAccountMsg('myPasswordMsg', error.message, true);
+    else {
+      showAccountMsg('myPasswordMsg', '✓ Password changed.', false);
+      e.target.reset();
+    }
+  });
   document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
     await Promise.all([
       supabase.from('app_settings').update({ value: document.getElementById('setStripeEnabled').checked }).eq('key', 'stripe_enabled'),

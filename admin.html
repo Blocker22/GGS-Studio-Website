@@ -375,6 +375,35 @@
 
     <section class="tab-section" id="tab-settings">
       <h1>Settings</h1>
+
+      <div class="a-label" style="margin-bottom:10px;">My account</div>
+      <div class="a-card" style="padding:24px; max-width:480px; margin-bottom:30px; display:flex; flex-direction:column; gap:22px;">
+        <form id="myNameForm">
+          <label class="a-label">Full name</label>
+          <input class="a-input" id="myName" style="margin-bottom:10px;">
+          <button type="submit" class="a-btn-ghost">Save name</button>
+          <div class="msg" id="myNameMsg"></div>
+        </form>
+        <form id="myEmailForm" style="border-top:1px solid var(--line); padding-top:22px;">
+          <label class="a-label">Email</label>
+          <input type="email" class="a-input" id="myEmail" style="margin-bottom:10px;" required>
+          <button type="submit" class="a-btn-ghost">Update email</button>
+          <div class="msg" id="myEmailMsg"></div>
+        </form>
+        <form id="myPasswordForm" style="border-top:1px solid var(--line); padding-top:22px;">
+          <label class="a-label">New password</label>
+          <div class="pw-wrap" style="margin-bottom:10px;">
+            <input type="password" class="a-input" id="myPassword" minlength="6" required>
+            <button type="button" class="pw-toggle" data-pw-toggle="myPassword" aria-label="Show password">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+          <button type="submit" class="a-btn-ghost">Change password</button>
+          <div class="msg" id="myPasswordMsg"></div>
+        </form>
+      </div>
+
+      <div class="a-label" style="margin-bottom:10px;">Studio settings</div>
       <div class="a-card" style="padding:24px; max-width:480px; display:flex; flex-direction:column; gap:20px;">
         <label style="display:flex; align-items:center; gap:10px; font-size:0.88rem;">
           <input type="checkbox" id="setStripeEnabled"> Enable Stripe payments
