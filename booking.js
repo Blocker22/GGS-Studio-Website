@@ -222,6 +222,7 @@ export async function initBooking() {
     hideAuthStep();
     form.reset();
     updateSummary();
+    window.dispatchEvent(new CustomEvent('ggs:booking-created', { detail: b }));
   }
 
   function b_date(booking) {

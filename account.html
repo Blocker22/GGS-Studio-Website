@@ -9,6 +9,10 @@
 <style>
   .account-wrap{max-width:900px; margin:0 auto; padding:160px 24px 100px;}
   .account-head{margin-bottom:40px;}
+  .account-book{
+    background:var(--panel); border:1px solid var(--line); border-radius:4px;
+    padding:44px; margin-bottom:70px;
+  }
   .booking-card{
     background:var(--panel); border:1px solid var(--line); border-radius:4px;
     padding:24px 28px; margin-bottom:16px;
@@ -39,10 +43,10 @@
   <div class="logo"><img src="assets/Logo_NoBG.png" alt="GGS Studio"></div>
   <div class="nav-links" id="navLinks">
     <a href="index.html#services">Services</a>
-    <a href="index.html#book">Booking</a>
+    <a href="index.html#room">The Room</a>
     <a href="account.html">My Bookings</a>
   </div>
-  <a href="index.html#book" class="nav-cta">Book Now</a>
+  <a href="account.html#book" class="nav-cta">Book Now</a>
 </nav>
 
 <div class="account-wrap">
@@ -51,8 +55,80 @@
     <h2>My bookings</h2>
   </div>
 
+  <div class="account-book" id="book">
+    <div class="section-tag">Reserve your slot</div>
+    <h2 style="margin-bottom:24px;">Book a new session</h2>
+
+    <div id="authSignedIn" class="auth-signed-in" style="display:none;">
+      <span id="authWho"></span>
+      <button type="button" id="logoutBtn" class="btn-ghost">Log out</button>
+    </div>
+
+    <form id="bookingForm">
+      <div class="field">
+        <label>Name</label>
+        <input type="text" id="fName" placeholder="Your name" required>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Email</label>
+          <input type="email" id="fEmail" placeholder="you@email.com" required>
+        </div>
+        <div class="field">
+          <label>Service</label>
+          <select id="fService" required>
+            <option value="">Choose one</option>
+            <option value="room">Room only</option>
+            <option value="recording">Room + Recording</option>
+            <option value="both">Room + Recording + Mixing</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>Date</label>
+        <input type="date" id="fDate" required>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>Start time</label>
+          <input type="time" id="fStart" step="1800" required>
+        </div>
+        <div class="field">
+          <label>End time</label>
+          <input type="time" id="fEnd" step="1800" required>
+        </div>
+      </div>
+      <div class="booking-summary" id="bookingSummary">
+        <div><span>Duration</span><strong id="sumDuration">—</strong></div>
+        <div><span>Total price</span><strong id="sumPrice">—</strong></div>
+      </div>
+
+      <div id="authStep" class="auth-step" style="display:none;">
+        <p class="auth-step-note" id="authStepNote">One more step — create an account (or log in) to confirm this booking.</p>
+        <div class="field">
+          <label>Password</label>
+          <div class="pw-wrap">
+            <input type="password" id="authPassword" placeholder="••••••••" minlength="6">
+            <button type="button" class="pw-toggle" data-pw-toggle="authPassword" aria-label="Show password">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="confirm-msg" id="authMsg"></div>
+      </div>
+
+      <div class="submit-row">
+        <button type="submit" id="bookSubmitBtn" class="book-submit">Confirm booking request</button>
+      </div>
+      <div id="authToggleRow" class="auth-toggle-row" style="display:none;">
+        <button type="button" id="authToggleBtn" class="btn-ghost">Already have an account? Log in instead</button>
+      </div>
+      <div class="confirm-msg" id="confirmMsg"></div>
+    </form>
+  </div>
+
   <div id="signedOutMsg" style="display:none;">
-    <p class="muted">Sign in from the <a href="index.html#book" style="color:var(--gold);">booking page</a> to view your bookings.</p>
+    <p class="muted">Sign in above to view your bookings.</p>
   </div>
 
   <div id="bookingsRoot" style="display:none;">
@@ -65,6 +141,7 @@
 
 <script type="module">
   import { getSupabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase-client.js';
+  import { initBooking } from './booking.js';
 
   const FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
 
@@ -151,15 +228,24 @@
     else past.forEach(b => pastList.appendChild(renderBooking(b, session, supabase, () => loadBookings(supabase, session))));
   }
 
-  (async function init(){
-    const supabase = await getSupabase();
+  async function refreshBookingsPanel(supabase){
     const { data } = await supabase.auth.getSession();
     if (!data.session){
       document.getElementById('signedOutMsg').style.display = 'block';
+      document.getElementById('bookingsRoot').style.display = 'none';
       return;
     }
+    document.getElementById('signedOutMsg').style.display = 'none';
     document.getElementById('bookingsRoot').style.display = 'block';
     await loadBookings(supabase, data.session);
+  }
+
+  (async function init(){
+    const supabase = await getSupabase();
+    await initBooking();
+    await refreshBookingsPanel(supabase);
+    supabase.auth.onAuthStateChange(() => refreshBookingsPanel(supabase));
+    window.addEventListener('ggs:booking-created', () => refreshBookingsPanel(supabase));
   })();
 </script>
 
