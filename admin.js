@@ -50,7 +50,13 @@ async function main() {
       body: JSON.stringify(body),
     });
     const json = await res.json();
-    if (!res.ok) throw new Error(json.error || 'Request failed.');
+    if (!res.ok) {
+      const err = new Error(json.error || 'Request failed.');
+      // delete-booking hands back unrefunded_amount so the caller can offer a
+      // "delete anyway" path instead of a dead end.
+      if (json.unrefunded_amount != null) err.unrefundedAmount = json.unrefunded_amount;
+      throw err;
+    }
     return json;
   }
 
@@ -432,6 +438,7 @@ async function main() {
         actions.append(el('button', { class: 'a-btn-ghost', onclick: () => markPaid(b) }, 'Mark Paid'));
       }
       actions.append(el('button', { class: 'a-btn-ghost', onclick: () => openEditModal(b) }, 'Edit'));
+      actions.append(el('button', { class: 'a-btn-danger', onclick: () => deleteBooking(b.id) }, 'Delete'));
       body.appendChild(
         el('tr', {}, [
           el('td', {}, dt(b.start_at)),
@@ -700,6 +707,10 @@ async function main() {
     editingBookingId = null;
   }
   document.getElementById('ebCancelBtn').addEventListener('click', closeEditModal);
+  document.getElementById('ebDeleteBtn').addEventListener('click', () => {
+    if (!editingBookingId) return;
+    deleteBooking(editingBookingId, { onDeleted: () => { closeEditModal(); loadBookings(); } });
+  });
   editBackdrop.addEventListener('click', (e) => {
     if (e.target === editBackdrop) closeEditModal();
   });
@@ -755,6 +766,36 @@ async function main() {
       await callFunction('cancel-booking', { booking_id: id, reason });
       loadBookings();
     } catch (err) {
+      alert(err.message);
+    }
+  }
+
+  // Permanent removal, distinct from cancelBooking above — that only flips
+  // status and keeps the record around; this erases the row (and, via
+  // ON DELETE CASCADE, its services and payments) for good. The server
+  // refuses when money was taken and never refunded unless force is passed,
+  // so the confirm here has to name that before re-sending with force:true.
+  async function deleteBooking(id, { onDeleted } = {}) {
+    if (!confirm('Permanently delete this booking? This cannot be undone.')) return;
+    try {
+      await callFunction('delete-booking', { booking_id: id });
+      (onDeleted || loadBookings)();
+    } catch (err) {
+      if (err.unrefundedAmount) {
+        const force = confirm(
+          `${err.message}
+
+Delete anyway and write off the unrefunded amount?`,
+        );
+        if (!force) return;
+        try {
+          await callFunction('delete-booking', { booking_id: id, force: true });
+          (onDeleted || loadBookings)();
+        } catch (err2) {
+          alert(err2.message);
+        }
+        return;
+      }
       alert(err.message);
     }
   }

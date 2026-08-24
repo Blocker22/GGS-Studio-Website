@@ -503,19 +503,23 @@ footer .btn-primary{margin-top:24px;}
   .page-wrap{padding:130px 20px 80px;}
 
   section{padding:88px 6%;}
-  .hero{padding:110px 6% 50px;}
+  .hero{padding:110px 6% 60px;}
   .hero-grid{grid-template-columns:1fr; overflow-x:clip;}
+  /* Full-bleed background behind the hero text instead of a separate block
+     stacked below it — same role the 64%-wide slideshow plays on desktop,
+     just covering the whole section since there's no second column to share
+     it with. Text sits over the photo everywhere now (not just a clear left
+     column), so the scrim goes darker/uniform rather than a directional
+     reveal — legibility over any part of the image, not a peek of it. */
   .hero-slideshow{
-    position:relative;
-    inset:auto;
-    /* full-bleed: break out of the section's side padding instead of sitting boxed-in */
-    width:auto;
-    margin-left:-6%; margin-right:-6%;
-    height:min(58vh, 460px);
-    margin-top:36px;
-    order:2;
-    -webkit-mask-image:linear-gradient(to bottom, transparent, black 25%);
-    mask-image:linear-gradient(to bottom, transparent, black 25%);
+    position:absolute; inset:0;
+    width:auto; height:100%;
+    -webkit-mask-image:none; mask-image:none;
+  }
+  .hero-slideshow::after{
+    background:
+      linear-gradient(135deg, rgba(215,174,92,0.2), rgba(47,184,176,0.18)),
+      linear-gradient(180deg, rgba(5,7,8,0.72), rgba(5,7,8,0.82) 55%, var(--ink));
   }
   .hero-actions{gap:16px;}
   .waveform{height:56px;}
