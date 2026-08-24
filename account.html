@@ -84,6 +84,8 @@
       <span id="authWho"></span>
     </div>
 
+    <div class="book-grid">
+      <div class="book-form">
     <form id="bookingForm">
       <div class="field">
         <label>Name</label>
@@ -174,6 +176,13 @@
         <div class="confirm-msg" id="authMsg"></div>
       </div>
 
+      <div class="terms-block">
+        <label class="terms-check">
+          <input type="checkbox" id="fTerms" required>
+          <span>I agree to the <button type="button" class="terms-link" data-terms-toggle>Terms &amp; Conditions</button>, including the cancellation and no-refund policies.</span>
+        </label>
+      </div>
+
       <div class="submit-row">
         <button type="submit" id="bookSubmitBtn" class="book-submit">Confirm booking request</button>
       </div>
@@ -182,6 +191,14 @@
       </div>
       <div class="confirm-msg" id="confirmMsg"></div>
     </form>
+    </div>
+
+    <div class="book-side">
+      <div class="section-tag">Live availability</div>
+      <h2>Pick your day</h2>
+      <p class="section-note">Green days have open hours — tap one to see the free windows.</p>
+      <div class="cal" id="bookCalendar"><p class="muted">Loading the calendar…</p></div>
+    </div>
   </div>
 
   <div id="signedOutMsg" class="empty-state" style="display:none;">
@@ -201,6 +218,9 @@
   import { getSupabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase-client.js';
   import { initBooking } from './booking.js';
   import { initAuthNav } from './auth.js';
+  import { initBookingCalendar } from './availability.js';
+
+  initBookingCalendar();
 
   const FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
 

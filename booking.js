@@ -12,6 +12,108 @@ const FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
 const EYE_OPEN = '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/>';
 const EYE_OFF = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a20.6 20.6 0 0 1 5.06-5.94M9.9 4.24A10.6 10.6 0 0 1 12 4c7 0 11 7 11 7a20.6 20.6 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/>';
 
+// The full Terms & Conditions, shown in a modal whenever a [data-terms-toggle]
+// control is clicked. Built once on demand and reused; Escape and the backdrop
+// both close it.
+export function initTermsModal() {
+  if (document.getElementById('termsModal')) return;
+
+  const modal = document.createElement('div');
+  modal.id = 'termsModal';
+  modal.className = 'modal-backdrop';
+  modal.innerHTML = `
+    <div class="modal terms-modal" role="dialog" aria-modal="true" aria-labelledby="termsModalTitle">
+      <button type="button" class="modal-close" data-terms-close aria-label="Close">&times;</button>
+      <h3 id="termsModalTitle">Terms &amp; Conditions</h3>
+      <div class="modal-body">
+        <h4>Booking &amp; Confirmation</h4>
+        <ul>
+          <li>Your booking is confirmed the moment you complete it. Slots are held on a first-come, first-served basis, and we'll only reach out if there's an issue with your booking.</li>
+          <li>Sessions start and end at the booked times. Please arrive on time — late arrivals do not extend the session.</li>
+          <li>The person booking is responsible for everyone they bring and for the conduct of their group for the duration of the session.</li>
+        </ul>
+
+        <h4>Payment</h4>
+        <ul>
+          <li>Cash bookings require a photo of a valid ID to hold the slot; payment is settled at the studio.</li>
+          <li>Online downpayments are charged at the percentage shown at checkout, with the balance due at the studio on the day of the session.</li>
+          <li>Full online payments settle the entire session upfront.</li>
+        </ul>
+
+        <h4>Overtime</h4>
+        <ul>
+          <li>Staying past your booked end time is charged as overtime at the studio's regular hourly rate (including any add-on services you booked), rounded up to the next hour or fraction thereof.</li>
+          <li>Overtime is subject to availability — if another booking follows yours, the session must end on time and overtime may not be possible.</li>
+          <li>All overtime charges are payable before leaving the studio.</li>
+        </ul>
+
+        <h4>Cancellation &amp; Rescheduling</h4>
+        <ul>
+          <li>Bookings can be cancelled or rescheduled free of charge any time <strong>up to 24 hours before your booked start time</strong>, either online through My Bookings or by contacting the studio.</li>
+          <li>Within the final 24 hours before the session, cancellations and reschedules are no longer available online — call the studio and we'll do our best to work something out.</li>
+          <li>If GGS Studio cancels or cannot honour your booking, any amount paid will be refunded in full or credited toward a new schedule, at your choice.</li>
+        </ul>
+
+        <h4>No-Shows</h4>
+        <ul>
+          <li>If you do not arrive within 30 minutes of your booked start time without notice, the booking is treated as a no-show.</li>
+          <li><strong>No-show bookings are not refunded.</strong> Any amounts already paid — deposits, full payments, or the session fee — are forfeited, and the slot is released.</li>
+          <li>Running late? Call ahead. With notice we'll hold your slot for the remainder of the booked time (the session still ends at the original end time).</li>
+        </ul>
+
+        <h4>Studio Rules &amp; Equipment Care</h4>
+        <ul>
+          <li>Treat the equipment and the room with care. Instruments, consoles, microphones, and cables are to be used only for their intended purpose and handled by or under the supervision of your group.</li>
+          <li>Food and drinks stay away from the equipment and the mixing console.</li>
+          <li>Smoking, vaping, alcohol, and illegal substances are prohibited on the premises.</li>
+          <li>Any damage to studio equipment, furniture, or the room caused by misuse, negligence, or rough handling will be charged to the person who made the booking at repair or replacement cost, whichever applies.</li>
+          <li>GGS Studio reserves the right to end a session immediately, without refund, for conduct that endangers people or equipment.</li>
+        </ul>
+
+        <h4>Belongings &amp; Files</h4>
+        <ul>
+          <li>GGS Studio is not liable for personal belongings left behind or lost on the premises.</li>
+          <li>Back up your recordings and files before leaving — GGS Studio is not responsible for lost or corrupted files once your session ends.</li>
+        </ul>
+
+        <h4>Data &amp; Privacy</h4>
+        <ul>
+          <li>Your name, email, and ID photo are collected solely to manage your booking and payment, and are handled in accordance with the Data Privacy Act (RA 10173). They are never sold or shared beyond what is needed to process your booking.</li>
+        </ul>
+
+        <h4>Consumer Rights</h4>
+        <ul>
+          <li>Nothing in these terms limits your rights under Philippine consumer law, including the Consumer Act of the Philippines (RA 7394) and the Data Privacy Act (RA 10173).</li>
+          <li>You are entitled to services that match what was advertised and booked. If a session materially falls short of what was promised, contact us — we will work with you in good faith toward a fair resolution, which may include a partial or full refund or a replacement session.</li>
+          <li>These terms do not remove your right to raise concerns with the Department of Trade and Industry (DTI) or other appropriate agencies.</li>
+          <li>Questions, complaints, or refund requests? Reach us through the contact details on this site and we'll respond promptly.</li>
+        </ul>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  let lastFocus = null;
+  function open() {
+    lastFocus = document.activeElement;
+    modal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    modal.querySelector('[data-terms-close]').focus();
+  }
+  function close() {
+    modal.classList.remove('open');
+    document.body.style.overflow = '';
+    lastFocus?.focus?.();
+  }
+
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal || e.target.closest('[data-terms-close]')) close();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal.classList.contains('open')) close();
+  });
+  document.querySelectorAll('[data-terms-toggle]').forEach((btn) => btn.addEventListener('click', open));
+}
+
 export function initPasswordToggles() {
   document.querySelectorAll('[data-pw-toggle]').forEach((btn) => {
     const input = document.getElementById(btn.dataset.pwToggle);
@@ -77,6 +179,8 @@ export async function initBooking() {
   const submitBtn = document.getElementById('bookSubmitBtn');
   const confirmMsg = document.getElementById('confirmMsg');
   const payOptionEls = Array.from(document.querySelectorAll('input[name="payOption"]'));
+  const termsEl = document.getElementById('fTerms');
+  initTermsModal();
   const payIdUpload = document.getElementById('payIdUpload');
   const idImageEl = document.getElementById('fIdImage');
   const payDepositPct = document.getElementById('payDepositPct');
@@ -256,6 +360,7 @@ export async function initBooking() {
     if (!emailEl.value.trim()) return 'Please enter your email.';
     if (!serviceEl.value) return 'Please choose a service.';
     if (!dateEl.value) return 'Please choose a date.';
+    if (termsEl && !termsEl.checked) return 'Please agree to the Terms & Conditions to confirm your booking.';
     if (!startEl.value || !endEl.value) return 'Please choose a start and end time.';
     if (selectedPayOption() === 'cash' && !idImageEl?.files?.length) {
       return 'Please attach a photo of a valid ID to pay in cash.';
