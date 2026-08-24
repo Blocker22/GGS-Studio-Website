@@ -27,18 +27,37 @@ body{
 /* ---------- NAV ---------- */
 nav{
   position:fixed; top:0; left:0; right:0; z-index:100;
-  display:flex; align-items:center; justify-content:space-between;
-  padding:22px 8%;
-  background:linear-gradient(to bottom, rgba(5,7,8,0.95), rgba(5,7,8,0));
-  backdrop-filter:blur(2px);
+  display:flex; align-items:center; justify-content:space-between; gap:18px;
+  padding:16px 8%;
+  background:rgba(5,7,8,0.82);
+  border-bottom:1px solid var(--line);
+  backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
 }
 .logo{
   display:flex; align-items:center; gap:12px;
 }
 .logo img{height:38px; width:auto; display:block;}
 .nav-links{display:flex; gap:34px; font-size:0.85rem; letter-spacing:0.03em;}
-.nav-links a{color:var(--cream); text-decoration:none; opacity:0.7; transition:opacity 0.25s;}
+.nav-links a{
+  color:var(--cream); text-decoration:none; opacity:0.65;
+  padding:4px 0; border-bottom:1px solid transparent;
+  transition:opacity 0.2s, border-color 0.2s;
+}
 .nav-links a:hover{opacity:1;}
+.nav-links a.current{opacity:1; border-bottom-color:var(--gold);}
+/* "Hello, Name!" — doubles as the link to the profile page. */
+.nav-greet{
+  margin-left:auto;
+  display:inline-flex; align-items:center; gap:8px;
+  font-size:0.85rem; color:var(--cream); text-decoration:none;
+  opacity:0.85; white-space:nowrap;
+  padding:9px 14px; border:1px solid var(--line); border-radius:2px;
+  transition:border-color 0.2s, opacity 0.2s;
+}
+.nav-greet::before{content:''; width:7px; height:7px; border-radius:50%; background:var(--teal); flex-shrink:0;}
+.nav-greet:hover{opacity:1; border-color:var(--gold-dim);}
+
 .nav-cta{
   font-family:var(--sans);
   background:var(--gold);
@@ -53,7 +72,8 @@ nav{
   display:inline-flex; align-items:center; gap:10px;
   transition:transform 0.2s ease, box-shadow 0.2s ease;
 }
-.nav-cta:hover{ transform:translateY(-3px); box-shadow:0 10px 24px rgba(215,174,92,0.28);}
+.nav-cta{padding:13px 24px;}
+.nav-cta:hover{ transform:translateY(-2px); box-shadow:0 10px 24px rgba(215,174,92,0.28);}
 .burger{
   display:none;
   flex-direction:column; justify-content:center; gap:5px;
@@ -172,11 +192,24 @@ h1 .out{ color:var(--cream); }
   font-size:0.85rem;
   color:var(--cream);
   text-decoration:none;
+  background:transparent;
+  border:none;
   border-bottom:1px solid var(--line);
-  padding-bottom:3px;
+  border-radius:0;
+  padding:0 0 3px;
   opacity:0.85;
+  cursor:pointer;
 }
-.btn-ghost:hover{border-color:var(--cream);}
+.btn-ghost:hover{border-color:var(--cream); opacity:1;}
+
+/* Secondary button, site-wide: account settings, cancel booking, etc. */
+.btn-outline{
+  font-family:var(--sans); font-weight:600; font-size:0.8rem; letter-spacing:0.02em;
+  background:transparent; color:var(--gold); border:1px solid var(--gold-dim);
+  padding:10px 18px; border-radius:3px; cursor:pointer; transition:background 0.2s;
+  text-decoration:none; display:inline-flex; align-items:center; gap:8px;
+}
+.btn-outline:hover{background:rgba(215,174,92,0.08);}
 
 /* waveform */
 .waveform{
@@ -345,9 +378,13 @@ h2{
 .field input:focus, .field select:focus{border-color:var(--gold);}
 .field input[type="date"]::-webkit-calendar-picker-indicator,
 .field input[type="time"]::-webkit-calendar-picker-indicator{
-  filter:invert(1);
+  opacity:0.9;
   cursor:pointer;
 }
+.field input[type="date"]::-webkit-calendar-picker-indicator:hover,
+.field input[type="time"]::-webkit-calendar-picker-indicator:hover{opacity:1;}
+.field select option{background:var(--ink); color:var(--cream);}
+.field input[readonly]{opacity:0.75; cursor:not-allowed;}
 .field-row{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
 
 .booking-summary{
@@ -457,8 +494,14 @@ footer .btn-primary{margin-top:24px;}
   }
   .nav-links.open{max-height:280px;}
   .nav-links a{padding:16px 6%; border-top:1px solid var(--line); opacity:0.85;}
-  .nav-cta{display:none;}
-  .burger{display:flex;}
+  /* nav-links go absolute here, so pin the logo left and let the rest ride right. */
+  nav{justify-content:flex-start; gap:10px;}
+  .logo{margin-right:auto;}
+  .nav-cta{padding:11px 16px; font-size:0.78rem;}
+  .nav-greet{padding:8px 11px; font-size:0.75rem; margin-left:0; max-width:38vw; overflow:hidden; text-overflow:ellipsis;}
+  .burger{display:flex; margin-left:6px;}
+
+  .page-wrap{padding:130px 20px 80px;}
 
   section{padding:88px 6%;}
   .hero{padding:110px 6% 50px;}
@@ -517,6 +560,8 @@ footer .btn-primary{margin-top:24px;}
 
   .book-form{padding:26px 18px;}
   .submit-row{flex-direction:column; align-items:stretch;}
+  .nav-greet::before{display:none;}
+  .nav-greet{border:none; padding:8px 4px;}
 
   .footer-cols{flex-direction:column; gap:28px;}
   .footer-bottom{flex-direction:column; gap:8px;}
@@ -534,3 +579,49 @@ footer .btn-primary{margin-top:24px;}
 @media (prefers-reduced-motion: reduce){
   *{animation:none !important; transition:none !important;}
 }
+
+
+/* ---------- SHARED PAGE CHROME (account / profile) ---------- */
+.page-wrap{max-width:940px; margin:0 auto; padding:150px 24px 110px;}
+.page-head{
+  display:flex; align-items:flex-end; justify-content:space-between; gap:20px; flex-wrap:wrap;
+  border-bottom:1px solid var(--line); padding-bottom:24px; margin-bottom:40px;
+}
+.page-head h2{font-size:clamp(1.8rem, 4vw, 2.6rem);}
+
+.empty-state{
+  text-align:center; padding:56px 24px;
+  border:1px dashed var(--line); border-radius:4px;
+  background:var(--panel);
+}
+.empty-state p{color:rgba(242,236,224,0.6); margin-bottom:22px; font-size:0.95rem;}
+
+/* profile.html — account settings */
+.settings-card{
+  background:var(--panel); border:1px solid var(--line); border-radius:4px;
+  padding:36px 44px;
+}
+.settings-row{border-top:1px solid var(--line); margin-top:26px; padding-top:26px;}
+.settings-row:first-child{border-top:none; margin-top:0; padding-top:0;}
+.settings-row h3{font-size:0.95rem; font-weight:600; margin-bottom:16px;}
+.settings-card .btn-outline{margin-top:14px;}
+@media (max-width:860px){ .settings-card{padding:26px 20px;} }
+
+/* ---------- INTERACTION POLISH ---------- */
+/* Fixed nav was covering the top of whatever you jumped to. */
+[id]{scroll-margin-top:110px;}
+
+:focus-visible{outline:2px solid var(--gold); outline-offset:3px; border-radius:2px;}
+.field input:hover, .field select:hover{border-color:rgba(238,244,244,0.25);}
+.field input::placeholder{color:rgba(238,244,244,0.3);}
+.field-hint{font-size:0.75rem; opacity:0.5; margin-top:7px;}
+
+button:disabled, .book-submit:disabled{opacity:0.5; cursor:not-allowed; transform:none !important;}
+.book-submit{transition:transform 0.2s, box-shadow 0.2s;}
+.book-submit:hover:not(:disabled){box-shadow:0 8px 20px rgba(215,174,92,0.22);}
+
+.service{cursor:default;}
+.service:hover{background:var(--panel-2);}
+
+.booking-summary{transition:border-color 0.25s, background 0.25s;}
+.booking-summary.ready{border-style:solid; border-color:var(--gold-dim);}

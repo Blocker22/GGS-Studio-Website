@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Your Profile — GGS Studio</title>
+<link rel="icon" type="image/png" href="assets/Logo_NoBG.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<nav>
+  <div class="logo"><a href="index.html"><img src="assets/Logo_NoBG.png" alt="GGS Studio"></a></div>
+  <div class="nav-links" id="navLinks">
+    <a href="index.html#services">Services</a>
+    <a href="index.html#room">The Room</a>
+    <a href="index.html#book">Book a session</a>
+    <a href="account.html">My Bookings</a>
+  </div>
+  <a href="login.html" class="nav-cta" id="navAuth">Sign in</a>
+  <button class="burger" id="burgerBtn" aria-label="Toggle menu" aria-expanded="false" aria-controls="navLinks">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<div class="page-wrap">
+  <div class="page-head">
+    <div>
+      <div class="section-tag">Your account</div>
+      <h2>Profile</h2>
+    </div>
+    <a href="account.html" class="btn-outline">View my bookings →</a>
+  </div>
+
+  <div class="settings-card" id="settingsCard" style="display:none;">
+    <div class="section-tag">Account settings</div>
+    <h2 style="margin-bottom:8px;">Your details</h2>
+    <p class="section-note" style="max-width:100%; margin-bottom:26px;">Changes to your email need confirming from the new inbox.</p>
+      <div class="settings-row">
+        <h3>Your name</h3>
+        <form id="nameForm">
+          <div class="field">
+            <label>Full name</label>
+            <input type="text" id="setName" placeholder="Your name">
+          </div>
+          <button type="submit" class="btn-outline">Save name</button>
+          <div class="confirm-msg" id="nameMsg"></div>
+        </form>
+      </div>
+      <div class="settings-row">
+        <h3>Email address</h3>
+        <form id="emailForm">
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="setEmail" placeholder="you@email.com" required>
+          </div>
+          <button type="submit" class="btn-outline">Update email</button>
+          <div class="confirm-msg" id="emailMsg"></div>
+        </form>
+      </div>
+      <div class="settings-row">
+        <h3>Password</h3>
+        <form id="passwordForm">
+          <div class="field-row">
+            <div class="field">
+              <label>New password</label>
+              <div class="pw-wrap">
+                <input type="password" id="setPassword" placeholder="••••••••" minlength="6" required>
+                <button type="button" class="pw-toggle" data-pw-toggle="setPassword" aria-label="Show password">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="field">
+              <label>Confirm password</label>
+              <div class="pw-wrap">
+                <input type="password" id="setPasswordConfirm" placeholder="••••••••" minlength="6" required>
+                <button type="button" class="pw-toggle" data-pw-toggle="setPasswordConfirm" aria-label="Show password">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+          <button type="submit" class="btn-outline">Change password</button>
+          <div class="confirm-msg" id="passwordMsg"></div>
+        </form>
+      </div>
+  </div>
+
+  <div id="signedOutMsg" class="empty-state" style="display:none;">
+    <p>You need to be signed in to edit your profile.</p>
+    <a href="login.html?next=profile.html" class="btn-primary">Sign in</a>
+  </div>
+</div>
+
+<script type="module">
+  import { getSupabase } from './supabase-client.js';
+  import { initAuthNav } from './auth.js';
+  import { initPasswordToggles } from './booking.js';
+
+  initAuthNav();
+  initPasswordToggles();
+  const supabase = await getSupabase();
+
+  function showMsg(el, text, isError){
+    el.textContent = text;
+    el.classList.toggle('error', !!isError);
+    el.style.display = 'block';
+  }
+
+  document.getElementById('nameForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msg = document.getElementById('nameMsg');
+    msg.style.display = 'none';
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) return;
+    const fullName = document.getElementById('setName').value.trim();
+    const { error } = await supabase.from('profiles').update({ full_name: fullName }).eq('id', data.session.user.id);
+    if (error) showMsg(msg, error.message, true);
+    else {
+      showMsg(msg, '✓ Name updated.', false);
+      window.dispatchEvent(new CustomEvent('ggs:profile-updated'));
+    }
+  });
+
+  document.getElementById('emailForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msg = document.getElementById('emailMsg');
+    msg.style.display = 'none';
+    const email = document.getElementById('setEmail').value.trim();
+    const { error } = await supabase.auth.updateUser({ email });
+    if (error) showMsg(msg, error.message, true);
+    else showMsg(msg, '✓ Check your new inbox to confirm the email change.', false);
+  });
+
+  document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msg = document.getElementById('passwordMsg');
+    msg.style.display = 'none';
+    const pw = document.getElementById('setPassword').value;
+    if (pw !== document.getElementById('setPasswordConfirm').value){
+      showMsg(msg, "Passwords don't match.", true);
+      return;
+    }
+    const { error } = await supabase.auth.updateUser({ password: pw });
+    if (error) showMsg(msg, error.message, true);
+    else {
+      showMsg(msg, '✓ Password changed.', false);
+      e.target.reset();
+    }
+  });
+
+  async function render(){
+    const { data } = await supabase.auth.getSession();
+    const card = document.getElementById('settingsCard');
+    const out = document.getElementById('signedOutMsg');
+    if (!data.session){
+      card.style.display = 'none';
+      out.style.display = 'block';
+      return;
+    }
+    out.style.display = 'none';
+    card.style.display = 'block';
+    document.getElementById('setEmail').value = data.session.user.email || '';
+    const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', data.session.user.id).single();
+    document.getElementById('setName').value = profile?.full_name || '';
+  }
+
+  render();
+  supabase.auth.onAuthStateChange(() => setTimeout(render, 0));
+</script>
+
+</body>
+</html>

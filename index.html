@@ -10,14 +10,14 @@
 <body>
 
 <nav>
-  <div class="logo"><img src="assets/Logo_NoBG.png" alt="GGS Studio"></div>
+  <div class="logo"><a href="index.html"><img src="assets/Logo_NoBG.png" alt="GGS Studio"></a></div>
   <div class="nav-links" id="navLinks">
     <a href="#services">Services</a>
     <a href="#room">The Room</a>
     <a href="#book">Booking</a>
     <a href="account.html">My Bookings</a>
   </div>
-  <a href="#book" class="nav-cta">Book Now</a>
+  <a href="login.html" class="nav-cta" id="navAuth">Sign in</a>
   <button class="burger" id="burgerBtn" aria-label="Toggle menu" aria-expanded="false" aria-controls="navLinks">
     <span></span><span></span><span></span>
   </button>
@@ -108,7 +108,6 @@
     <div class="book-form" data-reveal>
       <div id="authSignedIn" class="auth-signed-in" style="display:none;">
         <span id="authWho"></span>
-        <button type="button" id="logoutBtn" class="btn-ghost">Log out</button>
       </div>
 
       <form id="bookingForm">
@@ -243,22 +242,6 @@
     console_.appendChild(k);
   }
 
-  // mobile nav
-  const burger = document.getElementById('burgerBtn');
-  const navLinks = document.getElementById('navLinks');
-  burger.addEventListener('click', ()=>{
-    const open = navLinks.classList.toggle('open');
-    burger.classList.toggle('open', open);
-    burger.setAttribute('aria-expanded', open);
-  });
-  navLinks.querySelectorAll('a').forEach(a=>{
-    a.addEventListener('click', ()=>{
-      navLinks.classList.remove('open');
-      burger.classList.remove('open');
-      burger.setAttribute('aria-expanded', 'false');
-    });
-  });
-
   // reveal on scroll
   const revealEls = document.querySelectorAll('[data-reveal]');
   const io = new IntersectionObserver((entries)=>{
@@ -329,6 +312,8 @@
 
 <script type="module">
   import { initBooking } from './booking.js';
+  import { initAuthNav } from './auth.js';
+  initAuthNav();
   initBooking();
 </script>
 

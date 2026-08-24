@@ -5,13 +5,14 @@
 // form — it only kicks in when the visitor submits and isn't signed in yet,
 // using the name/email they already typed.
 import { getSupabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase-client.js';
+import { signUpChecked } from './auth.js';
 
 const FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
 
 const EYE_OPEN = '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/>';
 const EYE_OFF = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a20.6 20.6 0 0 1 5.06-5.94M9.9 4.24A10.6 10.6 0 0 1 12 4c7 0 11 7 11 7a20.6 20.6 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/>';
 
-function initPasswordToggles() {
+export function initPasswordToggles() {
   document.querySelectorAll('[data-pw-toggle]').forEach((btn) => {
     const input = document.getElementById(btn.dataset.pwToggle);
     if (!input) return;
@@ -68,7 +69,6 @@ export async function initBooking() {
 
   const authSignedIn = document.getElementById('authSignedIn');
   const authWho = document.getElementById('authWho');
-  const logoutBtn = document.getElementById('logoutBtn');
   const authStep = document.getElementById('authStep');
   const authStepNote = document.getElementById('authStepNote');
   const authPassword = document.getElementById('authPassword');
@@ -81,17 +81,25 @@ export async function initBooking() {
   let servicesBySlug = {};
   let awaitingAuthMode = null; // 'signup' | 'login' | null
 
-  function refreshAuthUI() {
+  async function refreshAuthUI() {
     if (session) {
-      authSignedIn.style.display = 'flex';
-      authWho.textContent = `Booking as ${session.user.email}`;
-      nameEl.disabled = true;
-      emailEl.disabled = true;
+      if (authSignedIn) {
+        authSignedIn.style.display = 'flex';
+        authWho.textContent = `Booking as ${session.user.email}`;
+      }
+      // Fill the account's details in rather than blanking the fields out —
+      // a disabled empty Name was making the form impossible to submit.
+      emailEl.value = session.user.email || '';
+      if (!nameEl.value.trim()) {
+        const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', session.user.id).single();
+        nameEl.value = profile?.full_name || session.user.user_metadata?.full_name || '';
+      }
+      nameEl.readOnly = false;
+      emailEl.readOnly = true;
       hideAuthStep();
     } else {
-      authSignedIn.style.display = 'none';
-      nameEl.disabled = false;
-      emailEl.disabled = false;
+      if (authSignedIn) authSignedIn.style.display = 'none';
+      emailEl.readOnly = false;
     }
   }
 
@@ -127,11 +135,9 @@ export async function initBooking() {
   });
   supabase.auth.onAuthStateChange((_event, s) => {
     session = s;
-    refreshAuthUI();
-  });
-
-  logoutBtn.addEventListener('click', async () => {
-    await supabase.auth.signOut();
+    // Deferred: querying Supabase from inside this callback can deadlock the
+    // auth lock, and refreshAuthUI reads the profiles table.
+    setTimeout(refreshAuthUI, 0);
   });
 
   async function loadRates() {
@@ -163,6 +169,7 @@ export async function initBooking() {
   }
 
   function updateSummary() {
+    document.getElementById('bookingSummary').classList.remove('ready');
     if (!mainRoom || !serviceEl.value || !startEl.value || !endEl.value) {
       sumDuration.textContent = '—';
       sumPrice.textContent = '—';
@@ -180,7 +187,11 @@ export async function initBooking() {
     const price = Math.ceil(Number(mainRoom.hourly_rate) * duration + addonTotal(serviceEl.value, duration));
     sumDuration.textContent = `${duration} hr${duration !== 1 ? 's' : ''}`;
     sumPrice.textContent = formatPeso(price);
+    document.getElementById('bookingSummary').classList.add('ready');
   }
+
+  // Can't book yesterday — let the native picker enforce it.
+  dateEl.min = new Date().toLocaleDateString('en-CA');
 
   [serviceEl, startEl, endEl].forEach((el) => el.addEventListener('input', updateSummary));
 
@@ -221,6 +232,7 @@ export async function initBooking() {
     submitBtn.textContent = 'Request sent ✓';
     hideAuthStep();
     form.reset();
+    await refreshAuthUI();
     updateSummary();
     window.dispatchEvent(new CustomEvent('ggs:booking-created', { detail: b }));
   }
@@ -245,12 +257,17 @@ export async function initBooking() {
       submitBtn.disabled = true;
       try {
         if (awaitingAuthMode === 'signup') {
-          const { error } = await supabase.auth.signUp({
-            email: emailEl.value.trim(),
-            password,
-            options: { data: { full_name: nameEl.value.trim() } },
-          });
-          if (error) throw error;
+          try {
+            await signUpChecked(supabase, emailEl.value.trim(), password, nameEl.value.trim());
+          } catch (err) {
+            if (/already registered/i.test(err.message)) {
+              showAuthStep('login');
+              authMsg.textContent = err.message;
+              submitBtn.disabled = false;
+              return;
+            }
+            throw err;
+          }
         } else {
           const { error } = await supabase.auth.signInWithPassword({ email: emailEl.value.trim(), password });
           if (error) throw error;

@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign in — GGS Studio</title>
+<link rel="icon" type="image/png" href="assets/Logo_NoBG.png">
+<link rel="stylesheet" href="style.css">
+<style>
+  .auth-wrap{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:120px 24px 60px;}
+  .auth-card{width:100%; max-width:400px;}
+  .auth-card h2{font-size:1.6rem; margin-bottom:8px;}
+  .auth-card .section-note{max-width:100%; margin-bottom:28px;}
+  .auth-card .logo{justify-content:center; margin-bottom:22px;}
+  .auth-card .logo img{height:56px;}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo"><a href="index.html"><img src="assets/Logo_NoBG.png" alt="GGS Studio"></a></div>
+  <div class="nav-links" id="navLinks">
+    <a href="index.html#services">Services</a>
+    <a href="index.html#room">The Room</a>
+    <a href="index.html#book">Booking</a>
+    <a href="account.html">My Bookings</a>
+  </div>
+  <a href="login.html" class="nav-cta" id="navAuth">Sign in</a>
+  <button class="burger" id="burgerBtn" aria-label="Toggle menu" aria-expanded="false" aria-controls="navLinks">
+    <span></span><span></span><span></span>
+  </button>
+</nav>
+
+<div class="auth-wrap">
+  <div class="book-form auth-card">
+    <div class="logo"><img src="assets/Logo_NoBG.png" alt="GGS Studio"></div>
+    <div class="section-tag" id="authTag">Welcome back</div>
+    <h2 id="authTitle">Sign in</h2>
+    <p class="section-note" id="authNote">Sign in to book a session and manage your bookings.</p>
+
+    <form id="authForm">
+      <div class="field" id="nameField" style="display:none;">
+        <label>Full name</label>
+        <input type="text" id="aName" placeholder="Your name">
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="aEmail" placeholder="you@email.com" required>
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <div class="pw-wrap">
+          <input type="password" id="aPassword" placeholder="••••••••" minlength="6" required>
+          <button type="button" class="pw-toggle" data-pw-toggle="aPassword" aria-label="Show password">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="submit-row">
+        <button type="submit" id="authSubmit" class="book-submit">Sign in</button>
+      </div>
+      <div class="auth-toggle-row">
+        <button type="button" id="authSwitch" class="btn-ghost">New here? Create an account</button>
+      </div>
+      <div class="confirm-msg" id="authMsg"></div>
+    </form>
+  </div>
+</div>
+
+<script type="module">
+  import { getSupabase } from './supabase-client.js';
+  import { initAuthNav, signUpChecked } from './auth.js';
+  import { initPasswordToggles } from './booking.js';
+
+  initAuthNav();
+  initPasswordToggles();
+
+  const supabase = await getSupabase();
+  const form = document.getElementById('authForm');
+  const msg = document.getElementById('authMsg');
+  const submit = document.getElementById('authSubmit');
+  const switchBtn = document.getElementById('authSwitch');
+  const nameField = document.getElementById('nameField');
+  let mode = new URLSearchParams(location.search).get('mode') === 'signup' ? 'signup' : 'login';
+
+  const next = new URLSearchParams(location.search).get('next') || 'account.html';
+
+  function render() {
+    const signup = mode === 'signup';
+    document.getElementById('authTag').textContent = signup ? 'Join the studio' : 'Welcome back';
+    document.getElementById('authTitle').textContent = signup ? 'Create account' : 'Sign in';
+    document.getElementById('authNote').textContent = signup
+      ? 'Create an account to book sessions and track them in one place.'
+      : 'Sign in to book a session and manage your bookings.';
+    nameField.style.display = signup ? 'block' : 'none';
+    submit.textContent = signup ? 'Create account' : 'Sign in';
+    switchBtn.textContent = signup ? 'Already have an account? Sign in' : 'New here? Create an account';
+    msg.style.display = 'none';
+  }
+
+  function showMsg(text, isError) {
+    msg.textContent = text;
+    msg.classList.toggle('error', !!isError);
+    msg.style.display = 'block';
+  }
+
+  switchBtn.addEventListener('click', () => { mode = mode === 'signup' ? 'login' : 'signup'; render(); });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = document.getElementById('aEmail').value.trim();
+    const password = document.getElementById('aPassword').value;
+    submit.disabled = true;
+    try {
+      if (mode === 'signup') {
+        await signUpChecked(supabase, email, password, document.getElementById('aName').value.trim());
+        const { data } = await supabase.auth.getSession();
+        if (!data.session) {
+          // Email confirmation is on — nothing to sign into yet.
+          mode = 'login';
+          render();
+          showMsg('✓ Account created — check your email to confirm it, then sign in.', false);
+          submit.disabled = false;
+          return;
+        }
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+      }
+      location.href = next;
+    } catch (err) {
+      showMsg(`⚠ ${err.message}`, true);
+      submit.disabled = false;
+    }
+  });
+
+  render();
+
+  // Already signed in? Nothing to do here.
+  const { data } = await supabase.auth.getSession();
+  if (data.session) location.replace(next);
+</script>
+
+</body>
+</html>
