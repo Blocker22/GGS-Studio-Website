@@ -3,6 +3,35 @@
 // registered" response into a real error.
 import { getSupabase } from './supabase-client.js';
 
+// One nav markup, built here, used by every page — the header used to be
+// pasted into each HTML file by hand and drifted (different labels, different
+// hrefs, "Booking" vs "Book a session"). Now there is exactly one layout.
+const NAV_LINKS = [
+  { label: 'Services', hash: '#services' },
+  { label: 'The Room', hash: '#room' },
+  { label: 'Book a session', hash: '#book' },
+  { label: 'My Bookings', href: 'account.html' },
+];
+
+function renderNav(navEl) {
+  const here = location.pathname.split('/').pop() || 'index.html';
+  const onIndex = here === 'index.html' || here === '';
+
+  const links = NAV_LINKS.map((l) => {
+    const href = l.href || (onIndex ? l.hash : `index.html${l.hash}`);
+    return `<a href="${href}">${l.label}</a>`;
+  }).join('');
+
+  navEl.innerHTML = `
+    <div class="logo"><a href="index.html"><img src="assets/Logo_NoBG.png" alt="GGS Studio"></a></div>
+    <div class="nav-links" id="navLinks">${links}</div>
+    <a href="login.html" class="nav-cta" id="navAuth">Sign in</a>
+    <button class="burger" id="burgerBtn" aria-label="Toggle menu" aria-expanded="false" aria-controls="navLinks">
+      <span></span><span></span><span></span>
+    </button>
+  `;
+}
+
 function initBurger() {
   const burger = document.getElementById('burgerBtn');
   const navLinks = document.getElementById('navLinks');
@@ -32,6 +61,8 @@ function markCurrentNavLink() {
 }
 
 export async function initAuthNav() {
+  const navEl = document.querySelector('nav');
+  if (navEl) renderNav(navEl);
   initBurger();
   markCurrentNavLink();
 
