@@ -9,27 +9,31 @@ import { getSupabase } from './supabase-client.js';
 const NAV_LINKS = [
   { label: 'Services', hash: '#services' },
   { label: 'The Room', hash: '#room' },
-  { label: 'Book a session', hash: '#book' },
-  { label: 'My Bookings', href: 'account.html' },
 ];
 
+// The 4th slot toggles: "Book a session" signed out, "My Bookings" signed in
+// — swapped in render() below rather than showing both at once.
 function renderNav(navEl) {
   const here = location.pathname.split('/').pop() || 'index.html';
   const onIndex = here === 'index.html' || here === '';
+  const bookHref = onIndex ? '#book' : 'index.html#book';
 
   const links = NAV_LINKS.map((l) => {
-    const href = l.href || (onIndex ? l.hash : `index.html${l.hash}`);
+    const href = onIndex ? l.hash : `index.html${l.hash}`;
     return `<a href="${href}">${l.label}</a>`;
   }).join('');
 
   navEl.innerHTML = `
     <div class="logo"><a href="index.html"><img src="assets/Logo_NoBG.png" alt="GGS Studio"></a></div>
-    <div class="nav-links" id="navLinks">${links}</div>
-    <a href="login.html" class="nav-cta" id="navAuth">Sign in</a>
-    <button class="burger" id="burgerBtn" aria-label="Toggle menu" aria-expanded="false" aria-controls="navLinks">
-      <span></span><span></span><span></span>
-    </button>
+    <div class="nav-links" id="navLinks">${links}<a href="${bookHref}" id="navBookLink">Book a session</a></div>
+    <div class="nav-right">
+      <a href="login.html" class="nav-cta" id="navAuth">Sign in</a>
+      <button class="burger" id="burgerBtn" aria-label="Toggle menu" aria-expanded="false" aria-controls="navLinks">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
   `;
+  return bookHref;
 }
 
 function initBurger() {
@@ -62,7 +66,7 @@ function markCurrentNavLink() {
 
 export async function initAuthNav() {
   const navEl = document.querySelector('nav');
-  if (navEl) renderNav(navEl);
+  const bookHref = navEl ? renderNav(navEl) : null;
   initBurger();
   markCurrentNavLink();
 
@@ -77,9 +81,21 @@ export async function initAuthNav() {
   greet.style.display = 'none';
   el.parentNode.insertBefore(greet, el);
 
+  const bookLink = document.getElementById('navBookLink');
+
   async function render(session) {
     el.textContent = session ? 'Sign out' : 'Sign in';
     el.href = session ? '#' : `login.html?next=${encodeURIComponent(location.pathname.split('/').pop() || 'index.html')}`;
+    if (bookLink) {
+      if (session) {
+        bookLink.textContent = 'My Bookings';
+        bookLink.href = 'account.html';
+      } else {
+        bookLink.textContent = 'Book a session';
+        bookLink.href = bookHref;
+      }
+      markCurrentNavLink(); // href just changed, so "current" needs a re-check
+    }
     if (!session) {
       greet.style.display = 'none';
       return;
