@@ -17,3 +17,4 @@ export function getSupabase() {
   }
   return clientPromise;
 }
+

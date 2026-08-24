@@ -252,3 +252,4 @@ function showError(msg, text) {
   msg.classList.add('error');
   msg.style.display = 'block';
 }
+

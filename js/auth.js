@@ -179,3 +179,4 @@ export async function signUpChecked(supabase, email, password, fullName) {
   }
   return data;
 }
+

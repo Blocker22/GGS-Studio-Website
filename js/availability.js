@@ -286,3 +286,4 @@ export async function initBookingCalendar() {
 
   await render();
 }
+

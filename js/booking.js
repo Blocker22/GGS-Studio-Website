@@ -653,3 +653,4 @@ export async function initBooking() {
   await loadRates();
   updateSummary();
 }
+
