@@ -1129,7 +1129,7 @@ async function main() {
           el('td', {}, p.type),
           el('td', {}, peso(p.amount)),
           el('td', {}, peso(p.refunded_amount)),
-          el('td', {}, el('span', { style: 'color:var(--gold);font-size:0.75rem;text-transform:uppercase;' }, p.status)),
+          el('td', {}, el('span', { style: 'color:var(--gold);font-size:0.75rem;text-transform:capitalize;' }, p.status)),
           el('td', { style: 'font-size:0.7rem;opacity:0.4;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;' }, p.paymongo_payment_id || p.paymongo_checkout_session_id || '—'),
           el('td', {}, canRefund
             ? el('button', {
@@ -1164,7 +1164,7 @@ async function main() {
         sel.addEventListener('change', async () => { await supabase.from('profiles').update({ role: sel.value }).eq('id', s.id); });
         roleCell = sel;
       } else {
-        roleCell = el('span', { style: 'text-transform:uppercase;color:var(--gold);font-size:0.75rem;' }, s.role);
+        roleCell = el('span', { style: 'text-transform:capitalize;color:var(--gold);font-size:0.75rem;' }, s.role);
       }
       body.appendChild(el('tr', {}, [el('td', {}, s.full_name || 'Unnamed'), el('td', {}, roleCell), el('td', {}, d(s.created_at))]));
     });

@@ -147,7 +147,6 @@ nav{
   color:var(--teal);
   font-size:0.8rem;
   letter-spacing:0.15em;
-  text-transform:uppercase;
   margin-bottom:22px;
   display:flex; align-items:center; gap:10px;
 }
@@ -158,7 +157,6 @@ h1{
   font-size:clamp(2.4rem, 6.5vw, 5.5rem);
   line-height:0.92;
   letter-spacing:-0.01em;
-  text-transform:uppercase;
   max-width:15ch;
 }
 h1 .out{ color:var(--cream); }
@@ -264,14 +262,12 @@ section{padding:120px 8%;}
   color:var(--teal);
   font-size:0.8rem;
   letter-spacing:0.15em;
-  text-transform:uppercase;
   margin-bottom:14px;
 }
 h2{
   font-family:var(--sans);
   font-weight:700;
   font-size:clamp(2rem, 4vw, 3.2rem);
-  text-transform:uppercase;
   letter-spacing:-0.01em;
 }
 .section-note{
@@ -305,7 +301,6 @@ h2{
   font-family:var(--sans);
   font-weight:700;
   font-size:1.5rem;
-  text-transform:uppercase;
   margin:20px 0 14px;
 }
 .service p{color:rgba(242,236,224,0.6); font-size:0.92rem; line-height:1.6;}
@@ -352,14 +347,14 @@ h2{
 }
 .gear-copy .stat-row{display:flex; gap:40px; margin-top:40px; flex-wrap:wrap;}
 .stat b{font-family:var(--sans); font-size:2.4rem; display:block; color:var(--gold);}
-.stat span{font-family:var(--sans); font-size:0.78rem; opacity:0.6; text-transform:uppercase;}
+.stat span{font-family:var(--sans); font-size:0.78rem; opacity:0.6;}
 
 /* ---------- BOOKING ---------- */
 .booking{
   background:var(--ink);
 }
 .book-grid{
-  display:grid; grid-template-columns:0.9fr 1.1fr; gap:70px;
+  display:grid; grid-template-columns:1.05fr 0.95fr; gap:56px;
 }
 .book-form{
   background:var(--panel);
@@ -370,7 +365,7 @@ h2{
 .field{margin-bottom:22px;}
 .field label{
   display:block; font-family:var(--sans); font-size:0.75rem;
-  letter-spacing:0.08em; text-transform:uppercase; color:var(--gold); margin-bottom:9px;
+  letter-spacing:0.08em; color:var(--gold); margin-bottom:9px;
 }
 .field input, .field select{
   width:100%; background:var(--ink); border:1px solid var(--line); color:var(--cream);
@@ -397,7 +392,7 @@ h2{
   background:rgba(215,174,92,0.04);
 }
 .booking-summary div{display:flex; flex-direction:column; gap:6px;}
-.booking-summary span{font-family:var(--sans); font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; opacity:0.55;}
+.booking-summary span{font-family:var(--sans); font-size:0.72rem; letter-spacing:0.08em; opacity:0.55;}
 .booking-summary strong{font-family:var(--sans); font-size:1.3rem; color:var(--gold); font-weight:700;}
 
 .submit-row{
@@ -477,7 +472,7 @@ footer{padding:80px 8% 40px;}
 .footer-cta h2{max-width:9ch;}
 footer .btn-primary{margin-top:24px;}
 .footer-cols{display:flex; gap:70px; flex-wrap:wrap;}
-.footer-col h5{font-family:var(--sans); font-size:0.75rem; color:var(--gold); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:14px;}
+.footer-col h5{font-family:var(--sans); font-size:0.75rem; color:var(--gold); letter-spacing:0.08em; margin-bottom:14px;}
 .footer-col a{display:block; color:rgba(242,236,224,0.65); text-decoration:none; font-size:0.9rem; margin-bottom:9px;}
 .footer-col a:hover{color:var(--cream);}
 .footer-bottom{display:flex; justify-content:space-between; font-family:var(--sans); font-size:0.75rem; opacity:0.45; flex-wrap:wrap; gap:10px;}
@@ -639,7 +634,7 @@ button:disabled, .book-submit:disabled{opacity:0.5; cursor:not-allowed; transfor
 }
 .pay-heading{
   display:block; font-family:var(--sans); font-size:0.75rem;
-  letter-spacing:0.08em; text-transform:uppercase; color:var(--gold); margin-bottom:4px;
+  letter-spacing:0.08em; color:var(--gold); margin-bottom:4px;
 }
 .pay-option{
   display:flex; align-items:flex-start; gap:12px;
@@ -670,7 +665,7 @@ button:disabled, .book-submit:disabled{opacity:0.5; cursor:not-allowed; transfor
 .pay-id-upload.show{display:block;}
 .pay-id-upload label{
   display:block; font-family:var(--sans); font-size:0.75rem;
-  letter-spacing:0.08em; text-transform:uppercase; color:var(--gold); margin-bottom:9px;
+  letter-spacing:0.08em; color:var(--gold); margin-bottom:9px;
 }
 .pay-id-upload input[type="file"]{
   width:100%; font-family:var(--sans); font-size:0.82rem; color:var(--cream);
@@ -750,3 +745,190 @@ nav.scrolled{
   .booking-summary.ready{animation:summaryReady 0.6s ease-out;}
 }
 
+
+
+/* ---------- AVAILABILITY CALENDAR (landing page, "Book now") ---------- */
+.book-side-note{max-width:none; margin-bottom:26px;}
+.cal{
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:4px;
+  padding:22px 22px 18px;
+}
+.cal-head{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  margin-bottom:18px;
+}
+.cal-month{font-size:1rem; font-weight:600; letter-spacing:0.01em;}
+.cal-nav{
+  width:34px; height:34px; flex-shrink:0;
+  display:inline-flex; align-items:center; justify-content:center;
+  background:transparent; color:var(--cream); cursor:pointer;
+  border:1px solid var(--line); border-radius:3px;
+  transition:border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+}
+.cal-nav svg{width:15px; height:15px;}
+.cal-nav:hover{border-color:var(--gold-dim); background:rgba(215,174,92,0.07);}
+.cal-nav:active{transform:scale(0.92);}
+
+.cal-dows, .cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:6px;}
+.cal-dows{
+  margin-bottom:8px;
+  font-size:0.66rem; letter-spacing:0.06em; text-align:center;
+  color:rgba(238,244,244,0.4);
+}
+
+.cal-day{
+  position:relative;
+  aspect-ratio:1 / 0.78;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;
+  background:var(--ink); color:var(--cream);
+  border:1px solid var(--line); border-radius:3px;
+  font-family:var(--sans); font-size:0.85rem;
+  cursor:pointer;
+  transition:border-color 0.18s ease, background 0.18s ease, transform 0.18s ease, color 0.18s ease;
+}
+.cal-day .cal-mark{
+  width:5px; height:5px; border-radius:50%;
+  background:var(--teal);
+  transition:background 0.18s ease, transform 0.18s ease;
+}
+.cal-day.state-busy .cal-mark{background:var(--gold);}
+.cal-day.state-full .cal-mark, .cal-day.state-closed .cal-mark{background:rgba(238,244,244,0.2);}
+.cal-day.state-past .cal-mark{opacity:0;}
+.cal-day.outside{opacity:0.35;}
+.cal-day.today{border-color:var(--gold-dim);}
+.cal-day.today .cal-daynum{color:var(--gold); font-weight:700;}
+.cal-day:not(:disabled):hover{
+  border-color:var(--gold-dim); background:var(--panel-2); transform:translateY(-2px);
+}
+.cal-day:not(:disabled):hover .cal-mark{transform:scale(1.5);}
+.cal-day:not(:disabled):active{transform:scale(0.95);}
+.cal-day:disabled{cursor:not-allowed; opacity:0.3;}
+.cal-day.state-full:disabled{text-decoration:line-through;}
+.cal-day.selected{
+  background:var(--gold); color:var(--ink); border-color:var(--gold);
+  transform:translateY(-2px);
+  box-shadow:0 8px 18px rgba(215,174,92,0.22);
+}
+.cal-day.selected .cal-daynum{color:var(--ink);}
+.cal-day.selected .cal-mark{background:var(--ink);}
+
+/* The month swap: old grid slides out the way you're heading, new one fans in. */
+@media not (prefers-reduced-motion: reduce){
+  .cal-grid{transition:opacity 0.13s ease, transform 0.13s ease;}
+  .cal-grid.leaving-next{opacity:0; transform:translateX(-10px);}
+  .cal-grid.leaving-prev{opacity:0; transform:translateX(10px);}
+  .cal-grid .cal-day{animation:calDayIn 0.32s ease both; animation-delay:calc(var(--i, 0) * 7ms);}
+  @keyframes calDayIn{
+    from{opacity:0; transform:translateY(6px) scale(0.94);}
+    to{opacity:1; transform:none;}
+  }
+}
+
+/* Free-window panel grows from nothing instead of shoving the legend down. */
+.cal-detail{
+  display:grid; grid-template-rows:0fr;
+  opacity:0;
+  transition:grid-template-rows 0.32s ease, opacity 0.24s ease, margin-top 0.32s ease;
+  margin-top:0;
+}
+.cal-detail.open{grid-template-rows:1fr; opacity:1; margin-top:18px;}
+.cal-detail-inner{overflow:hidden; min-height:0;}
+.cal-detail-day{font-size:0.85rem; font-weight:600; color:var(--gold);}
+.cal-detail-note{font-size:0.76rem; color:rgba(242,236,224,0.55); margin-top:5px;}
+.cal-slots{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px;}
+.cal-slot{
+  display:flex; flex-direction:column; gap:2px; text-align:left;
+  font-family:var(--sans); font-size:0.8rem; color:var(--cream);
+  background:var(--ink); border:1px solid var(--line); border-radius:3px;
+  padding:9px 13px; cursor:pointer;
+  transition:border-color 0.18s ease, background 0.18s ease, transform 0.15s ease;
+}
+.cal-slot em{font-style:normal; font-size:0.68rem; color:rgba(238,244,244,0.45);}
+.cal-slot:hover{border-color:var(--gold-dim); background:rgba(215,174,92,0.06); transform:translateY(-2px);}
+.cal-slot:active{transform:scale(0.96);}
+.cal-slot.taken{border-color:var(--gold); color:var(--gold);}
+
+.cal-legend{
+  display:flex; flex-wrap:wrap; gap:16px;
+  margin-top:18px; padding-top:14px; border-top:1px solid var(--line);
+  font-size:0.7rem; color:rgba(238,244,244,0.45);
+}
+.cal-legend span{display:inline-flex; align-items:center; gap:6px;}
+.cal-legend i{width:6px; height:6px; border-radius:50%; display:inline-block;}
+.cal-legend .dot-open{background:var(--teal);}
+.cal-legend .dot-busy{background:var(--gold);}
+.cal-legend .dot-full{background:rgba(238,244,244,0.2);}
+
+@media (max-width:860px){
+  .book-grid{grid-template-columns:1fr;}
+  .cal{padding:18px 16px 14px;}
+  .cal-day{font-size:0.8rem; gap:4px;}
+}
+@media (max-width:520px){
+  .cal-dows, .cal-grid{gap:4px;}
+  .cal-day{font-size:0.75rem;}
+  .cal-slot{flex:1 1 100%;}
+}
+
+
+/* ---------- MOTION: NOTHING APPEARS BY SNAPPING ---------- */
+/* Panels that JS flips between display:none and display:block get their entry
+   animation for free — the display change itself starts the keyframes, so no
+   JS has to know about the motion. */
+@media not (prefers-reduced-motion: reduce){
+  @keyframes panelIn{
+    from{opacity:0; transform:translateY(-8px);}
+    to{opacity:1; transform:none;}
+  }
+  .auth-step, .auth-toggle-row, .auth-signed-in, .confirm-msg,
+  .pay-id-upload.show, .reschedule-panel:not([hidden]), .empty-state{
+    animation:panelIn 0.3s ease both;
+  }
+
+  /* A summary figure that changes value flags the change rather than silently
+     swapping digits. Toggled from booking.js. */
+  @keyframes valueBump{
+    0%{opacity:0.35; transform:translateY(4px);}
+    60%{transform:translateY(-1px);}
+    100%{opacity:1; transform:none;}
+  }
+  .booking-summary strong.bump, .pay-amount.bump{animation:valueBump 0.34s ease;}
+
+  /* Booking cards deal in one at a time instead of landing as a block. */
+  @keyframes cardIn{
+    from{opacity:0; transform:translateY(12px);}
+    to{opacity:1; transform:none;}
+  }
+  .booking-card{animation:cardIn 0.42s ease both; animation-delay:calc(var(--i, 0) * 60ms);}
+
+  /* Form fields lift toward the cursor/caret so the active row is obvious. */
+  .field input, .field select{transition:border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;}
+  .field input:focus, .field select:focus{box-shadow:0 0 0 3px rgba(215,174,92,0.12);}
+  .book-side, .book-form{transition:transform 0.3s ease;}
+}
+
+
+/* A row that comes and goes with a mode switch, without the card jumping a
+   whole row height. The inner wrapper is what gets clipped — a grid row can
+   only animate to 0fr if there's exactly one child to collapse. */
+.collapse{
+  display:grid; grid-template-rows:0fr; opacity:0;
+  transition:grid-template-rows 0.3s ease, opacity 0.22s ease, margin-bottom 0.3s ease;
+}
+.collapse > .collapse-inner{overflow:hidden; min-height:0;}
+.collapse.open{grid-template-rows:1fr; opacity:1;}
+.field.collapse{margin-bottom:0;}
+.field.collapse.open{margin-bottom:22px;}
+
+@media not (prefers-reduced-motion: reduce){
+  /* Sign in <-> Create account swaps the heading copy; crossfade it so the
+     card reads as changing mode rather than glitching. */
+  @keyframes copySwap{
+    from{opacity:0; transform:translateY(-5px);}
+    to{opacity:1; transform:none;}
+  }
+  .copy-swap.swapping{animation:copySwap 0.3s ease;}
+  .settings-card{animation:panelIn 0.3s ease both;}
+}

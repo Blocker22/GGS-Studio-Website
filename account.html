@@ -35,7 +35,7 @@
   .booking-card h3{font-size:1.05rem; margin-bottom:6px;}
   .booking-card .meta{font-size:0.85rem; opacity:0.7; margin-bottom:4px;}
   .status-pill{
-    display:inline-block; font-size:0.7rem; letter-spacing:0.06em; text-transform:uppercase;
+    display:inline-block; font-size:0.7rem; letter-spacing:0.06em; text-transform:capitalize;
     padding:4px 10px; border-radius:20px; border:1px solid var(--line); margin-bottom:10px;
   }
   .status-pending{color:var(--gold); border-color:var(--gold-dim);}
@@ -44,7 +44,7 @@
   .status-completed, .status-no_show{opacity:0.6;}
   .booking-actions{display:flex; gap:10px; flex-wrap:wrap;}
   .section-sub{
-    font-size:0.75rem; letter-spacing:0.08em; text-transform:uppercase; color:var(--gold);
+    font-size:0.75rem; letter-spacing:0.08em; color:var(--gold);
     margin:40px 0 16px; padding-bottom:8px; border-bottom:1px solid var(--line);
   }
   .account-book{scroll-margin-top:110px;}
@@ -236,11 +236,13 @@
     const services = (b.booking_services || []).map(bs => bs.services?.name).filter(Boolean).join(', ');
     const startsAt = new Date(b.start_at);
     const isOpen = ['pending','confirmed'].includes(b.status);
-    const canModify = isOpen && startsAt > new Date();
-    // Same rule the server enforces: changes must land at least `cutoffHours`
-    // before the session starts, so inside that window it's phone-us-only.
+    // Same rule the server enforces, and the same rule for both actions:
+    // cancelling this close to the session costs the studio exactly what a
+    // last-minute reschedule does, so one cutoff governs both. Inside the
+    // window it's phone-us-only.
     const hoursAway = (startsAt.getTime() - Date.now()) / 3600000;
-    const canReschedule = isOpen && hoursAway >= cutoffHours;
+    const canChange = isOpen && hoursAway >= cutoffHours;
+    const stillUpcoming = isOpen && startsAt > new Date();
     const durationMs = new Date(b.end_at).getTime() - startsAt.getTime();
 
     card.innerHTML = `
@@ -250,15 +252,15 @@
         <div class="meta">${fmtRange(b.start_at, b.end_at)}</div>
         ${services ? `<div class="meta">Add-ons: ${services}</div>` : ''}
         <div class="meta">Total: ${formatPeso(b.total_price)}</div>
-        ${canModify && !canReschedule
-          ? `<div class="meta reschedule-locked">Too late to reschedule online — call the studio.</div>`
+        ${stillUpcoming && !canChange
+          ? `<div class="meta reschedule-locked">Inside the ${cutoffHours}-hour window — cancelling or rescheduling online is closed. Call the studio.</div>`
           : ''}
       </div>
       <div class="booking-actions">
-        ${canReschedule ? `<button class="btn-outline" data-action="reschedule">Reschedule</button>` : ''}
-        ${canModify ? `<button class="btn-outline" data-action="cancel">Cancel</button>` : ''}
+        ${canChange ? `<button class="btn-outline" data-action="reschedule">Reschedule</button>` : ''}
+        ${canChange ? `<button class="btn-outline" data-action="cancel">Cancel</button>` : ''}
       </div>
-      ${canReschedule ? `
+      ${canChange ? `
       <form class="reschedule-panel" data-panel hidden>
         <div class="field-row">
           <div class="field">
@@ -282,7 +284,7 @@
     const cancelBtn = card.querySelector('[data-action="cancel"]');
     if (cancelBtn){
       cancelBtn.addEventListener('click', async () => {
-        if (!confirm('Cancel this booking?')) return;
+        if (!confirm('Cancel this booking? Cancellations are only possible up to ' + cutoffHours + ' hours before the session.')) return;
         cancelBtn.disabled = true;
         try{
           await callFunction('cancel-booking', session, { booking_id: b.id, reason: 'Cancelled by customer' });
@@ -375,11 +377,18 @@
     const upcoming = (bookings || []).filter(b => new Date(b.start_at) >= now && b.status !== 'cancelled').reverse();
     const past = (bookings || []).filter(b => new Date(b.start_at) < now || b.status === 'cancelled');
 
+    // --i drives the CSS stagger so a list of cards fans in one after another.
+    const append = (list) => (b, i) => {
+      const card = renderBooking(b, session, supabase, () => loadBookings(supabase, session), cutoffHours);
+      card.style.setProperty('--i', i);
+      list.appendChild(card);
+    };
+
     if (upcoming.length === 0) upcomingList.innerHTML = '<p class="muted">No upcoming bookings — book a session above.</p>';
-    else upcoming.forEach(b => upcomingList.appendChild(renderBooking(b, session, supabase, () => loadBookings(supabase, session), cutoffHours)));
+    else upcoming.forEach(append(upcomingList));
 
     if (past.length === 0) pastList.innerHTML = '<p class="muted">No past bookings yet.</p>';
-    else past.forEach(b => pastList.appendChild(renderBooking(b, session, supabase, () => loadBookings(supabase, session), cutoffHours)));
+    else past.forEach(append(pastList));
   }
 
   async function refreshBookingsPanel(supabase){

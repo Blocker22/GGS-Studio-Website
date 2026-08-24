@@ -29,6 +29,16 @@ function formatPeso(amount) {
   return '₱' + Math.round(amount).toLocaleString('en-PH');
 }
 
+// Swaps a figure in with a short bump instead of the digits blinking to a new
+// value. Re-triggering needs the class off for a reflow, hence the offsetWidth.
+function setFigure(el, text) {
+  if (!el || el.textContent === text) return;
+  el.textContent = text;
+  el.classList.remove('bump');
+  void el.offsetWidth;
+  el.classList.add('bump');
+}
+
 function to12Hour(time) {
   const [h, m] = time.split(':').map(Number);
   const period = h >= 12 ? 'PM' : 'AM';
@@ -192,8 +202,8 @@ export async function initBooking() {
   function updateSummary() {
     document.getElementById('bookingSummary').classList.remove('ready');
     if (!mainRoom || !serviceEl.value || !startEl.value || !endEl.value) {
-      sumDuration.textContent = '—';
-      sumPrice.textContent = '—';
+      setFigure(sumDuration, '—');
+      setFigure(sumPrice, '—');
       refreshPayOptions();
       return;
     }
@@ -201,15 +211,15 @@ export async function initBooking() {
     const [eh, em] = endEl.value.split(':').map(Number);
     const rawDuration = (eh * 60 + em - (sh * 60 + sm)) / 60;
     if (rawDuration <= 0) {
-      sumDuration.textContent = 'End must be after start';
-      sumPrice.textContent = '—';
+      setFigure(sumDuration, 'End must be after start');
+      setFigure(sumPrice, '—');
       refreshPayOptions();
       return;
     }
     const duration = Math.ceil(rawDuration * 10) / 10;
     const price = Math.ceil(Number(mainRoom.hourly_rate) * duration + addonTotal(serviceEl.value, duration));
-    sumDuration.textContent = `${duration} hr${duration !== 1 ? 's' : ''}`;
-    sumPrice.textContent = formatPeso(price);
+    setFigure(sumDuration, `${duration} hr${duration !== 1 ? 's' : ''}`);
+    setFigure(sumPrice, formatPeso(price));
     document.getElementById('bookingSummary').classList.add('ready');
     refreshPayOptions();
   }
@@ -230,10 +240,10 @@ export async function initBooking() {
     const total = currentTotal();
     document.querySelectorAll('[data-pay-amount]').forEach((cell) => {
       const kind = cell.dataset.payAmount;
-      if (total == null) { cell.textContent = '—'; return; }
-      if (kind === 'cash') cell.textContent = formatPeso(0) + ' now';
-      else if (kind === 'deposit') cell.textContent = formatPeso(Math.ceil((total * depositPercent) / 100)) + ' now';
-      else cell.textContent = formatPeso(total) + ' now';
+      if (total == null) { setFigure(cell, '—'); return; }
+      if (kind === 'cash') setFigure(cell, formatPeso(0) + ' now');
+      else if (kind === 'deposit') setFigure(cell, formatPeso(Math.ceil((total * depositPercent) / 100)) + ' now');
+      else setFigure(cell, formatPeso(total) + ' now');
     });
   }
 

@@ -42,7 +42,7 @@
 
 <div class="marquee">
   <div class="marquee-track" id="marqueeTrack">
-    <span>RECORDING</span><span>MIXING</span><span>MASTERING</span><span>VOCAL PRODUCTION</span><span>SESSION MUSICIANS</span><span>PODCAST TRACKING</span>
+    <span>Recording</span><span>Mixing</span><span>Mastering</span><span>Vocal production</span><span>Session musicians</span><span>Podcast tracking</span>
   </div>
 </div>
 
@@ -211,12 +211,10 @@
     </div>
 
     <div class="book-side" data-reveal>
-      <div class="section-tag">Why book direct</div>
-      <h2>No middleman, no markup</h2>
-      <ul class="book-list">
-        <li><span class="tick">→</span>Reschedule free up to 24 hours ahead, no questions asked.</li>
-        <li><span class="tick">→</span>Every session leaves with rough mixes the same day.</li>
-      </ul>
+      <div class="section-tag">Live availability</div>
+      <h2>Pick your day</h2>
+      <p class="section-note book-side-note">Booked hours are greyed out as they fill. Tap a day, then a free window, and it drops straight into the form.</p>
+      <div class="cal" id="bookCalendar"><p class="muted">Loading the calendar…</p></div>
     </div>
   </div>
 </section>
@@ -350,8 +348,10 @@
 <script type="module">
   import { initBooking } from './booking.js';
   import { initAuthNav } from './auth.js';
+  import { initBookingCalendar } from './availability.js';
   initAuthNav();
   initBooking();
+  initBookingCalendar();
 </script>
 
 </body>
