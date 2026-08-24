@@ -42,7 +42,12 @@
   .status-confirmed{color:var(--teal); border-color:var(--teal);}
   .status-cancelled{color:#e5876f; border-color:#7a4331;}
   .status-completed, .status-no_show{opacity:0.6;}
-  .booking-actions{display:flex; gap:10px; flex-wrap:wrap;}
+  .booking-actions{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-start;}
+  .booking-actions .btn-primary{padding:9px 18px; font-size:0.78rem;}
+  .pay-state{max-width:46ch;}
+  .pay-state-pending, .pay-state-rejected{color:var(--gold); opacity:1;}
+  .pay-state-submitted{color:var(--teal); opacity:1;}
+  .pay-state-succeeded{color:var(--teal); opacity:0.85;}
   .section-sub{
     font-size:0.75rem; letter-spacing:0.08em; color:var(--gold);
     margin:40px 0 16px; padding-bottom:8px; border-bottom:1px solid var(--line);
@@ -147,7 +152,7 @@
           <input type="radio" name="payOption" value="deposit">
           <span class="pay-body">
             <span class="pay-title">Pay a <span id="payDepositPct">20</span>% downpayment online</span>
-            <span class="pay-note">Reserve now via GCash, Maya, GrabPay or card. Balance settled at the studio.</span>
+            <span class="pay-note">Scan our GCash, GoTyme or BPI QR, send the downpayment, then upload the receipt. Balance settled at the studio.</span>
           </span>
           <span class="pay-amount" data-pay-amount="deposit">&mdash;</span>
         </label>
@@ -156,7 +161,7 @@
           <input type="radio" name="payOption" value="full">
           <span class="pay-body">
             <span class="pay-title">Pay in full online</span>
-            <span class="pay-note">Settle the whole session now — nothing left to pay on the day.</span>
+            <span class="pay-note">Same QR transfer, for the whole session — nothing left to pay on the day. Your slot is confirmed once we've checked the receipt.</span>
           </span>
           <span class="pay-amount" data-pay-amount="full">&mdash;</span>
         </label>
@@ -178,7 +183,7 @@
 
       <div class="terms-block">
         <label class="terms-check">
-          <input type="checkbox" id="fTerms" required>
+          <input type="checkbox" id="fTerms">
           <span>I agree to the <button type="button" class="terms-link" data-terms-toggle>Terms &amp; Conditions</button>, including the cancellation and no-refund policies.</span>
         </label>
       </div>
@@ -219,6 +224,7 @@
   import { initBooking } from './booking.js';
   import { initAuthNav } from './auth.js';
   import { initBookingCalendar } from './availability.js';
+  import { openPaymentModal } from './payment-qr.js';
 
   initBookingCalendar();
 
@@ -265,6 +271,17 @@
     const stillUpcoming = isOpen && startsAt > new Date();
     const durationMs = new Date(b.end_at).getTime() - startsAt.getTime();
 
+    // A manual QR transfer moves pending → submitted → succeeded/rejected, and
+    // the customer can send (or replace) a receipt at any point before it's
+    // verified. There's at most one of these per booking.
+    const manualPay = (b.payments || []).find(p => p.method === 'manual');
+    const payState = manualPay && b.status !== 'cancelled' ? {
+      pending:   { line:`Unpaid — send ${formatPeso(manualPay.amount)} to one of our QRs and upload the receipt.`, btn:'Pay now' },
+      submitted: { line:`Receipt for ${formatPeso(manualPay.amount)} received — the studio is verifying it.`, btn:'Replace receipt' },
+      rejected:  { line:`Receipt turned down: ${manualPay.rejection_reason || 'it could not be verified.'} Please send a corrected one.`, btn:'Send new receipt' },
+      succeeded: { line:`${manualPay.type === 'deposit' ? 'Downpayment' : 'Payment'} of ${formatPeso(manualPay.amount)} verified.`, btn:null },
+    }[manualPay.status] : null;
+
     card.innerHTML = `
       <div>
         <span class="status-pill status-${b.status}">${b.status.replace('_',' ')}</span>
@@ -272,11 +289,13 @@
         <div class="meta">${fmtRange(b.start_at, b.end_at)}</div>
         ${services ? `<div class="meta">Add-ons: ${services}</div>` : ''}
         <div class="meta">Total: ${formatPeso(b.total_price)}</div>
+        ${payState ? `<div class="meta pay-state pay-state-${manualPay.status}">${payState.line}</div>` : ''}
         ${stillUpcoming && !canChange
           ? `<div class="meta reschedule-locked">Inside the ${cutoffHours}-hour window — cancelling or rescheduling online is closed. Call the studio.</div>`
           : ''}
       </div>
       <div class="booking-actions">
+        ${payState?.btn ? `<button class="btn-primary" data-action="pay">${payState.btn}</button>` : ''}
         ${canChange ? `<button class="btn-outline" data-action="reschedule">Reschedule</button>` : ''}
         ${canChange ? `<button class="btn-outline" data-action="cancel">Cancel</button>` : ''}
       </div>
@@ -300,6 +319,22 @@
         <div class="confirm-msg" data-rs-msg></div>
       </form>` : ''}
     `;
+
+    const payBtn = card.querySelector('[data-action="pay"]');
+    if (payBtn){
+      payBtn.addEventListener('click', () => {
+        openPaymentModal({
+          supabase,
+          session,
+          booking: b,
+          amountDue: manualPay.amount,
+          paymentOption: manualPay.type,
+          depositPercent: b.total_price ? Math.round((Number(manualPay.amount) / Number(b.total_price)) * 100) : null,
+          retryReason: manualPay.status === 'rejected' ? manualPay.rejection_reason : null,
+          onSubmitted: onChange,
+        });
+      });
+    }
 
     const cancelBtn = card.querySelector('[data-action="cancel"]');
     if (cancelBtn){
@@ -379,7 +414,7 @@
     const [{ data: bookings, error }, { data: cutoffRows }] = await Promise.all([
       supabase
         .from('bookings')
-        .select('*, rooms(name), booking_services(services(name))')
+        .select('*, rooms(name), booking_services(services(name)), payments(id, method, type, status, amount, rejection_reason)')
         .eq('customer_id', session.user.id)
         .order('start_at', { ascending: false }),
       supabase.from('app_settings').select('value').eq('key', 'reschedule_cutoff_hours'),

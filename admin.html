@@ -441,7 +441,7 @@
       <div class="a-card" style="overflow-x:auto;">
         <table class="a-table">
           <thead><tr>
-            <th>Date</th><th>Room</th><th>Customer</th><th>Method</th><th>Type</th><th>Amount</th><th>Refunded</th><th>Status</th><th>PayMongo ID</th><th>Actions</th>
+            <th>Date</th><th>Room</th><th>Customer</th><th>Method</th><th>Type</th><th>Amount</th><th>Refunded</th><th>Status</th><th>Proof / Ref</th><th>Actions</th>
           </tr></thead>
           <tbody id="paymentsBody"></tbody>
         </table>
@@ -504,12 +504,14 @@
       <div class="a-label" style="margin-bottom:10px;">Studio settings</div>
       <div class="a-card" style="padding:24px; max-width:480px; display:flex; flex-direction:column; gap:20px;">
         <label style="display:flex; align-items:center; gap:10px; font-size:0.88rem;">
-          <input type="checkbox" id="setPaymongoEnabled"> Enable PayMongo online payments
+          <input type="checkbox" id="setPaymongoEnabled"> Enable PayMongo automated checkout (legacy)
         </label>
         <p style="font-size:0.75rem; opacity:0.5;">
-          Requires PAYMONGO_SECRET_KEY and PAYMONGO_WEBHOOK_SECRET as Supabase Edge Function secrets,
-          with the PayMongo webhook pointed at <code>/functions/v1/paymongo-webhook</code>.
-          While this is off, customers are offered cash only.
+          <strong>Leave this off.</strong> While it's off, online bookings are paid by transferring to the
+          studio's GCash / GoTyme / BPI QR codes; the customer uploads a receipt and staff approve it from
+          the Payments tab. Switching this on hands online payments back to PayMongo's hosted checkout,
+          which also needs PAYMONGO_SECRET_KEY and PAYMONGO_WEBHOOK_SECRET set as Supabase Edge Function
+          secrets, with the webhook pointed at <code>/functions/v1/paymongo-webhook</code>.
         </p>
         <div>
           <label class="a-label">Downpayment percentage</label>

@@ -212,7 +212,7 @@ async function main() {
 
     const { data } = await supabase
       .from('bookings')
-      .select('*, rooms(id,name), profiles!bookings_customer_id_fkey(id,full_name), booking_services(service_id, services(name)), payments(amount, status)')
+      .select('*, rooms(id,name), profiles!bookings_customer_id_fkey(id,full_name), booking_services(service_id, services(name)), payments(amount, status, method, type, rejection_reason)')
       .gte('start_at', from.toISOString())
       .lte('start_at', to.toISOString())
       .order('start_at');
@@ -377,7 +377,7 @@ async function main() {
 
     const { data, error } = await supabase
       .from('bookings')
-      .select('*, rooms(id,name), profiles!bookings_customer_id_fkey(id,full_name), booking_services(service_id, services(name)), payments(amount, status)')
+      .select('*, rooms(id,name), profiles!bookings_customer_id_fkey(id,full_name), booking_services(service_id, services(name)), payments(amount, status, method, type, rejection_reason)')
       .order('start_at', { ascending: false });
     if (error) {
       document.getElementById('bookingsBody').innerHTML = `<tr><td colspan="7">Error: ${error.message}</td></tr>`;
@@ -455,7 +455,7 @@ async function main() {
     });
   }
 
-  const PAY_OPTION_LABEL = { cash: 'Cash', deposit: 'Downpayment', full: 'Paid online' };
+  const PAY_OPTION_LABEL = { cash: 'Cash', deposit: 'Downpayment (online)', full: 'Full (online)' };
 
   // Valid IDs live in a private bucket, so staff get a short-lived signed URL
   // rather than a permanent link that could leak out of the dashboard.
@@ -495,6 +495,15 @@ async function main() {
   function paymentPill(booking) {
     const paid = paidAmount(booking);
     const total = Number(booking.total_price);
+    // An unverified QR transfer outranks "Unpaid" in the list — it's the row
+    // that needs someone to act, and it's easy to miss on the Payments tab.
+    const manual = (booking.payments || []).find((p) => p.method === 'manual');
+    if (paid <= 0 && manual?.status === 'submitted') {
+      return el('span', { class: 'pill pill-pending', style: 'color:#e5a03f;border-color:#8a6320;' }, 'Receipt to review');
+    }
+    if (paid <= 0 && manual?.status === 'rejected') {
+      return el('span', { class: 'pill pill-cancelled' }, 'Receipt rejected');
+    }
     if (paid <= 0) return el('span', { class: 'pill pill-cancelled' }, 'Unpaid');
     if (paid >= total) return el('span', { class: 'pill pill-confirmed' }, 'Paid');
     return el('span', { class: 'pill pill-pending' }, `Partial (${peso(paid)})`);
@@ -673,6 +682,13 @@ async function main() {
       statusEl.textContent = `Unpaid — ${peso(total)} due`;
       statusEl.style.color = '#e5876f';
       btn.style.display = '';
+    }
+    // Approving a QR receipt happens on the Payments tab, where the receipt
+    // itself can actually be opened — point there rather than duplicating it.
+    const manual = (booking.payments || []).find((p) => p.method === 'manual' && p.status === 'submitted');
+    if (manual) {
+      statusEl.textContent += ' · QR receipt awaiting review on the Payments tab';
+      statusEl.style.color = '#e5a03f';
     }
     btn.onclick = async () => {
       const remaining = total - paid;
@@ -1161,33 +1177,127 @@ Delete anyway and write off the unrefunded amount?`,
     }
     data.forEach((p) => {
       const canRefund = p.status === 'succeeded' || p.status === 'partially_refunded';
+      const awaitingReview = p.method === 'manual' && p.status === 'submitted';
+      const actions = el('div', { class: 'row-flex' });
+
+      // A submitted QR transfer is a claim, not money in the bank — someone has
+      // to open the receipt and check it against the account before approving.
+      if (awaitingReview) {
+        actions.append(
+          el('button', { class: 'a-btn-gold', onclick: () => verifyPayment(p, true) }, 'Approve'),
+          el('button', { class: 'a-btn-ghost', onclick: () => verifyPayment(p, false) }, 'Reject'),
+        );
+      }
+      if (canRefund) {
+        actions.append(el('button', {
+          class: 'a-btn-ghost',
+          onclick: async () => {
+            const amountStr = prompt('Refund amount in ₱ (blank = full remaining):');
+            if (amountStr === null) return;
+            try {
+              await callFunction('admin-refund', { payment_id: p.id, amount: amountStr.trim() ? Number(amountStr) : undefined });
+              loadPayments();
+            } catch (err) { alert(err.message); }
+          },
+        }, 'Refund'));
+      }
+
       body.appendChild(
         el('tr', {}, [
           el('td', {}, d(p.created_at)),
           el('td', {}, p.bookings?.rooms?.name || ''),
           el('td', {}, p.bookings?.profiles?.full_name || p.bookings?.guest_name || '—'),
-          el('td', {}, el('span', { class: 'pill', style: p.method === 'cash' ? 'color:var(--gold);border-color:var(--gold-dim);' : 'color:var(--teal);border-color:var(--teal);' }, p.method)),
+          el('td', {}, el('span', { class: 'pill', style: METHOD_PILL_STYLE[p.method] || '' }, PAY_METHOD_LABEL[p.method] || p.method)),
           el('td', {}, p.type),
           el('td', {}, peso(p.amount)),
           el('td', {}, peso(p.refunded_amount)),
-          el('td', {}, el('span', { style: 'color:var(--gold);font-size:0.75rem;text-transform:capitalize;' }, p.status)),
-          el('td', { style: 'font-size:0.7rem;opacity:0.4;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;' }, p.paymongo_payment_id || p.paymongo_checkout_session_id || '—'),
-          el('td', {}, canRefund
-            ? el('button', {
-                class: 'a-btn-ghost',
-                onclick: async () => {
-                  const amountStr = prompt('Refund amount in ₱ (blank = full remaining):');
-                  if (amountStr === null) return;
-                  try {
-                    await callFunction('admin-refund', { payment_id: p.id, amount: amountStr.trim() ? Number(amountStr) : undefined });
-                    loadPayments();
-                  } catch (err) { alert(err.message); }
-                },
-              }, 'Refund')
-            : '—'),
+          el('td', {}, paymentStatusCell(p)),
+          el('td', {}, proofCell(p)),
+          el('td', {}, actions.childNodes.length ? actions : '—'),
         ]),
       );
     });
+  }
+
+  const PAY_METHOD_LABEL = { manual: 'QR transfer', cash: 'cash', paymongo: 'paymongo' };
+  const METHOD_PILL_STYLE = {
+    cash: 'color:var(--gold);border-color:var(--gold-dim);',
+    manual: 'color:var(--teal);border-color:var(--teal);',
+    paymongo: 'color:var(--teal);border-color:var(--teal);',
+  };
+  const PAY_STATUS_LABEL = {
+    pending: 'Awaiting receipt',
+    submitted: 'Needs review',
+    rejected: 'Rejected',
+  };
+
+  function paymentStatusCell(p) {
+    const label = PAY_STATUS_LABEL[p.status] || p.status;
+    const colour = p.status === 'submitted' ? '#e5a03f'
+      : p.status === 'rejected' || p.status === 'failed' ? '#e5876f'
+      : p.status === 'succeeded' ? 'var(--teal)'
+      : 'var(--gold)';
+    const cell = el('div', { style: 'display:flex;flex-direction:column;gap:3px;align-items:flex-start;' }, [
+      el('span', { style: `color:${colour};font-size:0.75rem;text-transform:capitalize;` }, label),
+    ]);
+    if (p.rejection_reason) {
+      cell.appendChild(el('span', { style: 'font-size:0.65rem;opacity:0.5;max-width:150px;' }, p.rejection_reason));
+    }
+    return cell;
+  }
+
+  // Receipts live in a private bucket, so staff get a short-lived signed URL
+  // rather than a permanent link that could leak out of the dashboard.
+  async function viewReceipt(path) {
+    const { data, error } = await supabase.storage.from('payment-receipts').createSignedUrl(path, 120);
+    if (error || !data?.signedUrl) {
+      alert('Could not open that receipt: ' + (error?.message || 'unknown error'));
+      return;
+    }
+    window.open(data.signedUrl, '_blank', 'noopener');
+  }
+
+  function proofCell(p) {
+    if (p.method !== 'manual') {
+      return el('span', { style: 'font-size:0.7rem;opacity:0.4;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:inline-block;' },
+        p.paymongo_payment_id || p.paymongo_checkout_session_id || '—');
+    }
+    const cell = el('div', { style: 'display:flex;flex-direction:column;gap:4px;align-items:flex-start;' });
+    if (p.channel) cell.appendChild(el('span', { style: 'font-size:0.7rem;text-transform:uppercase;opacity:0.6;' }, p.channel));
+    if (p.reference_no) cell.appendChild(el('span', { style: 'font-size:0.7rem;opacity:0.75;' }, 'Ref ' + p.reference_no));
+    if (p.receipt_path) {
+      cell.appendChild(el('button', {
+        class: 'a-btn-ghost',
+        style: 'padding:3px 8px;font-size:0.68rem;',
+        onclick: () => viewReceipt(p.receipt_path),
+      }, 'View receipt'));
+    } else {
+      cell.appendChild(el('span', { style: 'font-size:0.65rem;opacity:0.4;' }, 'No receipt yet'));
+    }
+    return cell;
+  }
+
+  async function verifyPayment(p, approve) {
+    let payload = { payment_id: p.id, approve };
+    if (approve) {
+      const amountStr = prompt(
+        `Approve this transfer? Blank keeps the expected ₱${Math.round(Number(p.amount))} — ` +
+        'enter a different figure only if the receipt shows another amount.',
+      );
+      if (amountStr === null) return;
+      if (amountStr.trim()) payload.amount = Number(amountStr);
+    } else {
+      const reason = prompt('Why is this receipt being rejected? The customer sees this.');
+      if (reason === null) return;
+      payload.reason = reason;
+    }
+    try {
+      await callFunction('verify-payment', payload);
+      loadPayments();
+      loadBookings();
+    } catch (err) {
+      alert(err.message);
+    }
   }
 
   // ---------- Staff ----------

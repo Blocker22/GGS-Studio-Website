@@ -6,15 +6,26 @@
 // using the name/email they already typed.
 import { getSupabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase-client.js';
 import { signUpChecked } from './auth.js';
+import { openPaymentModal } from './payment-qr.js';
 
 const FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
 
 const EYE_OPEN = '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/>';
 const EYE_OFF = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a20.6 20.6 0 0 1 5.06-5.94M9.9 4.24A10.6 10.6 0 0 1 12 4c7 0 11 7 11 7a20.6 20.6 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/>';
 
+// Set by initTermsModal so the booking form can pop the terms open as a gate
+// when someone hits Confirm without having agreed yet. No-op until then.
+let openTermsModal = () => {};
+
 // The full Terms & Conditions, shown in a modal whenever a [data-terms-toggle]
 // control is clicked. Built once on demand and reused; Escape and the backdrop
 // both close it.
+//
+// It has two modes. Read-only (the default) is just the text. Gate mode adds an
+// agree checkbox and a continue button at the bottom, and is what the booking
+// form opens when the terms haven't been accepted yet — so the terms are put in
+// front of you at the moment you're actually asked to accept them, rather than
+// leaving you hunting for a checkbox you skipped.
 export function initTermsModal() {
   if (document.getElementById('termsModal')) return;
 
@@ -36,8 +47,10 @@ export function initTermsModal() {
         <h4>Payment</h4>
         <ul>
           <li>Cash bookings require a photo of a valid ID to hold the slot; payment is settled at the studio.</li>
-          <li>Online downpayments are charged at the percentage shown at checkout, with the balance due at the studio on the day of the session.</li>
-          <li>Full online payments settle the entire session upfront.</li>
+          <li>Online payments are made by transferring to one of GGS Studio's official GCash, GoTyme, or BPI QR codes, then uploading the receipt through this site.</li>
+          <li>An online booking stays on hold until the studio has checked the receipt against the receiving account. Once verified, the booking is confirmed; if the receipt can't be verified, you'll be told why and can send a corrected one.</li>
+          <li>Online downpayments are the percentage shown on the booking form, with the balance due at the studio on the day of the session. Full online payments settle the entire session upfront.</li>
+          <li>Only pay to the QR codes shown on this site. GGS Studio will never ask you to send payment to a different account by message or call.</li>
         </ul>
 
         <h4>Overtime</h4>
@@ -78,7 +91,7 @@ export function initTermsModal() {
 
         <h4>Data &amp; Privacy</h4>
         <ul>
-          <li>Your name, email, and ID photo are collected solely to manage your booking and payment, and are handled in accordance with the Data Privacy Act (RA 10173). They are never sold or shared beyond what is needed to process your booking.</li>
+          <li>Your name, email, ID photo, and payment receipts are collected solely to manage your booking and payment, and are handled in accordance with the Data Privacy Act (RA 10173). They are stored in private, access-controlled storage readable only by you and GGS Studio staff, and are never sold or shared beyond what is needed to process your booking.</li>
         </ul>
 
         <h4>Consumer Rights</h4>
@@ -89,21 +102,51 @@ export function initTermsModal() {
           <li>Questions, complaints, or refund requests? Reach us through the contact details on this site and we'll respond promptly.</li>
         </ul>
       </div>
+      <div class="modal-foot" data-terms-gate hidden>
+        <label class="terms-check">
+          <input type="checkbox" data-terms-agree>
+          <span>I have read and agree to the Terms &amp; Conditions above, including the cancellation and no-refund policies.</span>
+        </label>
+        <button type="button" class="btn-primary" data-terms-continue disabled>Agree &amp; continue</button>
+      </div>
     </div>`;
   document.body.appendChild(modal);
 
+  const gate = modal.querySelector('[data-terms-gate]');
+  const agreeBox = modal.querySelector('[data-terms-agree]');
+  const continueBtn = modal.querySelector('[data-terms-continue]');
+  let onAgree = null;
   let lastFocus = null;
-  function open() {
+
+  function open({ requireAgreement = false, onAgree: cb = null } = {}) {
+    onAgree = requireAgreement ? cb : null;
+    gate.hidden = !requireAgreement;
+    agreeBox.checked = false;
+    continueBtn.disabled = true;
     lastFocus = document.activeElement;
     modal.classList.add('open');
     document.body.style.overflow = 'hidden';
-    modal.querySelector('[data-terms-close]').focus();
+    // In gate mode the point of opening is the decision at the bottom, so send
+    // focus there instead of to the close button.
+    (requireAgreement ? agreeBox : modal.querySelector('[data-terms-close]')).focus();
   }
   function close() {
     modal.classList.remove('open');
     document.body.style.overflow = '';
+    onAgree = null;
     lastFocus?.focus?.();
   }
+  openTermsModal = open;
+
+  agreeBox.addEventListener('change', () => {
+    continueBtn.disabled = !agreeBox.checked;
+  });
+  continueBtn.addEventListener('click', () => {
+    if (!agreeBox.checked) return;
+    const cb = onAgree;
+    close();
+    cb?.();
+  });
 
   modal.addEventListener('click', (e) => {
     if (e.target === modal || e.target.closest('[data-terms-close]')) close();
@@ -111,7 +154,7 @@ export function initTermsModal() {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && modal.classList.contains('open')) close();
   });
-  document.querySelectorAll('[data-terms-toggle]').forEach((btn) => btn.addEventListener('click', open));
+  document.querySelectorAll('[data-terms-toggle]').forEach((btn) => btn.addEventListener('click', () => open()));
 }
 
 export function initPasswordToggles() {
@@ -181,6 +224,7 @@ export async function initBooking() {
   const payOptionEls = Array.from(document.querySelectorAll('input[name="payOption"]'));
   const termsEl = document.getElementById('fTerms');
   initTermsModal();
+  const payOptions = document.getElementById('payOptions');
   const payIdUpload = document.getElementById('payIdUpload');
   const idImageEl = document.getElementById('fIdImage');
   const payDepositPct = document.getElementById('payDepositPct');
@@ -199,6 +243,7 @@ export async function initBooking() {
   let servicesBySlug = {};
   let depositPercent = 20;
   let awaitingAuthMode = null; // 'signup' | 'login' | null
+  let isStaff = false;
 
   async function refreshAuthUI() {
     if (session) {
@@ -209,8 +254,13 @@ export async function initBooking() {
       // Fill the account's details in rather than blanking the fields out —
       // a disabled empty Name was making the form impossible to submit.
       emailEl.value = session.user.email || '';
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('full_name, role')
+        .eq('id', session.user.id)
+        .single();
+      isStaff = profile?.role === 'staff' || profile?.role === 'admin';
       if (!nameEl.value.trim()) {
-        const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', session.user.id).single();
         nameEl.value = profile?.full_name || session.user.user_metadata?.full_name || '';
       }
       nameEl.readOnly = false;
@@ -219,7 +269,9 @@ export async function initBooking() {
     } else {
       if (authSignedIn) authSignedIn.style.display = 'none';
       emailEl.readOnly = false;
+      isStaff = false;
     }
+    refreshPayOptions();
   }
 
   function hideAuthStep() {
@@ -335,10 +387,31 @@ export async function initBooking() {
     return payOptionEls.find((r) => r.checked)?.value || 'cash';
   }
 
+  // create-booking treats anything a staff/admin account books as an in-person
+  // job: forced to cash, no ID needed, confirmed on the spot. That's deliberate
+  // for walk-ins, but silently overriding the choice made on this form looks
+  // like the payment step is broken — so say it out loud instead.
+  function refreshStaffNotice() {
+    if (!payOptions) return;
+    let note = document.getElementById('payStaffNotice');
+    if (!note) {
+      note = document.createElement('p');
+      note.id = 'payStaffNotice';
+      note.className = 'pay-staff-notice';
+      payOptions.appendChild(note);
+    }
+    note.hidden = !isStaff;
+    note.textContent =
+      "You're signed in as studio staff, so this booking will be recorded as an in-person cash booking and confirmed immediately — " +
+      'no ID upload and no online payment step. Use a customer account to test the customer flow.';
+  }
+
   function refreshPayOptions() {
     const option = selectedPayOption();
-    // The ID photo is only asked for on the cash route.
-    if (payIdUpload) payIdUpload.classList.toggle('show', option === 'cash');
+    refreshStaffNotice();
+    // The ID photo is only asked for on the cash route, and never for staff —
+    // the server skips the check for them too.
+    if (payIdUpload) payIdUpload.classList.toggle('show', option === 'cash' && !isStaff);
 
     // Show what each route would actually charge today.
     const total = currentTotal();
@@ -362,7 +435,7 @@ export async function initBooking() {
     if (!dateEl.value) return 'Please choose a date.';
     if (termsEl && !termsEl.checked) return 'Please agree to the Terms & Conditions to confirm your booking.';
     if (!startEl.value || !endEl.value) return 'Please choose a start and end time.';
-    if (selectedPayOption() === 'cash' && !idImageEl?.files?.length) {
+    if (!isStaff && selectedPayOption() === 'cash' && !idImageEl?.files?.length) {
       return 'Please attach a photo of a valid ID to pay in cash.';
     }
     const [sh, sm] = startEl.value.split(':').map(Number);
@@ -411,7 +484,9 @@ export async function initBooking() {
       // would 404.
       return_url: location.origin + location.pathname.replace(/[^/]*$/, ''),
     };
-    if (payOption === 'cash') {
+    // Staff bookings are taken in person, so the server doesn't ask them for an
+    // ID and there's nothing to upload.
+    if (payOption === 'cash' && !isStaff) {
       submitBtn.textContent = 'Uploading ID…';
       payload.id_image_path = await uploadIdImage(session.user.id);
     }
@@ -419,8 +494,41 @@ export async function initBooking() {
     submitBtn.textContent = 'Sending…';
     const result = await callFunction('create-booking', session, payload);
 
-    // Online routes hand back a PayMongo hosted-checkout URL. Leave the page
-    // there rather than claiming the booking is settled.
+    const serviceLabel = serviceEl.options[serviceEl.selectedIndex].text;
+    const bookedStart = startEl.value;
+    const bookedEnd = endEl.value;
+
+    // Online, in use: the slot is held and the customer settles it by scanning
+    // one of the studio's QRs and uploading the receipt for staff to verify.
+    if (result.payment_required && result.payment_method === 'manual') {
+      window.dispatchEvent(new CustomEvent('ggs:booking-created', { detail: result.booking }));
+      openPaymentModal({
+        supabase,
+        session,
+        booking: result.booking,
+        amountDue: result.amount_due,
+        paymentOption: result.payment_option,
+        depositPercent: result.deposit_percent,
+      });
+      confirmMsg.textContent =
+        `✓ Slot held — ${serviceLabel} on ${b_date(result.booking)}, ${to12Hour(bookedStart)} to ${to12Hour(bookedEnd)}. ` +
+        `Send ${formatPeso(result.amount_due)} to one of our QRs and upload the receipt. ` +
+        'You can reopen this from My Bookings at any time.';
+      confirmMsg.classList.remove('error');
+      confirmMsg.style.display = 'block';
+      submitBtn.textContent = 'Slot held ✓';
+      hideAuthStep();
+      form.reset();
+      if (idImageEl) idImageEl.value = '';
+      await refreshAuthUI();
+      updateSummary();
+      refreshPayOptions();
+      return;
+    }
+
+    // Legacy PayMongo route (only reachable when the studio switches it back
+    // on): leave the page at the hosted checkout rather than claiming the
+    // booking is settled.
     if (result.payment_required && result.checkout_url) {
       submitBtn.textContent = 'Redirecting to payment…';
       window.dispatchEvent(new CustomEvent('ggs:booking-created', { detail: result.booking }));
@@ -429,9 +537,9 @@ export async function initBooking() {
     }
 
     const b = result.booking;
-    const base = `✓ Booked — ${serviceEl.options[serviceEl.selectedIndex].text} on ${b_date(b)}, ${to12Hour(
-      startEl.value,
-    )} to ${to12Hour(endEl.value)}. Total: ${formatPeso(b.total_price)}.`;
+    const base = `✓ Booked — ${serviceLabel} on ${b_date(b)}, ${to12Hour(bookedStart)} to ${to12Hour(
+      bookedEnd,
+    )}. Total: ${formatPeso(b.total_price)}.`;
     // `notice` means the online route couldn't run and this fell back to cash —
     // say so instead of letting them think they've paid.
     confirmMsg.textContent = result.notice
@@ -458,6 +566,20 @@ export async function initBooking() {
     confirmMsg.classList.remove('error');
     confirmMsg.style.display = 'none';
     authMsg.textContent = '';
+
+    // Step 0: the terms have to be accepted before anything else happens. Show
+    // them rather than just refusing — ticking the box in there ticks the one
+    // on the form and re-submits, so Confirm carries straight on.
+    if (termsEl && !termsEl.checked) {
+      openTermsModal({
+        requireAgreement: true,
+        onAgree: () => {
+          termsEl.checked = true;
+          form.requestSubmit();
+        },
+      });
+      return;
+    }
 
     // Step 2: we're mid-auth (password box showing) — try to sign in/up.
     if (awaitingAuthMode) {

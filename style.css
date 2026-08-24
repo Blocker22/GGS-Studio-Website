@@ -747,6 +747,12 @@ button:disabled, .book-submit:disabled{opacity:0.5; cursor:not-allowed; transfor
   padding:7px 12px; margin-right:12px; cursor:pointer;
 }
 .pay-id-upload .field-hint{margin-top:8px;}
+.pay-staff-notice{
+  margin-top:4px; padding:12px 14px;
+  border:1px dashed var(--gold-dim); border-radius:3px;
+  font-size:0.78rem; line-height:1.6; color:var(--gold);
+}
+.pay-staff-notice[hidden]{display:none;}
 
 /* ---------- TERMS & CONDITIONS ---------- */
 .terms-block{
@@ -807,9 +813,57 @@ button:disabled, .book-submit:disabled{opacity:0.5; cursor:not-allowed; transfor
 .modal-body h4:first-child{margin-top:0;}
 .modal-body ul{margin:0; padding-left:18px; font-size:0.84rem; line-height:1.65; color:rgba(242,236,224,0.72);}
 .modal-body li{margin-bottom:6px;}
-@media (max-width:520px){
-  .modal-body, .modal h3{padding-left:20px; padding-right:20px;}
+/* Agree-and-continue footer, shown only when the terms are opened as a gate. */
+.modal-foot{
+  flex-shrink:0; padding:18px 30px 22px;
+  border-top:1px solid var(--line); background:var(--panel-2);
 }
+.modal-foot[hidden]{display:none;}
+.modal-foot .terms-check{margin-bottom:14px;}
+.modal-foot .btn-primary{width:100%; justify-content:center;}
+.modal-foot .btn-primary:disabled{
+  opacity:0.4; cursor:not-allowed; transform:none; box-shadow:none;
+}
+
+@media (max-width:520px){
+  .modal-body, .modal h3, .modal-foot{padding-left:20px; padding-right:20px;}
+}
+
+/* ---------- QR PAYMENT MODAL ---------- */
+.pay-qr-modal{width:min(520px, 100%);}
+.pay-qr-due{
+  display:flex; align-items:baseline; justify-content:space-between; gap:16px;
+  padding:14px 16px; margin-bottom:14px;
+  border:1px solid var(--gold-dim); border-radius:3px;
+  background:rgba(215,174,92,0.06);
+}
+.pay-qr-due span{font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; opacity:0.7;}
+.pay-qr-due strong{font-size:1.5rem; color:var(--gold);}
+.pay-qr-lead{font-size:0.84rem; line-height:1.6; opacity:0.72; margin-bottom:18px;}
+.pay-qr-tabs{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px;}
+.pay-qr-tabs button{
+  flex:1; min-width:88px;
+  padding:9px 12px; font:inherit; font-size:0.8rem;
+  background:transparent; color:var(--cream);
+  border:1px solid var(--line); border-radius:3px; cursor:pointer;
+  transition:border-color 0.2s, background 0.2s, color 0.2s;
+}
+.pay-qr-tabs button:hover{border-color:rgba(238,244,244,0.32);}
+.pay-qr-tabs button[aria-selected="true"]{
+  border-color:var(--gold-dim); background:rgba(215,174,92,0.09); color:var(--gold);
+}
+.pay-qr-figure{text-align:center; margin-bottom:8px;}
+/* The QR sits on white so phone cameras can read it whatever the page theme. */
+.pay-qr-figure img{
+  width:240px; max-width:100%; height:auto; aspect-ratio:1;
+  object-fit:contain; background:#fff; padding:10px; border-radius:4px;
+}
+.pay-qr-account{font-size:0.8rem; opacity:0.7; margin-top:10px;}
+.pay-qr-hint{margin-top:0 !important; margin-bottom:14px;}
+.pay-qr-form .field{margin-bottom:16px;}
+.pay-qr-form .btn-primary{width:100%;}
+.pay-qr-form[hidden]{display:none;}
+.pay-qr-modal .confirm-msg{margin-top:14px;}
 
 @media (max-width:520px){
   .pay-option{flex-wrap:wrap;}
