@@ -56,6 +56,7 @@
     padding:8px 14px; font-size:0.78rem; cursor:pointer; font-family:var(--sans);
   }
   .a-btn-ghost:hover{border-color:var(--gold-dim);}
+  .a-btn-ghost.active{background:var(--gold); color:var(--ink); border-color:var(--gold); font-weight:600;}
   .stat-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:26px;}
   .stat-box{padding:20px;}
   .stat-box .val{font-size:1.6rem; font-weight:700; margin-top:4px;}
@@ -293,7 +294,7 @@
       <div class="a-card" id="bookingsListView" style="overflow-x:auto;">
         <table class="a-table">
           <thead><tr>
-            <th>When</th><th>Room</th><th>Customer</th><th>Add-ons</th><th>Total</th><th>Payment</th><th>Status</th><th>Actions</th>
+            <th>When</th><th>Room</th><th>Customer</th><th>Pay</th><th>Add-ons</th><th>Total</th><th>Payment</th><th>Status</th><th>Actions</th>
           </tr></thead>
           <tbody id="bookingsBody"></tbody>
         </table>
@@ -316,7 +317,12 @@
         <form id="newBookingForm" class="form-grid">
           <div>
             <label class="a-label">Customer</label>
+            <div class="row-flex" style="margin-bottom:8px;">
+              <button type="button" class="a-btn-ghost active" id="nbModeAccount" data-mode="account">Registered</button>
+              <button type="button" class="a-btn-ghost" id="nbModeGuest" data-mode="guest">Custom name</button>
+            </div>
             <select class="a-input" id="nbCustomer" required></select>
+            <input class="a-input" id="nbGuestName" placeholder="Walk-in customer's name" style="display:none;">
           </div>
           <div>
             <label class="a-label">Room</label>
@@ -401,7 +407,7 @@
       <div class="a-card" style="overflow-x:auto;">
         <table class="a-table">
           <thead><tr>
-            <th>Date</th><th>Room</th><th>Customer</th><th>Method</th><th>Type</th><th>Amount</th><th>Refunded</th><th>Status</th><th>Stripe ID</th><th>Actions</th>
+            <th>Date</th><th>Room</th><th>Customer</th><th>Method</th><th>Type</th><th>Amount</th><th>Refunded</th><th>Status</th><th>PayMongo ID</th><th>Actions</th>
           </tr></thead>
           <tbody id="paymentsBody"></tbody>
         </table>
@@ -464,12 +470,16 @@
       <div class="a-label" style="margin-bottom:10px;">Studio settings</div>
       <div class="a-card" style="padding:24px; max-width:480px; display:flex; flex-direction:column; gap:20px;">
         <label style="display:flex; align-items:center; gap:10px; font-size:0.88rem;">
-          <input type="checkbox" id="setStripeEnabled"> Enable Stripe payments
+          <input type="checkbox" id="setPaymongoEnabled"> Enable PayMongo online payments
         </label>
-        <p style="font-size:0.75rem; opacity:0.5;">Requires STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET set as Supabase Edge Function secrets.</p>
+        <p style="font-size:0.75rem; opacity:0.5;">
+          Requires PAYMONGO_SECRET_KEY and PAYMONGO_WEBHOOK_SECRET as Supabase Edge Function secrets,
+          with the PayMongo webhook pointed at <code>/functions/v1/paymongo-webhook</code>.
+          While this is off, customers are offered cash only.
+        </p>
         <div>
-          <label class="a-label">Deposit percentage</label>
-          <input type="number" class="a-input" id="setDepositPct" style="width:100px;">
+          <label class="a-label">Downpayment percentage</label>
+          <input type="number" class="a-input" id="setDepositPct" style="width:100px;" min="1" max="100">
         </div>
         <div>
           <label class="a-label">Reschedule / cancellation cutoff (hours)</label>
@@ -486,6 +496,15 @@
   <div class="a-card modal-box">
     <h2>Edit booking</h2>
     <form id="editBookingForm" class="form-grid full">
+      <div>
+        <label class="a-label">Customer</label>
+        <div class="row-flex" style="margin-bottom:8px;">
+          <button type="button" class="a-btn-ghost active" id="ebModeAccount" data-mode="account">Registered</button>
+          <button type="button" class="a-btn-ghost" id="ebModeGuest" data-mode="guest">Custom name</button>
+        </div>
+        <select class="a-input" id="ebCustomer"></select>
+        <input class="a-input" id="ebGuestName" placeholder="Walk-in customer's name" style="display:none;">
+      </div>
       <div>
         <label class="a-label">Room</label>
         <select class="a-input" id="ebRoom" required></select>

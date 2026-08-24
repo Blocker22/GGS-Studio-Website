@@ -344,7 +344,7 @@ async function main() {
             },
             [
               el('b', {}, start.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })),
-              `${b.rooms?.name || ''} · ${b.profiles?.full_name || 'Customer'}`,
+              `${b.rooms?.name || ''} · ${b.profiles?.full_name || b.guest_name || 'Customer'}`,
             ],
           ),
         );
@@ -400,7 +400,7 @@ async function main() {
 
     const filtered = allBookings.filter((b) => {
       if (status && b.status !== status) return false;
-      if (search && !(b.profiles?.full_name || '').toLowerCase().includes(search)) return false;
+      if (search && !(b.profiles?.full_name || b.guest_name || '').toLowerCase().includes(search)) return false;
       if (from && new Date(b.start_at) < new Date(from)) return false;
       if (to && new Date(b.start_at) > new Date(to + 'T23:59:59')) return false;
       return true;
@@ -436,7 +436,8 @@ async function main() {
         el('tr', {}, [
           el('td', {}, dt(b.start_at)),
           el('td', {}, b.rooms?.name || ''),
-          el('td', {}, b.profiles?.full_name || '—'),
+          el('td', {}, b.profiles?.full_name || (b.guest_name ? `${b.guest_name} (guest)` : '—')),
+          el('td', {}, payOptionCell(b)),
           el('td', { style: 'opacity:0.6;' }, (b.booking_services || []).map((bs) => bs.services?.name).filter(Boolean).join(', ') || '—'),
           el('td', {}, peso(b.total_price)),
           el('td', {}, paymentPill(b)),
@@ -445,6 +446,37 @@ async function main() {
         ]),
       );
     });
+  }
+
+  const PAY_OPTION_LABEL = { cash: 'Cash', deposit: 'Downpayment', full: 'Paid online' };
+
+  // Valid IDs live in a private bucket, so staff get a short-lived signed URL
+  // rather than a permanent link that could leak out of the dashboard.
+  async function viewIdImage(path) {
+    const { data, error } = await supabase.storage.from('customer-ids').createSignedUrl(path, 120);
+    if (error || !data?.signedUrl) {
+      alert('Could not open that ID: ' + (error?.message || 'unknown error'));
+      return;
+    }
+    window.open(data.signedUrl, '_blank', 'noopener');
+  }
+
+  function payOptionCell(b) {
+    const wrap = el('div', { style: 'display:flex;flex-direction:column;gap:4px;align-items:flex-start;' }, [
+      el('span', { style: 'font-size:0.78rem;' }, PAY_OPTION_LABEL[b.payment_option] || b.payment_option || '—'),
+    ]);
+    if (b.id_image_path) {
+      wrap.appendChild(
+        el('button', {
+          class: 'a-btn-ghost',
+          style: 'padding:3px 8px;font-size:0.68rem;',
+          onclick: () => viewIdImage(b.id_image_path),
+        }, 'View ID'),
+      );
+    } else if (b.payment_option === 'cash' && !b.created_by) {
+      wrap.appendChild(el('span', { style: 'font-size:0.65rem;color:#e5876f;' }, 'No ID on file'));
+    }
+    return wrap;
   }
 
   function paidAmount(booking) {
@@ -569,6 +601,20 @@ async function main() {
     editingBookingId = booking.id;
     document.getElementById('ebMsg').style.display = 'none';
 
+    // Preselect whoever the booking actually belongs to, so saving without
+    // touching this field can't quietly move it to someone else.
+    Promise.resolve(wireCustomerPicker('eb')).then(() => {
+      if (booking.guest_name) {
+        setCustomerMode('eb', 'guest');
+        document.getElementById('ebGuestName').value = booking.guest_name;
+        document.getElementById('ebCustomer').value = '';
+      } else {
+        setCustomerMode('eb', 'account');
+        document.getElementById('ebGuestName').value = '';
+        document.getElementById('ebCustomer').value = booking.customer_id || '';
+      }
+    });
+
     const roomSel = document.getElementById('ebRoom');
     roomSel.innerHTML = roomsCache.map((r) => `<option value="${r.id}">${r.name}</option>`).join('');
     roomSel.value = booking.room_id;
@@ -671,6 +717,10 @@ async function main() {
     const serviceIds = Array.from(document.getElementById('ebServices').querySelectorAll('input:checked')).map((i) => i.value);
 
     try {
+      const { isGuest, customerId, guestName } = customerPickerValues('eb');
+      if (isGuest && !guestName) throw new Error("Please enter the customer's name.");
+      if (!isGuest && !customerId) throw new Error('Please choose a customer.');
+
       await callFunction('update-booking', {
         booking_id: editingBookingId,
         room_id: document.getElementById('ebRoom').value,
@@ -679,6 +729,8 @@ async function main() {
         status: document.getElementById('ebStatus').value,
         notes: document.getElementById('ebNotes').value,
         service_ids: serviceIds,
+        customer_id: customerId || undefined,
+        guest_name: guestName || undefined,
       });
       closeEditModal();
       loadBookings();
@@ -707,16 +759,64 @@ async function main() {
     }
   }
 
+  // Customer picker shared by the new-booking form ('nb') and the edit modal
+  // ('eb'): either a registered account, or a free-text walk-in name.
+  const customerOptionsLoad = {};
+
+  function setCustomerMode(prefix, mode) {
+    const guest = mode === 'guest';
+    const custSel = document.getElementById(prefix + 'Customer');
+    const guestInput = document.getElementById(prefix + 'GuestName');
+    document.getElementById(prefix + 'ModeAccount').classList.toggle('active', !guest);
+    document.getElementById(prefix + 'ModeGuest').classList.toggle('active', guest);
+    custSel.style.display = guest ? 'none' : 'block';
+    guestInput.style.display = guest ? 'block' : 'none';
+    custSel.required = !guest;
+    guestInput.required = guest;
+  }
+
+  function wireCustomerPicker(prefix) {
+    const custSel = document.getElementById(prefix + 'Customer');
+    const accountBtn = document.getElementById(prefix + 'ModeAccount');
+    const guestBtn = document.getElementById(prefix + 'ModeGuest');
+    if (!accountBtn.dataset.wired) {
+      accountBtn.dataset.wired = '1';
+      accountBtn.addEventListener('click', () => setCustomerMode(prefix, 'account'));
+      guestBtn.addEventListener('click', () => setCustomerMode(prefix, 'guest'));
+    }
+    // Every profile, not just role='customer' — staff book sessions for
+    // themselves too, and a booking whose owner is missing from this list
+    // would silently look unassigned in the edit modal.
+    // The promise itself is cached, so callers that need the options present
+    // (the edit modal preselecting a customer) can await a second open too.
+    if (!customerOptionsLoad[prefix]) {
+      customerOptionsLoad[prefix] = supabase
+        .from('profiles')
+        .select('id, full_name, role')
+        .order('full_name')
+        .then(({ data }) => {
+          custSel.innerHTML = '<option value="">Select customer…</option>' + (data || []).map((c) => {
+            const suffix = c.role === 'customer' ? '' : ` (${c.role})`;
+            return `<option value="${c.id}">${c.full_name || c.id}${suffix}</option>`;
+          }).join('');
+        });
+    }
+    return customerOptionsLoad[prefix];
+  }
+
+  function customerPickerValues(prefix) {
+    const isGuest = document.getElementById(prefix + 'ModeGuest').classList.contains('active');
+    return {
+      isGuest,
+      customerId: isGuest ? '' : document.getElementById(prefix + 'Customer').value,
+      guestName: isGuest ? document.getElementById(prefix + 'GuestName').value.trim() : '',
+    };
+  }
+
   function populateNewBookingForm() {
-    const custSel = document.getElementById('nbCustomer');
     const roomSel = document.getElementById('nbRoom');
     const svcWrap = document.getElementById('nbServices');
-    if (!custSel.dataset.loaded) {
-      supabase.from('profiles').select('id, full_name').eq('role', 'customer').order('full_name').then(({ data }) => {
-        custSel.innerHTML = '<option value="">Select customer…</option>' + (data || []).map((c) => `<option value="${c.id}">${c.full_name || c.id}</option>`).join('');
-        custSel.dataset.loaded = '1';
-      });
-    }
+    wireCustomerPicker('nb');
     roomSel.innerHTML = roomsCache.filter((r) => r.is_active).map((r) => `<option value="${r.id}">${r.name}</option>`).join('');
     svcWrap.innerHTML = '';
     const recordingSvc = servicesCache.find((s) => s.slug === 'recording');
@@ -740,15 +840,17 @@ async function main() {
     e.preventDefault();
     const msg = document.getElementById('nbMsg');
     msg.style.display = 'none';
-    const customerId = document.getElementById('nbCustomer').value;
+    const { isGuest: isGuestMode, customerId, guestName } = customerPickerValues('nb');
     const roomId = document.getElementById('nbRoom').value;
     const date = document.getElementById('nbDate').value;
     const start = document.getElementById('nbStart').value;
     const duration = Number(document.getElementById('nbDuration').value);
     const serviceIds = Array.from(document.getElementById('nbServices').querySelectorAll('input:checked')).map((i) => i.value);
 
-    if (!customerId || !roomId || !date || !start) {
-      msg.textContent = 'Please fill in customer, room, date, and start time.';
+    if ((!customerId && !guestName) || !roomId || !date || !start) {
+      msg.textContent = isGuestMode
+        ? "Please fill in the customer's name, room, date, and start time."
+        : 'Please fill in customer, room, date, and start time.';
       msg.classList.add('error');
       msg.style.display = 'block';
       return;
@@ -761,9 +863,11 @@ async function main() {
         start_at: startAt.toISOString(),
         end_at: endAt.toISOString(),
         service_ids: serviceIds,
-        customer_id: customerId,
+        customer_id: customerId || undefined,
+        guest_name: guestName || undefined,
       });
       e.target.reset();
+      setCustomerMode('nb', 'account');
       loadBookings();
     } catch (err) {
       msg.textContent = err.message;
@@ -1020,13 +1124,13 @@ async function main() {
         el('tr', {}, [
           el('td', {}, d(p.created_at)),
           el('td', {}, p.bookings?.rooms?.name || ''),
-          el('td', {}, p.bookings?.profiles?.full_name || '—'),
+          el('td', {}, p.bookings?.profiles?.full_name || p.bookings?.guest_name || '—'),
           el('td', {}, el('span', { class: 'pill', style: p.method === 'cash' ? 'color:var(--gold);border-color:var(--gold-dim);' : 'color:var(--teal);border-color:var(--teal);' }, p.method)),
           el('td', {}, p.type),
           el('td', {}, peso(p.amount)),
           el('td', {}, peso(p.refunded_amount)),
           el('td', {}, el('span', { style: 'color:var(--gold);font-size:0.75rem;text-transform:uppercase;' }, p.status)),
-          el('td', { style: 'font-size:0.7rem;opacity:0.4;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;' }, p.stripe_payment_intent_id || '—'),
+          el('td', { style: 'font-size:0.7rem;opacity:0.4;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;' }, p.paymongo_payment_id || p.paymongo_checkout_session_id || '—'),
           el('td', {}, canRefund
             ? el('button', {
                 class: 'a-btn-ghost',
@@ -1089,8 +1193,8 @@ async function main() {
   async function loadSettings() {
     const { data } = await supabase.from('app_settings').select('*');
     const get = (key) => data?.find((s) => s.key === key)?.value;
-    document.getElementById('setStripeEnabled').checked = get('stripe_enabled') === true;
-    document.getElementById('setDepositPct').value = Number(get('deposit_percent') ?? 30);
+    document.getElementById('setPaymongoEnabled').checked = get('paymongo_enabled') === true;
+    document.getElementById('setDepositPct').value = Number(get('deposit_percent') ?? 20);
     document.getElementById('setCutoffHrs').value = Number(get('reschedule_cutoff_hours') ?? 24);
 
     const { data: sess } = await supabase.auth.getSession();
@@ -1141,7 +1245,7 @@ async function main() {
   });
   document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
     await Promise.all([
-      supabase.from('app_settings').update({ value: document.getElementById('setStripeEnabled').checked }).eq('key', 'stripe_enabled'),
+      supabase.from('app_settings').update({ value: document.getElementById('setPaymongoEnabled').checked }).eq('key', 'paymongo_enabled'),
       supabase.from('app_settings').update({ value: Number(document.getElementById('setDepositPct').value) }).eq('key', 'deposit_percent'),
       supabase.from('app_settings').update({ value: Number(document.getElementById('setCutoffHrs').value) }).eq('key', 'reschedule_cutoff_hours'),
     ]);

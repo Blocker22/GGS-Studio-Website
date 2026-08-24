@@ -36,6 +36,17 @@
     margin:40px 0 16px; padding-bottom:8px; border-bottom:1px solid var(--line);
   }
   .account-book{scroll-margin-top:110px;}
+
+  /* Reschedule panel drops below the card's two columns. */
+  .booking-card{flex-wrap:wrap;}
+  .reschedule-panel{
+    flex-basis:100%; width:100%; margin-top:18px; padding-top:18px;
+    border-top:1px dashed var(--line);
+  }
+  .reschedule-panel[hidden]{display:none;}
+  .reschedule-panel .field{margin-bottom:14px;}
+  .reschedule-actions{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-top:4px;}
+  .reschedule-locked{color:var(--gold); opacity:0.75; margin-top:8px;}
 </style>
 </head>
 <body>
@@ -62,6 +73,8 @@
     </div>
     <a href="profile.html" class="btn-outline">Edit profile</a>
   </div>
+
+  <div class="confirm-msg" id="payReturnMsg"></div>
 
   <div class="account-book" id="book">
     <div class="section-tag">Reserve your slot</div>
@@ -108,6 +121,43 @@
       <div class="booking-summary" id="bookingSummary">
         <div><span>Duration</span><strong id="sumDuration">—</strong></div>
         <div><span>Total price</span><strong id="sumPrice">—</strong></div>
+      </div>
+
+      <div class="pay-options" id="payOptions">
+        <span class="pay-heading">How would you like to pay?</span>
+
+        <label class="pay-option">
+          <input type="radio" name="payOption" value="cash" checked>
+          <span class="pay-body">
+            <span class="pay-title">Pay in cash at the studio</span>
+            <span class="pay-note">Nothing to pay now — just attach a photo of a valid ID to hold the slot. A school or student ID works.</span>
+          </span>
+          <span class="pay-amount" data-pay-amount="cash">&mdash;</span>
+        </label>
+
+        <div class="pay-id-upload" id="payIdUpload">
+          <label>Photo of a valid ID</label>
+          <input type="file" id="fIdImage" accept="image/png, image/jpeg, image/webp, image/heic">
+          <p class="field-hint">School, student, or any other valid ID. Max 2MB.</p>
+        </div>
+
+        <label class="pay-option">
+          <input type="radio" name="payOption" value="deposit">
+          <span class="pay-body">
+            <span class="pay-title">Pay a <span id="payDepositPct">20</span>% downpayment online</span>
+            <span class="pay-note">Reserve now via GCash, Maya, GrabPay or card. Balance settled at the studio.</span>
+          </span>
+          <span class="pay-amount" data-pay-amount="deposit">&mdash;</span>
+        </label>
+
+        <label class="pay-option">
+          <input type="radio" name="payOption" value="full">
+          <span class="pay-body">
+            <span class="pay-title">Pay in full online</span>
+            <span class="pay-note">Settle the whole session now — nothing left to pay on the day.</span>
+          </span>
+          <span class="pay-amount" data-pay-amount="full">&mdash;</span>
+        </label>
       </div>
 
       <div id="authStep" class="auth-step" style="display:none;">
@@ -173,12 +223,25 @@
     return data;
   }
 
-  function renderBooking(b, session, supabase, onChange){
+  function showMsg(el, text, isError){
+    el.textContent = text;
+    el.classList.toggle('error', !!isError);
+    el.style.display = 'block';
+  }
+
+  function renderBooking(b, session, supabase, onChange, cutoffHours){
     const card = document.createElement('div');
     card.className = `booking-card status-${b.status}`;
     const room = b.rooms?.name || 'Room';
     const services = (b.booking_services || []).map(bs => bs.services?.name).filter(Boolean).join(', ');
-    const canModify = ['pending','confirmed'].includes(b.status) && new Date(b.start_at) > new Date();
+    const startsAt = new Date(b.start_at);
+    const isOpen = ['pending','confirmed'].includes(b.status);
+    const canModify = isOpen && startsAt > new Date();
+    // Same rule the server enforces: changes must land at least `cutoffHours`
+    // before the session starts, so inside that window it's phone-us-only.
+    const hoursAway = (startsAt.getTime() - Date.now()) / 3600000;
+    const canReschedule = isOpen && hoursAway >= cutoffHours;
+    const durationMs = new Date(b.end_at).getTime() - startsAt.getTime();
 
     card.innerHTML = `
       <div>
@@ -187,10 +250,33 @@
         <div class="meta">${fmtRange(b.start_at, b.end_at)}</div>
         ${services ? `<div class="meta">Add-ons: ${services}</div>` : ''}
         <div class="meta">Total: ${formatPeso(b.total_price)}</div>
+        ${canModify && !canReschedule
+          ? `<div class="meta reschedule-locked">Too late to reschedule online — call the studio.</div>`
+          : ''}
       </div>
       <div class="booking-actions">
+        ${canReschedule ? `<button class="btn-outline" data-action="reschedule">Reschedule</button>` : ''}
         ${canModify ? `<button class="btn-outline" data-action="cancel">Cancel</button>` : ''}
       </div>
+      ${canReschedule ? `
+      <form class="reschedule-panel" data-panel hidden>
+        <div class="field-row">
+          <div class="field">
+            <label>New date</label>
+            <input type="date" data-rs-date required>
+          </div>
+          <div class="field">
+            <label>New start time</label>
+            <input type="time" step="1800" data-rs-start required>
+          </div>
+        </div>
+        <p class="field-hint">The session keeps its ${(durationMs / 3600000).toFixed(1).replace(/\.0$/, '')}-hour length and price.</p>
+        <div class="reschedule-actions">
+          <button type="submit" class="btn-outline" data-rs-save>Save new time</button>
+          <button type="button" class="btn-ghost" data-rs-cancel>Never mind</button>
+        </div>
+        <div class="confirm-msg" data-rs-msg></div>
+      </form>` : ''}
     `;
 
     const cancelBtn = card.querySelector('[data-action="cancel"]');
@@ -207,6 +293,55 @@
         }
       });
     }
+
+    const panel = card.querySelector('[data-panel]');
+    if (panel){
+      const dateEl = panel.querySelector('[data-rs-date]');
+      const timeEl = panel.querySelector('[data-rs-start]');
+      const msg = panel.querySelector('[data-rs-msg]');
+      const saveBtn = panel.querySelector('[data-rs-save]');
+
+      // Nothing earlier than the cutoff is selectable in the first place.
+      const earliest = new Date(Date.now() + cutoffHours * 3600000);
+      dateEl.min = earliest.toLocaleDateString('en-CA');
+      dateEl.value = startsAt.toLocaleDateString('en-CA');
+      timeEl.value = startsAt.toTimeString().slice(0, 5);
+
+      card.querySelector('[data-action="reschedule"]').addEventListener('click', () => {
+        panel.hidden = !panel.hidden;
+      });
+      panel.querySelector('[data-rs-cancel]').addEventListener('click', () => { panel.hidden = true; });
+
+      panel.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        msg.style.display = 'none';
+        msg.classList.remove('error');
+
+        const newStart = new Date(`${dateEl.value}T${timeEl.value}:00`);
+        if (isNaN(newStart.getTime())){
+          showMsg(msg, '⚠ Please pick a valid date and time.', true);
+          return;
+        }
+        if (newStart.getTime() - Date.now() < cutoffHours * 3600000){
+          showMsg(msg, `⚠ New time must be at least ${cutoffHours} hours from now.`, true);
+          return;
+        }
+        const newEnd = new Date(newStart.getTime() + durationMs);
+
+        saveBtn.disabled = true;
+        try{
+          await callFunction('update-booking', session, {
+            booking_id: b.id,
+            start_at: newStart.toISOString(),
+            end_at: newEnd.toISOString(),
+          });
+          onChange();
+        }catch(err){
+          showMsg(msg, `⚠ ${err.message}`, true);
+          saveBtn.disabled = false;
+        }
+      });
+    }
     return card;
   }
 
@@ -216,10 +351,20 @@
     upcomingList.innerHTML = '';
     pastList.innerHTML = '';
 
-    const { data: bookings, error } = await supabase
-      .from('bookings')
-      .select('*, rooms(name), booking_services(services(name))')
-      .order('start_at', { ascending: false });
+    // Staff can read every booking under RLS, so this page has to scope itself
+    // to the signed-in customer — otherwise an admin's "My bookings" lists the
+    // whole studio's calendar as if it were their own.
+    const [{ data: bookings, error }, { data: cutoffRows }] = await Promise.all([
+      supabase
+        .from('bookings')
+        .select('*, rooms(name), booking_services(services(name))')
+        .eq('customer_id', session.user.id)
+        .order('start_at', { ascending: false }),
+      supabase.from('app_settings').select('value').eq('key', 'reschedule_cutoff_hours'),
+    ]);
+    // Mirror the studio's configured cutoff rather than hardcoding 24h here.
+    const parsedCutoff = Number(cutoffRows?.[0]?.value);
+    const cutoffHours = Number.isFinite(parsedCutoff) && parsedCutoff >= 0 ? parsedCutoff : 24;
 
     if (error){
       upcomingList.innerHTML = `<p class="muted">Could not load bookings: ${error.message}</p>`;
@@ -231,10 +376,10 @@
     const past = (bookings || []).filter(b => new Date(b.start_at) < now || b.status === 'cancelled');
 
     if (upcoming.length === 0) upcomingList.innerHTML = '<p class="muted">No upcoming bookings — book a session above.</p>';
-    else upcoming.forEach(b => upcomingList.appendChild(renderBooking(b, session, supabase, () => loadBookings(supabase, session))));
+    else upcoming.forEach(b => upcomingList.appendChild(renderBooking(b, session, supabase, () => loadBookings(supabase, session), cutoffHours)));
 
     if (past.length === 0) pastList.innerHTML = '<p class="muted">No past bookings yet.</p>';
-    else past.forEach(b => pastList.appendChild(renderBooking(b, session, supabase, () => loadBookings(supabase, session))));
+    else past.forEach(b => pastList.appendChild(renderBooking(b, session, supabase, () => loadBookings(supabase, session), cutoffHours)));
   }
 
   async function refreshBookingsPanel(supabase){
@@ -249,7 +394,28 @@
     await loadBookings(supabase, data.session);
   }
 
+  // Coming back from PayMongo's hosted checkout. The webhook is what actually
+  // confirms the booking, so this only reports what the redirect implies.
+  function showPayReturn(){
+    const params = new URLSearchParams(location.search);
+    const msg = document.getElementById('payReturnMsg');
+    if (params.get('paid') === '1'){
+      msg.textContent = '✓ Payment received — your booking is confirmed once PayMongo finishes settling, usually within a minute. Refresh if it still shows as pending.';
+      msg.classList.remove('error');
+      msg.style.display = 'block';
+    } else if (params.get('cancelled') === '1'){
+      msg.textContent = '⚠ Payment was cancelled. Your slot is still held as pending — pay from this page or settle in cash at the studio.';
+      msg.classList.add('error');
+      msg.style.display = 'block';
+    } else {
+      return;
+    }
+    // Drop the flag so a refresh doesn't keep re-announcing it.
+    history.replaceState({}, '', location.pathname);
+  }
+
   (async function init(){
+    showPayReturn();
     const supabase = await getSupabase();
     initAuthNav();
     await initBooking();

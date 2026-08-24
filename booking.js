@@ -66,6 +66,10 @@ export async function initBooking() {
   const sumPrice = document.getElementById('sumPrice');
   const submitBtn = document.getElementById('bookSubmitBtn');
   const confirmMsg = document.getElementById('confirmMsg');
+  const payOptionEls = Array.from(document.querySelectorAll('input[name="payOption"]'));
+  const payIdUpload = document.getElementById('payIdUpload');
+  const idImageEl = document.getElementById('fIdImage');
+  const payDepositPct = document.getElementById('payDepositPct');
 
   const authSignedIn = document.getElementById('authSignedIn');
   const authWho = document.getElementById('authWho');
@@ -79,6 +83,7 @@ export async function initBooking() {
   let session = null;
   let mainRoom = null;
   let servicesBySlug = {};
+  let depositPercent = 20;
   let awaitingAuthMode = null; // 'signup' | 'login' | null
 
   async function refreshAuthUI() {
@@ -141,10 +146,14 @@ export async function initBooking() {
   });
 
   async function loadRates() {
-    const [{ data: rooms }, { data: services }] = await Promise.all([
+    const [{ data: rooms }, { data: services }, { data: settings }] = await Promise.all([
       supabase.from('rooms').select('*').eq('is_active', true).order('created_at').limit(1),
       supabase.from('services').select('*').eq('is_active', true),
+      supabase.from('app_settings').select('key, value').eq('key', 'deposit_percent'),
     ]);
+    const pct = Number(settings?.[0]?.value);
+    if (Number.isFinite(pct) && pct > 0) depositPercent = pct;
+    if (payDepositPct) payDepositPct.textContent = String(depositPercent);
     mainRoom = rooms?.[0] || null;
     servicesBySlug = {};
     (services || []).forEach((s) => {
@@ -168,11 +177,24 @@ export async function initBooking() {
     }, 0);
   }
 
+  // Returns the session total in pesos, or null when the form isn't complete
+  // enough to price yet. Shared by the summary and the payment options.
+  function currentTotal() {
+    if (!mainRoom || !serviceEl.value || !startEl.value || !endEl.value) return null;
+    const [sh, sm] = startEl.value.split(':').map(Number);
+    const [eh, em] = endEl.value.split(':').map(Number);
+    const rawDuration = (eh * 60 + em - (sh * 60 + sm)) / 60;
+    if (rawDuration <= 0) return null;
+    const duration = Math.ceil(rawDuration * 10) / 10;
+    return Math.ceil(Number(mainRoom.hourly_rate) * duration + addonTotal(serviceEl.value, duration));
+  }
+
   function updateSummary() {
     document.getElementById('bookingSummary').classList.remove('ready');
     if (!mainRoom || !serviceEl.value || !startEl.value || !endEl.value) {
       sumDuration.textContent = '—';
       sumPrice.textContent = '—';
+      refreshPayOptions();
       return;
     }
     const [sh, sm] = startEl.value.split(':').map(Number);
@@ -181,6 +203,7 @@ export async function initBooking() {
     if (rawDuration <= 0) {
       sumDuration.textContent = 'End must be after start';
       sumPrice.textContent = '—';
+      refreshPayOptions();
       return;
     }
     const duration = Math.ceil(rawDuration * 10) / 10;
@@ -188,10 +211,33 @@ export async function initBooking() {
     sumDuration.textContent = `${duration} hr${duration !== 1 ? 's' : ''}`;
     sumPrice.textContent = formatPeso(price);
     document.getElementById('bookingSummary').classList.add('ready');
+    refreshPayOptions();
   }
 
   // Can't book yesterday — let the native picker enforce it.
   dateEl.min = new Date().toLocaleDateString('en-CA');
+
+  function selectedPayOption() {
+    return payOptionEls.find((r) => r.checked)?.value || 'cash';
+  }
+
+  function refreshPayOptions() {
+    const option = selectedPayOption();
+    // The ID photo is only asked for on the cash route.
+    if (payIdUpload) payIdUpload.classList.toggle('show', option === 'cash');
+
+    // Show what each route would actually charge today.
+    const total = currentTotal();
+    document.querySelectorAll('[data-pay-amount]').forEach((cell) => {
+      const kind = cell.dataset.payAmount;
+      if (total == null) { cell.textContent = '—'; return; }
+      if (kind === 'cash') cell.textContent = formatPeso(0) + ' now';
+      else if (kind === 'deposit') cell.textContent = formatPeso(Math.ceil((total * depositPercent) / 100)) + ' now';
+      else cell.textContent = formatPeso(total) + ' now';
+    });
+  }
+
+  payOptionEls.forEach((r) => r.addEventListener('change', refreshPayOptions));
 
   [serviceEl, startEl, endEl].forEach((el) => el.addEventListener('input', updateSummary));
 
@@ -201,11 +247,32 @@ export async function initBooking() {
     if (!serviceEl.value) return 'Please choose a service.';
     if (!dateEl.value) return 'Please choose a date.';
     if (!startEl.value || !endEl.value) return 'Please choose a start and end time.';
+    if (selectedPayOption() === 'cash' && !idImageEl?.files?.length) {
+      return 'Please attach a photo of a valid ID to pay in cash.';
+    }
     const [sh, sm] = startEl.value.split(':').map(Number);
     const [eh, em] = endEl.value.split(':').map(Number);
     if (eh * 60 + em <= sh * 60 + sm) return 'End time must be later than the start time.';
     if (!mainRoom) return 'No room is currently available for booking. Please try again shortly.';
     return null;
+  }
+
+  // Uploads the valid ID into the customer's own folder in the private
+  // customer-ids bucket and returns the stored path. Storage RLS restricts
+  // both the write and any later read to that customer plus studio staff.
+  async function uploadIdImage(userId) {
+    const file = idImageEl?.files?.[0];
+    if (!file) throw new Error('Please attach a photo of a valid ID to pay in cash.');
+    if (file.size > 2 * 1024 * 1024) throw new Error('That ID photo is over 2MB — please attach a smaller one.');
+
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
+    const path = `${userId}/${Date.now()}.${ext || 'jpg'}`;
+    const { error } = await supabase.storage.from('customer-ids').upload(path, file, {
+      contentType: file.type || 'image/jpeg',
+      upsert: false,
+    });
+    if (error) throw new Error(`Could not upload your ID: ${error.message}`);
+    return path;
   }
 
   async function placeBooking() {
@@ -216,24 +283,50 @@ export async function initBooking() {
     session = sessionData.session;
     if (!session) throw new Error('Please sign in to continue.');
 
-    const result = await callFunction('create-booking', session, {
+    const payOption = selectedPayOption();
+    const payload = {
       room_id: mainRoom.id,
       start_at: startAt.toISOString(),
       end_at: endAt.toISOString(),
       service_ids: addonServiceIds(serviceEl.value),
-    });
+      payment_option: payOption,
+      return_url: location.origin,
+    };
+    if (payOption === 'cash') {
+      submitBtn.textContent = 'Uploading ID…';
+      payload.id_image_path = await uploadIdImage(session.user.id);
+    }
+
+    submitBtn.textContent = 'Sending…';
+    const result = await callFunction('create-booking', session, payload);
+
+    // Online routes hand back a PayMongo hosted-checkout URL. Leave the page
+    // there rather than claiming the booking is settled.
+    if (result.payment_required && result.checkout_url) {
+      submitBtn.textContent = 'Redirecting to payment…';
+      window.dispatchEvent(new CustomEvent('ggs:booking-created', { detail: result.booking }));
+      location.href = result.checkout_url;
+      return;
+    }
 
     const b = result.booking;
-    confirmMsg.textContent = `✓ Booked — ${serviceEl.options[serviceEl.selectedIndex].text} on ${b_date(b)}, ${to12Hour(
+    const base = `✓ Booked — ${serviceEl.options[serviceEl.selectedIndex].text} on ${b_date(b)}, ${to12Hour(
       startEl.value,
-    )} to ${to12Hour(endEl.value)}. Total: ${formatPeso(b.total_price)}. GGS Studio will confirm by email shortly.`;
+    )} to ${to12Hour(endEl.value)}. Total: ${formatPeso(b.total_price)}.`;
+    // `notice` means the online route couldn't run and this fell back to cash —
+    // say so instead of letting them think they've paid.
+    confirmMsg.textContent = result.notice
+      ? `${base} ${result.notice}`
+      : `${base} Bring your ID and pay at the studio — GGS Studio will confirm by email shortly.`;
     confirmMsg.classList.remove('error');
     confirmMsg.style.display = 'block';
     submitBtn.textContent = 'Request sent ✓';
     hideAuthStep();
     form.reset();
+    if (idImageEl) idImageEl.value = '';
     await refreshAuthUI();
     updateSummary();
+    refreshPayOptions();
     window.dispatchEvent(new CustomEvent('ggs:booking-created', { detail: b }));
   }
 

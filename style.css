@@ -505,16 +505,18 @@ footer .btn-primary{margin-top:24px;}
 
   section{padding:88px 6%;}
   .hero{padding:110px 6% 50px;}
-  .hero-grid{grid-template-columns:1fr;}
+  .hero-grid{grid-template-columns:1fr; overflow-x:clip;}
   .hero-slideshow{
     position:relative;
     inset:auto;
-    width:100%;
-    height:260px;
+    /* full-bleed: break out of the section's side padding instead of sitting boxed-in */
+    width:auto;
+    margin-left:-6%; margin-right:-6%;
+    height:min(58vh, 460px);
     margin-top:36px;
     order:2;
-    -webkit-mask-image:linear-gradient(to bottom, transparent, black 45%);
-    mask-image:linear-gradient(to bottom, transparent, black 45%);
+    -webkit-mask-image:linear-gradient(to bottom, transparent, black 25%);
+    mask-image:linear-gradient(to bottom, transparent, black 25%);
   }
   .hero-actions{gap:16px;}
   .waveform{height:56px;}
@@ -625,3 +627,60 @@ button:disabled, .book-submit:disabled{opacity:0.5; cursor:not-allowed; transfor
 
 .booking-summary{transition:border-color 0.25s, background 0.25s;}
 .booking-summary.ready{border-style:solid; border-color:var(--gold-dim);}
+
+
+/* ---------- PAYMENT OPTIONS ---------- */
+.pay-options{
+  margin-top:22px; padding-top:22px; border-top:1px solid var(--line);
+  display:flex; flex-direction:column; gap:10px;
+}
+.pay-heading{
+  display:block; font-family:var(--sans); font-size:0.75rem;
+  letter-spacing:0.08em; text-transform:uppercase; color:var(--gold); margin-bottom:4px;
+}
+.pay-option{
+  display:flex; align-items:flex-start; gap:12px;
+  padding:14px 16px; border:1px solid var(--line); border-radius:3px;
+  cursor:pointer; transition:border-color 0.2s, background 0.2s;
+}
+.pay-option:hover{border-color:rgba(238,244,244,0.28);}
+.pay-option input{
+  width:auto; margin:0; flex-shrink:0; accent-color:var(--gold);
+  /* nudge the dot onto the first line of the label */
+  margin-top:3px;
+}
+.pay-option:has(input:checked){border-color:var(--gold-dim); background:rgba(215,174,92,0.05);}
+.pay-body{display:flex; flex-direction:column; gap:4px; flex:1; min-width:0;}
+.pay-title{font-size:0.9rem; font-weight:600;}
+.pay-note{font-size:0.78rem; color:rgba(242,236,224,0.55); line-height:1.5;}
+.pay-amount{
+  font-family:var(--sans); font-size:0.95rem; font-weight:700; color:var(--gold);
+  white-space:nowrap; flex-shrink:0;
+}
+
+.pay-id-upload{
+  display:none;
+  margin:-2px 0 4px; padding:14px 16px;
+  border:1px dashed var(--gold-dim); border-radius:3px;
+  background:rgba(215,174,92,0.04);
+}
+.pay-id-upload.show{display:block;}
+.pay-id-upload label{
+  display:block; font-family:var(--sans); font-size:0.75rem;
+  letter-spacing:0.08em; text-transform:uppercase; color:var(--gold); margin-bottom:9px;
+}
+.pay-id-upload input[type="file"]{
+  width:100%; font-family:var(--sans); font-size:0.82rem; color:var(--cream);
+  background:var(--ink); border:1px solid var(--line); border-radius:3px; padding:10px 12px;
+}
+.pay-id-upload input[type="file"]::file-selector-button{
+  font-family:var(--sans); font-size:0.78rem; font-weight:600;
+  background:var(--gold); color:var(--ink); border:none; border-radius:2px;
+  padding:7px 12px; margin-right:12px; cursor:pointer;
+}
+.pay-id-upload .field-hint{margin-top:8px;}
+
+@media (max-width:520px){
+  .pay-option{flex-wrap:wrap;}
+  .pay-amount{width:100%; padding-left:28px;}
+}

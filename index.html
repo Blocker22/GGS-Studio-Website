@@ -149,6 +149,43 @@
           <div><span>Total price</span><strong id="sumPrice">—</strong></div>
         </div>
 
+        <div class="pay-options" id="payOptions">
+          <span class="pay-heading">How would you like to pay?</span>
+
+          <label class="pay-option">
+            <input type="radio" name="payOption" value="cash" checked>
+            <span class="pay-body">
+              <span class="pay-title">Pay in cash at the studio</span>
+              <span class="pay-note">Nothing to pay now — just attach a photo of a valid ID to hold the slot. A school or student ID works.</span>
+            </span>
+            <span class="pay-amount" data-pay-amount="cash">&mdash;</span>
+          </label>
+
+          <div class="pay-id-upload" id="payIdUpload">
+            <label>Photo of a valid ID</label>
+            <input type="file" id="fIdImage" accept="image/png, image/jpeg, image/webp, image/heic">
+            <p class="field-hint">School, student, or any other valid ID. Max 2MB.</p>
+          </div>
+
+          <label class="pay-option">
+            <input type="radio" name="payOption" value="deposit">
+            <span class="pay-body">
+              <span class="pay-title">Pay a <span id="payDepositPct">20</span>% downpayment online</span>
+              <span class="pay-note">Reserve now via GCash, Maya, GrabPay or card. Balance settled at the studio.</span>
+            </span>
+            <span class="pay-amount" data-pay-amount="deposit">&mdash;</span>
+          </label>
+
+          <label class="pay-option">
+            <input type="radio" name="payOption" value="full">
+            <span class="pay-body">
+              <span class="pay-title">Pay in full online</span>
+              <span class="pay-note">Settle the whole session now — nothing left to pay on the day.</span>
+            </span>
+            <span class="pay-amount" data-pay-amount="full">&mdash;</span>
+          </label>
+        </div>
+
         <div id="authStep" class="auth-step" style="display:none;">
           <p class="auth-step-note" id="authStepNote">One more step — create an account (or log in) to confirm this booking.</p>
           <div class="field">
