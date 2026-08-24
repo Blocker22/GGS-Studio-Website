@@ -77,21 +77,12 @@
 </section>
 
 <section class="gear" id="room">
-  <div class="gear-grid">
-    <div class="gear-copy" data-reveal>
-      <div class="section-tag">The room</div>
-      <h2>Built around the signal, not the logo wall</h2>
-      <p class="section-note" style="max-width:460px; margin-top:18px;">Every session runs through a Zoom LiveTrak L-12 — a 12-channel mixer with 8 mic/line inputs plus 2 stereo line returns, built-in effects, and simultaneous multi-track recording straight to SD. Simple, clean, and reliable. No gimmicks — just a chain that gets out of the way.</p>
-      <div class="stat-row">
-        <div class="stat"><b>12ch</b><span>Zoom L-12 mixer</span></div>
-        <div class="stat"><b>8</b><span>XLR/TRS mic inputs</span></div>
-        <div class="stat"><b>14-trk</b><span>Simultaneous SD recording</span></div>
-      </div>
-    </div>
-    <div class="gear-visual" data-reveal>
-      <div class="waveform" id="heroWave"></div>
-      <div class="console" id="consoleGrid"></div>
-    </div>
+  <div class="studio-head" data-reveal>
+    <div class="section-tag">Our studio</div>
+    <h2>Where our work happens</h2>
+  </div>
+  <div class="gear-visual" data-reveal>
+    <div class="studio-gallery" id="studioGallery" aria-label="Photos of the studio"></div>
   </div>
 </section>
 
@@ -239,7 +230,7 @@
       <div class="footer-col">
         <h5>Studio</h5>
         <a href="#services">Services</a>
-        <a href="#room">The room</a>
+        <a href="#room">Our studio</a>
       </div>
       <div class="footer-col">
         <h5>Contact</h5>
@@ -272,29 +263,9 @@
 </footer>
 
 <script>
-  // hero waveform
-  const wave = document.getElementById('heroWave');
-  for(let i=0;i<60;i++){
-    const bar = document.createElement('span');
-    const h = 15 + Math.random()*55;
-    bar.style.height = h + '%';
-    bar.style.animationDelay = (Math.random()*1.4) + 's';
-    bar.style.animationDuration = (1 + Math.random()*0.8) + 's';
-    wave.appendChild(bar);
-  }
-
   // marquee duplicate for seamless loop
   const track = document.getElementById('marqueeTrack');
   track.innerHTML += track.innerHTML;
-
-  // console knobs
-  const console_ = document.getElementById('consoleGrid');
-  for(let i=0;i<32;i++){
-    const k = document.createElement('div');
-    k.className = 'knob';
-    k.style.setProperty('--r', (Math.random()*280 - 140) + 'deg');
-    console_.appendChild(k);
-  }
 
   // reveal on scroll
   const revealEls = document.querySelectorAll('[data-reveal]');
@@ -361,6 +332,83 @@
     }
 
     buildSlides();
+  })();
+
+  // Studio gallery — same numbered-probe trick as the hero slideshow: reads
+  // whatever assets/slideshow/ contains and lays it out as a masonry grid
+  // (equal column widths, natural image heights).
+  (function initStudioGallery(){
+    const SLIDESHOW_DIR = 'assets/slideshow/';
+    const MAX_PROBE = 40;
+    const el = document.getElementById('studioGallery');
+    if (!el) return;
+
+    function loadImage(src){
+      return new Promise((resolve)=>{
+        const img = new Image();
+        img.decoding = 'async';
+        img.onload = () => resolve(src);
+        img.onerror = () => resolve(null);
+        img.src = src;
+      });
+    }
+
+    async function buildGallery(){
+      const probes = Array.from({ length: MAX_PROBE }, (_, i) => loadImage(`${SLIDESHOW_DIR}${i + 1}.webp`));
+      const results = await Promise.all(probes);
+      const sources = [];
+      for (const src of results){ if (!src) break; sources.push(src); }
+      if (sources.length === 0) { el.classList.add('empty'); return; }
+
+      sources.forEach((src, i) => {
+        const img = document.createElement('img');
+        img.src = src;
+        img.alt = `Inside GGS Studio — photo ${i + 1}`;
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        // Fade in only once decoded, so half-loaded images don't pop in
+        // mid-scroll and shift the masonry around.
+        if (img.complete) { img.classList.add('loaded'); }
+        else { img.addEventListener('load', () => img.classList.add('loaded')); }
+        el.appendChild(img);
+      });
+    }
+
+    buildGallery();
+
+    // Lightbox: clicking any photo pops the full-size image over everything.
+    const lightbox = document.createElement('div');
+    lightbox.className = 'lightbox-backdrop';
+    lightbox.innerHTML = `
+      <button type="button" class="lightbox-close" aria-label="Close">&times;</button>
+      <img alt="">`;
+    document.body.appendChild(lightbox);
+    const lightboxImg = lightbox.querySelector('img');
+
+    let lastFocus = null;
+    function openLightbox(src){
+      lastFocus = document.activeElement;
+      lightboxImg.src = src;
+      lightbox.classList.add('open');
+      document.body.style.overflow = 'hidden';
+      lightbox.querySelector('.lightbox-close').focus();
+    }
+    function closeLightbox(){
+      lightbox.classList.remove('open');
+      document.body.style.overflow = '';
+      lastFocus?.focus?.();
+    }
+
+    el.addEventListener('click', (e) => {
+      const img = e.target.closest('img');
+      if (img) openLightbox(img.src);
+    });
+    lightbox.addEventListener('click', (e) => {
+      if (e.target === lightbox || e.target.closest('.lightbox-close')) closeLightbox();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && lightbox.classList.contains('open')) closeLightbox();
+    });
   })();
 </script>
 
