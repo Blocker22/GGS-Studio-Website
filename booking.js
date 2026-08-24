@@ -290,7 +290,11 @@ export async function initBooking() {
       end_at: endAt.toISOString(),
       service_ids: addonServiceIds(serviceEl.value),
       payment_option: payOption,
-      return_url: location.origin,
+      // The full directory URL, not just the origin — this project's GitHub
+      // Pages site lives under a subpath (/GGS-Studio-Website/), and
+      // location.origin alone drops that, so the PayMongo redirect back
+      // would 404.
+      return_url: location.origin + location.pathname.replace(/[^/]*$/, ''),
     };
     if (payOption === 'cash') {
       submitBtn.textContent = 'Uploading ID…';

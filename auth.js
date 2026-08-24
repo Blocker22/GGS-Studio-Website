@@ -3,6 +3,28 @@
 // registered" response into a real error.
 import { getSupabase } from './supabase-client.js';
 
+// Every page is a sibling static file with no .html in its URL (GitHub Pages
+// resolves /login to login.html natively; server.js does the same locally
+// via express.static's `extensions` option). "." always means "this
+// directory", i.e. the site root — so "./" is home and plain relative names
+// ("login", "account") work unmodified whether the site sits at a domain
+// root or, like this GitHub Pages project, under a subpath.
+function currentPage() {
+  const last = location.pathname.split('/').pop() || '';
+  return last.replace(/\.html$/, ''); // '' on the root/index page
+}
+
+// A stray "/page.html" link (an old bookmark, a search result, GitHub's own
+// default file listing) still resolves and works — this just tidies the
+// visible address bar to match the clean links everywhere else on the site.
+function normalizeUrl() {
+  const path = location.pathname;
+  if (!path.endsWith('.html')) return;
+  let clean = path.slice(0, -'.html'.length);
+  if (clean.endsWith('/index')) clean = clean.slice(0, -'index'.length);
+  history.replaceState(null, '', clean + location.search + location.hash);
+}
+
 // One nav markup, built here, used by every page — the header used to be
 // pasted into each HTML file by hand and drifted (different labels, different
 // hrefs, "Booking" vs "Book a session"). Now there is exactly one layout.
@@ -14,26 +36,33 @@ const NAV_LINKS = [
 // The 4th slot toggles: "Book a session" signed out, "My Bookings" signed in
 // — swapped in render() below rather than showing both at once.
 function renderNav(navEl) {
-  const here = location.pathname.split('/').pop() || 'index.html';
-  const onIndex = here === 'index.html' || here === '';
-  const bookHref = onIndex ? '#book' : 'index.html#book';
+  const onIndex = currentPage() === '';
+  const bookHref = onIndex ? '#book' : './#book';
 
   const links = NAV_LINKS.map((l) => {
-    const href = onIndex ? l.hash : `index.html${l.hash}`;
+    const href = onIndex ? l.hash : `./${l.hash}`;
     return `<a href="${href}">${l.label}</a>`;
   }).join('');
 
   navEl.innerHTML = `
-    <div class="logo"><a href="index.html"><img src="assets/Logo_NoBG.png" alt="GGS Studio"></a></div>
+    <div class="logo"><a href="./"><img src="assets/Logo_NoBG.png" alt="GGS Studio"></a></div>
     <div class="nav-links" id="navLinks">${links}<a href="${bookHref}" id="navBookLink">Book a session</a></div>
     <div class="nav-right">
-      <a href="login.html" class="nav-cta" id="navAuth">Sign in</a>
+      <a href="login" class="nav-cta" id="navAuth">Sign in</a>
       <button class="burger" id="burgerBtn" aria-label="Toggle menu" aria-expanded="false" aria-controls="navLinks">
         <span></span><span></span><span></span>
       </button>
     </div>
   `;
   return bookHref;
+}
+
+// Gives the bar visual weight once you've scrolled off the hero, instead of
+// a flat translucent strip for the whole page.
+function initScrollShadow(navEl) {
+  const onScroll = () => navEl.classList.toggle('scrolled', window.scrollY > 40);
+  onScroll();
+  window.addEventListener('scroll', onScroll, { passive: true });
 }
 
 function initBurger() {
@@ -56,17 +85,19 @@ function initBurger() {
 
 // Marks the nav link matching the current page so you can tell where you are.
 function markCurrentNavLink() {
-  const here = location.pathname.split('/').pop() || 'index.html';
+  const here = currentPage();
   document.querySelectorAll('#navLinks a').forEach((a) => {
     const href = a.getAttribute('href');
     if (href.startsWith('#')) return; // same-page jump, not a "you are here"
-    if (href.split('#')[0] === here) a.classList.add('current');
+    if (href.replace(/^\.\//, '').split('#')[0] === here) a.classList.add('current');
   });
 }
 
 export async function initAuthNav() {
+  normalizeUrl();
   const navEl = document.querySelector('nav');
   const bookHref = navEl ? renderNav(navEl) : null;
+  if (navEl) initScrollShadow(navEl);
   initBurger();
   markCurrentNavLink();
 
@@ -76,7 +107,7 @@ export async function initAuthNav() {
 
   const greet = document.createElement('a');
   greet.className = 'nav-greet';
-  greet.href = 'profile.html';
+  greet.href = 'profile';
   greet.title = 'Edit your profile';
   greet.style.display = 'none';
   el.parentNode.insertBefore(greet, el);
@@ -85,11 +116,16 @@ export async function initAuthNav() {
 
   async function render(session) {
     el.textContent = session ? 'Sign out' : 'Sign in';
-    el.href = session ? '#' : `login.html?next=${encodeURIComponent(location.pathname.split('/').pop() || 'index.html')}`;
+    // Omit the param entirely for the home page rather than sending
+    // "?next=" — an empty string is falsy, so login.html's `|| 'account'`
+    // fallback would otherwise silently redirect a home-page sign-in to
+    // /account instead of back to /.
+    const page = currentPage();
+    el.href = session ? '#' : (page ? `login?next=${encodeURIComponent(page)}` : 'login');
     if (bookLink) {
       if (session) {
         bookLink.textContent = 'My Bookings';
-        bookLink.href = 'account.html';
+        bookLink.href = 'account';
       } else {
         bookLink.textContent = 'Book a session';
         bookLink.href = bookHref;
@@ -110,7 +146,7 @@ export async function initAuthNav() {
     if (el.textContent !== 'Sign out') return;
     e.preventDefault();
     await supabase.auth.signOut();
-    location.href = 'index.html';
+    location.href = './';
   });
 
   const { data } = await supabase.auth.getSession();

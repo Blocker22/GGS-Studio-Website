@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sign in — GGS Studio</title>
 <meta name="description" content="Sign in or create an account to book a session at GGS Studio.">
-<link rel="canonical" href="https://woogi999.github.io/GGS-Studio-Website/login.html">
+<link rel="canonical" href="https://woogi999.github.io/GGS-Studio-Website/login">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="GGS Studio">
 <meta property="og:title" content="Sign in — GGS Studio">
 <meta property="og:description" content="Sign in or create an account to book a session at GGS Studio.">
-<meta property="og:url" content="https://woogi999.github.io/GGS-Studio-Website/login.html">
+<meta property="og:url" content="https://woogi999.github.io/GGS-Studio-Website/login">
 <meta property="og:image" content="https://woogi999.github.io/GGS-Studio-Website/assets/Logo_NoBG.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Sign in — GGS Studio">
@@ -83,7 +83,14 @@
   const nameField = document.getElementById('nameField');
   let mode = new URLSearchParams(location.search).get('mode') === 'signup' ? 'signup' : 'login';
 
-  const next = new URLSearchParams(location.search).get('next') || 'account.html';
+  // Accepts old-style '?next=account.html' links too (bookmarks, anything
+  // cached) — strip any .html suffix and land on the clean equivalent.
+  // .has()/.get() distinguishes "?next=" (explicit: go home) from a bare
+  // /login with no param at all (default: land on My Bookings).
+  const nextParams = new URLSearchParams(location.search);
+  const rawNext = nextParams.has('next') ? nextParams.get('next') : 'account';
+  const nextPage = rawNext.replace(/\.html$/, '').replace(/^index$/, '');
+  const next = nextPage === '' ? './' : nextPage;
 
   function render() {
     const signup = mode === 'signup';

@@ -687,3 +687,66 @@ button:disabled, .book-submit:disabled{opacity:0.5; cursor:not-allowed; transfor
   .pay-option{flex-wrap:wrap;}
   .pay-amount{width:100%; padding-left:28px;}
 }
+
+
+/* ---------- ANIMATIONS ---------- */
+
+/* Native cross-page transitions — no JS, no SPA rewrite. Chromium crossfades
+   the old/new page automatically; unsupported browsers just navigate as
+   normal, so this is a pure progressive enhancement. */
+@media not (prefers-reduced-motion: reduce){
+  @view-transition{ navigation:auto; }
+}
+
+/* Tactile press feedback on every clickable control, one rule instead of
+   one-off :active states scattered per component. */
+@media not (prefers-reduced-motion: reduce){
+  .btn-primary, .btn-outline, .nav-cta, .book-submit, .slot-btn, .a-btn-gold, .a-btn-ghost{
+    transition:transform 0.15s ease, box-shadow 0.2s ease, background 0.2s ease, border-color 0.2s ease;
+  }
+  .btn-primary:active, .book-submit:active:not(:disabled), .nav-cta:active{transform:scale(0.97);}
+  .btn-outline:active, .a-btn-gold:active, .a-btn-ghost:active{transform:scale(0.96);}
+}
+
+/* Service cards stagger in individually instead of fading as one flat block
+   — layered on top of the .services container's own [data-reveal] fade. */
+@media not (prefers-reduced-motion: reduce){
+  .services .service{opacity:0; transform:translateY(16px); transition:opacity 0.5s ease, transform 0.5s ease;}
+  .services[data-reveal].in .service{opacity:1; transform:none;}
+  .services[data-reveal].in .service:nth-child(2){transition-delay:90ms;}
+  .services[data-reveal].in .service:nth-child(3){transition-delay:180ms;}
+}
+
+/* Nav gains weight once you've scrolled past the hero — a subtle, dynamic cue
+   rather than a static bar. Toggled by one `scroll` listener in auth.js. */
+nav{transition:background 0.25s ease, box-shadow 0.25s ease;}
+nav.scrolled{
+  background:rgba(5,7,8,0.94);
+  box-shadow:0 8px 24px rgba(0,0,0,0.35);
+}
+
+/* Mobile menu links fan in instead of just appearing when max-height opens. */
+@media not (prefers-reduced-motion: reduce){
+  .nav-links a{opacity:0; transform:translateY(-6px); transition:opacity 0.25s ease, transform 0.25s ease, border-color 0.2s;}
+  .nav-links.open a{opacity:1; transform:none;}
+  .nav-links.open a:nth-child(1){transition-delay:0.03s;}
+  .nav-links.open a:nth-child(2){transition-delay:0.07s;}
+  .nav-links.open a:nth-child(3){transition-delay:0.11s;}
+  .nav-links.open a:nth-child(4){transition-delay:0.15s;}
+  @media (min-width:861px){ .nav-links a{opacity:1; transform:none;} }
+}
+
+/* Selecting a payment option lifts it slightly, echoing the checkbox state
+   instead of relying on the border color alone. */
+.pay-option{transition:border-color 0.2s, background 0.2s, transform 0.2s;}
+.pay-option:has(input:checked){transform:translateY(-1px);}
+
+/* One-shot glow the instant the booking summary has enough info to price. */
+@media not (prefers-reduced-motion: reduce){
+  @keyframes summaryReady{
+    0%{box-shadow:0 0 0 0 rgba(215,174,92,0.35);}
+    100%{box-shadow:0 0 0 10px rgba(215,174,92,0);}
+  }
+  .booking-summary.ready{animation:summaryReady 0.6s ease-out;}
+}
+
