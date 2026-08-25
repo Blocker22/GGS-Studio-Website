@@ -7,6 +7,7 @@
 import { getSupabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase-client.js';
 import { signUpChecked } from './auth.js';
 import { openPaymentModal } from './payment-qr.js';
+import { clearFormErrors, clearFieldError, showFieldErrors, setFieldError, isEmail } from './form-validate.js';
 
 const FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
 
@@ -278,13 +279,17 @@ export async function initBooking() {
     authStep.style.display = 'none';
     authToggleRow.style.display = 'none';
     authPassword.value = '';
+    clearFieldError(authPassword);
     authMsg.textContent = '';
+    authMsg.classList.remove('error');
+    authMsg.style.display = 'none';
     awaitingAuthMode = null;
     submitBtn.textContent = 'Confirm booking request';
   }
 
   function showAuthStep(mode) {
     awaitingAuthMode = mode;
+    clearFieldError(authPassword);
     authStep.style.display = 'block';
     authToggleRow.style.display = 'block';
     authStepNote.textContent =
@@ -428,21 +433,39 @@ export async function initBooking() {
 
   [serviceEl, startEl, endEl].forEach((el) => el.addEventListener('input', updateSummary));
 
-  function validateBookingFields() {
-    if (!nameEl.value.trim()) return 'Please enter your name.';
-    if (!emailEl.value.trim()) return 'Please enter your email.';
-    if (!serviceEl.value) return 'Please choose a service.';
-    if (!dateEl.value) return 'Please choose a date.';
-    if (termsEl && !termsEl.checked) return 'Please agree to the Terms & Conditions to confirm your booking.';
-    if (!startEl.value || !endEl.value) return 'Please choose a start and end time.';
-    if (!isStaff && selectedPayOption() === 'cash' && !idImageEl?.files?.length) {
-      return 'Please attach a photo of a valid ID to pay in cash.';
+  // Every problem with the form, as [control, reason] pairs, so the whole
+  // form can be marked up in one pass instead of surfacing one complaint at a
+  // time. Order matters only in that the first entry is the one focused.
+  function collectBookingErrors() {
+    const errors = [];
+    if (!nameEl.value.trim()) errors.push([nameEl, 'Please enter your name.']);
+
+    if (!emailEl.value.trim()) errors.push([emailEl, 'Please enter your email.']);
+    else if (!isEmail(emailEl.value)) errors.push([emailEl, "That doesn't look like an email address — check for a typo."]);
+
+    if (!serviceEl.value) errors.push([serviceEl, 'Please choose a service.']);
+
+    if (!dateEl.value) errors.push([dateEl, 'Please choose a date.']);
+    else if (dateEl.min && dateEl.value < dateEl.min) errors.push([dateEl, 'That date has already passed — pick today or later.']);
+
+    if (!startEl.value) errors.push([startEl, 'Please choose a start time.']);
+    if (!endEl.value) errors.push([endEl, 'Please choose an end time.']);
+    if (startEl.value && endEl.value) {
+      const [sh, sm] = startEl.value.split(':').map(Number);
+      const [eh, em] = endEl.value.split(':').map(Number);
+      if (eh * 60 + em <= sh * 60 + sm) errors.push([endEl, 'End time must be later than the start time.']);
     }
-    const [sh, sm] = startEl.value.split(':').map(Number);
-    const [eh, em] = endEl.value.split(':').map(Number);
-    if (eh * 60 + em <= sh * 60 + sm) return 'End time must be later than the start time.';
-    if (!mainRoom) return 'No room is currently available for booking. Please try again shortly.';
-    return null;
+
+    if (!isStaff && selectedPayOption() === 'cash' && idImageEl) {
+      const file = idImageEl.files?.[0];
+      if (!file) errors.push([idImageEl, 'Please attach a photo of a valid ID to pay in cash.']);
+      else if (file.size > 2 * 1024 * 1024) errors.push([idImageEl, 'That ID photo is over 2MB — please attach a smaller one.']);
+    }
+
+    if (termsEl && !termsEl.checked) {
+      errors.push([termsEl, 'Please agree to the Terms & Conditions to confirm your booking.']);
+    }
+    return errors;
   }
 
   // Uploads the valid ID into the customer's own folder in the private
@@ -550,6 +573,7 @@ export async function initBooking() {
     submitBtn.textContent = 'Request sent ✓';
     hideAuthStep();
     form.reset();
+    clearFormErrors(form);
     if (idImageEl) idImageEl.value = '';
     await refreshAuthUI();
     updateSummary();
@@ -566,6 +590,8 @@ export async function initBooking() {
     confirmMsg.classList.remove('error');
     confirmMsg.style.display = 'none';
     authMsg.textContent = '';
+    authMsg.style.display = 'none';
+    clearFormErrors(form);
 
     // Step 0: the terms have to be accepted before anything else happens. Show
     // them rather than just refusing — ticking the box in there ticks the one
@@ -584,49 +610,88 @@ export async function initBooking() {
     // Step 2: we're mid-auth (password box showing) — try to sign in/up.
     if (awaitingAuthMode) {
       const password = authPassword.value;
-      if (!password || password.length < 6) {
-        authMsg.textContent = 'Password must be at least 6 characters.';
+      if (!password) {
+        setFieldError(authPassword, 'Please enter a password.');
+        authPassword.focus();
+        return;
+      }
+      if (password.length < 6) {
+        setFieldError(authPassword, 'Password must be at least 6 characters.');
+        authPassword.focus();
+        return;
+      }
+      if (!isEmail(emailEl.value)) {
+        showFieldErrors([[emailEl, "That doesn't look like an email address — check for a typo."]]);
         return;
       }
       submitBtn.disabled = true;
       try {
+        // Registering signs the account in as part of signUpChecked, so the
+        // booking below carries straight on — no second password prompt.
+        let newSession = null;
         if (awaitingAuthMode === 'signup') {
           try {
-            await signUpChecked(supabase, emailEl.value.trim(), password, nameEl.value.trim());
+            const result = await signUpChecked(supabase, emailEl.value.trim(), password, nameEl.value.trim());
+            newSession = result.session;
           } catch (err) {
             if (/already registered/i.test(err.message)) {
               showAuthStep('login');
-              authMsg.textContent = err.message;
+              setFieldError(emailEl, err.message);
               submitBtn.disabled = false;
               return;
             }
             throw err;
           }
         } else {
-          const { error } = await supabase.auth.signInWithPassword({ email: emailEl.value.trim(), password });
-          if (error) throw error;
+          const { data: signIn, error } = await supabase.auth.signInWithPassword({
+            email: emailEl.value.trim(),
+            password,
+          });
+          if (error) {
+            if (/invalid login credentials/i.test(error.message)) {
+              setFieldError(authPassword, "That password doesn't match this email. Try again.");
+              authPassword.focus();
+              submitBtn.disabled = false;
+              return;
+            }
+            throw error;
+          }
+          newSession = signIn.session;
         }
-        // onAuthStateChange will populate `session`; grab it directly too so
+        // onAuthStateChange will populate `session` too; take it directly so
         // we don't have to wait a tick.
-        const { data } = await supabase.auth.getSession();
-        session = data.session;
+        if (!newSession) {
+          const { data } = await supabase.auth.getSession();
+          newSession = data.session;
+        }
+        session = newSession;
         if (!session) {
           authMsg.textContent = 'Check your email to confirm your account, then submit again to book.';
+          authMsg.classList.add('error');
+          authMsg.style.display = 'block';
           submitBtn.disabled = false;
           return;
         }
         await placeBooking();
       } catch (err) {
-        authMsg.textContent = err.message;
+        authMsg.textContent = `⚠ ${err.message}`;
+        authMsg.classList.add('error');
+        authMsg.style.display = 'block';
         submitBtn.disabled = false;
       }
       return;
     }
 
-    // Step 1: validate the booking fields first.
-    const fieldError = validateBookingFields();
-    if (fieldError) {
-      confirmMsg.textContent = `⚠ ${fieldError}`;
+    // Step 1: validate the booking fields first. Each problem is painted onto
+    // the field it belongs to; only a studio-side problem (no bookable room)
+    // has no field to attach to, so that one stays a form-level message.
+    const fieldErrors = collectBookingErrors();
+    if (fieldErrors.length) {
+      showFieldErrors(fieldErrors);
+      return;
+    }
+    if (!mainRoom) {
+      confirmMsg.textContent = '⚠ No room is currently available for booking. Please try again shortly.';
       confirmMsg.classList.add('error');
       confirmMsg.style.display = 'block';
       return;

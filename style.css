@@ -449,6 +449,27 @@ h2{
 .field input[readonly]{opacity:0.75; cursor:not-allowed;}
 .field-row{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
 
+/* Invalid state, set by js/form-validate.js. The red outline marks *which*
+   control is wrong; .field-error underneath says what about it is wrong. */
+.field.invalid input, .field.invalid select,
+.pay-id-upload.invalid input[type="file"]{
+  border-color:#e5876f;
+  background:rgba(229,135,111,0.06);
+}
+.field.invalid input:focus, .field.invalid select:focus{
+  border-color:#e5876f;
+  box-shadow:0 0 0 3px rgba(229,135,111,0.14);
+}
+.field.invalid label, .pay-id-upload.invalid label{color:#e5876f;}
+.terms-block.invalid .terms-check{color:#e5876f;}
+.terms-block.invalid .terms-check input{accent-color:#e5876f; outline:2px solid #e5876f; outline-offset:2px;}
+.field-error{
+  display:flex; align-items:flex-start; gap:6px;
+  font-family:var(--sans); font-size:0.75rem; line-height:1.45;
+  color:#e5876f; margin-top:7px;
+}
+.field-error::before{content:'⚠'; font-size:0.8rem; line-height:1.35;}
+
 .booking-summary{
   display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap;
   margin-top:8px; padding:16px 18px;

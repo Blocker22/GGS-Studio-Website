@@ -177,6 +177,16 @@ export async function signUpChecked(supabase, email, password, fullName) {
   if (data.user && data.user.identities && data.user.identities.length === 0) {
     throw new Error('That email is already registered — log in instead.');
   }
-  return data;
+  // Registering signs you straight in — nobody should have to type the
+  // password they just chose a second time. signUp already returns a session
+  // when email confirmation is off; when it doesn't, we try the password we
+  // were handed. If confirmation really is required that sign-in fails, and
+  // the null session tells the caller to ask for the emailed link instead.
+  let session = data.session || null;
+  if (!session) {
+    const { data: signIn } = await supabase.auth.signInWithPassword({ email, password });
+    session = signIn?.session || null;
+  }
+  return { ...data, session };
 }
 

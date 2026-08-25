@@ -101,7 +101,9 @@
         <span id="authWho"></span>
       </div>
 
-      <form id="bookingForm">
+      <!-- novalidate: every problem is reported inline in the form itself
+           (js/form-validate.js) rather than as a native browser bubble. -->
+      <form id="bookingForm" novalidate>
         <div class="field">
           <label>Name</label>
           <input type="text" id="fName" placeholder="Your name" required>

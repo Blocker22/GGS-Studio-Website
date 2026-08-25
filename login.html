@@ -40,7 +40,7 @@
       <p class="section-note" id="authNote">Sign in to book a session and manage your bookings.</p>
     </div>
 
-    <form id="authForm">
+    <form id="authForm" novalidate>
       <div class="field collapse" id="nameField">
         <div class="collapse-inner">
           <label>Full name</label>
@@ -75,6 +75,7 @@
   import { getSupabase } from './js/supabase-client.js';
   import { initAuthNav, signUpChecked } from './js/auth.js';
   import { initPasswordToggles } from './js/booking.js';
+  import { clearFormErrors, showFieldErrors, setFieldError, isEmail } from './js/form-validate.js';
 
   initAuthNav();
   initPasswordToggles();
@@ -120,18 +121,48 @@
     msg.style.display = 'block';
   }
 
-  switchBtn.addEventListener('click', () => { mode = mode === 'signup' ? 'login' : 'signup'; render(); });
+  switchBtn.addEventListener('click', () => {
+    mode = mode === 'signup' ? 'login' : 'signup';
+    clearFormErrors(form);
+    render();
+  });
+
+  const nameEl = document.getElementById('aName');
+  const emailEl = document.getElementById('aEmail');
+  const passwordEl = document.getElementById('aPassword');
+
+  // Every problem with the form as [control, reason] pairs, so all of them are
+  // marked up in one pass rather than one per submit.
+  function collectErrors() {
+    const errors = [];
+    if (mode === 'signup' && !nameEl.value.trim()) errors.push([nameEl, 'Please enter your full name.']);
+    if (!emailEl.value.trim()) errors.push([emailEl, 'Please enter your email.']);
+    else if (!isEmail(emailEl.value)) errors.push([emailEl, "That doesn't look like an email address — check for a typo."]);
+    if (!passwordEl.value) errors.push([passwordEl, 'Please enter your password.']);
+    else if (passwordEl.value.length < 6) errors.push([passwordEl, 'Password must be at least 6 characters.']);
+    return errors;
+  }
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    const email = document.getElementById('aEmail').value.trim();
-    const password = document.getElementById('aPassword').value;
+    msg.style.display = 'none';
+    clearFormErrors(form);
+
+    const errors = collectErrors();
+    if (errors.length) {
+      showFieldErrors(errors);
+      return;
+    }
+
+    const email = emailEl.value.trim();
+    const password = passwordEl.value;
     submit.disabled = true;
     try {
       if (mode === 'signup') {
-        await signUpChecked(supabase, email, password, document.getElementById('aName').value.trim());
-        const { data } = await supabase.auth.getSession();
-        if (!data.session) {
+        // signUpChecked signs the new account in as part of registering, so
+        // there's nothing else to do but go where they were headed.
+        const { session } = await signUpChecked(supabase, email, password, nameEl.value.trim());
+        if (!session) {
           // Email confirmation is on — nothing to sign into yet.
           mode = 'login';
           render();
@@ -145,8 +176,24 @@
       }
       location.href = next;
     } catch (err) {
-      showMsg(`⚠ ${err.message}`, true);
       submit.disabled = false;
+      // Point the blame at the field that owns it where we can tell.
+      if (/already registered/i.test(err.message)) {
+        setFieldError(emailEl, err.message);
+        emailEl.focus();
+        return;
+      }
+      if (/invalid login credentials/i.test(err.message)) {
+        setFieldError(passwordEl, "That email and password don't match an account.");
+        passwordEl.focus();
+        return;
+      }
+      if (/email/i.test(err.message) && /invalid|valid/i.test(err.message)) {
+        setFieldError(emailEl, err.message);
+        emailEl.focus();
+        return;
+      }
+      showMsg(`⚠ ${err.message}`, true);
     }
   });
 
