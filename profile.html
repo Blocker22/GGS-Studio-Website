@@ -18,6 +18,22 @@
 <meta name="twitter:image" content="https://woogi999.github.io/GGS-Studio-Website/assets/Logo_NoBG.png">
 <link rel="icon" type="image/png" href="assets/Logo_NoBG.png">
 <link rel="stylesheet" href="style.css">
+<style>
+  /* Deleting an account is irreversible, so it gets a visually separate block
+     rather than sitting as one more row among the everyday settings. */
+  .danger-row{border-top:1px solid #7a4331 !important; margin-top:34px; padding-top:26px;}
+  .danger-row h3{color:#e5876f;}
+  .danger-row ul{margin:0 0 18px 18px; font-size:0.85rem; opacity:0.75; line-height:1.7;}
+  .danger-row .field-hint{margin-bottom:14px;}
+  .btn-danger{
+    background:none; border:1px solid #7a4331; color:#e5876f;
+    padding:11px 22px; border-radius:3px; font:inherit; font-size:0.8rem;
+    letter-spacing:0.06em; text-transform:uppercase; cursor:pointer;
+    transition:background 0.2s, color 0.2s;
+  }
+  .btn-danger:hover:not(:disabled){background:#7a4331; color:#fff;}
+  .btn-danger:disabled{opacity:0.4; cursor:not-allowed;}
+</style>
 </head>
 <body>
 
@@ -85,6 +101,27 @@
           <div class="confirm-msg" id="passwordMsg"></div>
         </form>
       </div>
+      <div class="settings-row danger-row">
+        <h3>Delete my account</h3>
+        <p class="section-note" style="max-width:100%; margin-bottom:14px;">
+          You have the right to have your personal data erased (Data Privacy Act, RA 10173).
+          This is permanent and cannot be undone.
+        </p>
+        <ul>
+          <li><strong>Erased:</strong> your name, email, phone, password, and any ID photos or payment receipts you uploaded.</li>
+          <li><strong>Kept, with your name removed:</strong> the studio's record of sessions already held and money already paid, which GGS Studio must retain for its books. These stay as anonymous walk-in entries that no longer point to you.</li>
+          <li>You'll be signed out immediately, and you won't be able to sign back in.</li>
+        </ul>
+        <p class="field-hint">If you have an upcoming session booked, cancel it from <a href="account">My bookings</a> first.</p>
+        <form id="deleteForm">
+          <div class="field">
+            <label>Type <strong>DELETE</strong> to confirm</label>
+            <input type="text" id="deleteConfirm" placeholder="DELETE" autocomplete="off">
+          </div>
+          <button type="submit" class="btn-danger" id="deleteBtn" disabled>Permanently delete my account</button>
+          <div class="confirm-msg" id="deleteMsg"></div>
+        </form>
+      </div>
   </div>
 
   <div id="signedOutMsg" class="empty-state" style="display:none;">
@@ -94,7 +131,7 @@
 </div>
 
 <script type="module">
-  import { getSupabase } from './js/supabase-client.js';
+  import { getSupabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './js/supabase-client.js';
   import { initAuthNav } from './js/auth.js';
   import { initPasswordToggles } from './js/booking.js';
 
@@ -147,6 +184,49 @@
     else {
       showMsg(msg, '✓ Password changed.', false);
       e.target.reset();
+    }
+  });
+
+  // The button stays disabled until "DELETE" is typed exactly — a misclick on
+  // an irreversible action shouldn't be one click away.
+  const deleteBtn = document.getElementById('deleteBtn');
+  const deleteConfirm = document.getElementById('deleteConfirm');
+  deleteConfirm.addEventListener('input', () => {
+    deleteBtn.disabled = deleteConfirm.value.trim() !== 'DELETE';
+  });
+
+  document.getElementById('deleteForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const msg = document.getElementById('deleteMsg');
+    msg.style.display = 'none';
+    if (deleteConfirm.value.trim() !== 'DELETE') return;
+    if (!confirm('Last check — permanently delete your GGS Studio account?\n\nThis erases your details and uploaded files for good. It cannot be undone.')) return;
+
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) return;
+
+    deleteBtn.disabled = true;
+    deleteBtn.textContent = 'Deleting…';
+    try{
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/delete-account`, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', apikey: SUPABASE_ANON_KEY, Authorization:`Bearer ${data.session.access_token}` },
+        body: JSON.stringify({}),
+      });
+      const json = await res.json();
+      if (!res.ok){
+        // The server refuses while a session is still on the calendar or money
+        // is unrefunded — say which, and point at the page that resolves it.
+        const extra = json.upcoming_count > 0 ? ' Cancel it from My bookings, then come back here.' : ' Please contact the studio so we can settle it first.';
+        throw new Error((json.error || 'Could not delete your account.') + extra);
+      }
+      await supabase.auth.signOut();
+      alert('Your account has been deleted. Thank you for having been with GGS Studio.');
+      location.href = './';
+    }catch(err){
+      showMsg(msg, `⚠ ${err.message}`, true);
+      deleteBtn.disabled = false;
+      deleteBtn.textContent = 'Permanently delete my account';
     }
   });
 

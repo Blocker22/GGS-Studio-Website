@@ -53,8 +53,10 @@ async function main() {
     if (!res.ok) {
       const err = new Error(json.error || 'Request failed.');
       // delete-booking hands back unrefunded_amount so the caller can offer a
-      // "delete anyway" path instead of a dead end.
+      // "delete anyway" path instead of a dead end; delete-account uses
+      // can_force for the same purpose.
       if (json.unrefunded_amount != null) err.unrefundedAmount = json.unrefunded_amount;
+      if (json.can_force) err.canForce = true;
       throw err;
     }
     return json;
@@ -983,6 +985,36 @@ Delete anyway and write off the unrefunded amount?`,
           ]),
         );
       });
+    }
+
+    // Erasure on request (RA 10173) for customers who ask the studio directly
+    // rather than using the delete button on their own profile page.
+    detail.appendChild(el('div', { class: 'a-label', style: 'margin:28px 0 8px;color:#e5876f;' }, 'Delete account'));
+    detail.appendChild(
+      el('p', { style: 'font-size:0.8rem;opacity:0.6;margin-bottom:12px;max-width:60ch;' },
+        "Erases their login and personal details along with any ID photos and receipts they uploaded. Sessions above are kept for the studio's books but stop being linked to them."),
+    );
+    detail.appendChild(
+      el('button', { class: 'a-btn-danger', onclick: () => deleteCustomer(c) }, 'Delete this customer account'),
+    );
+  }
+
+  async function deleteCustomer(c, { force = false } = {}) {
+    const who = c.full_name || 'this customer';
+    if (!force && !confirm(`Permanently delete ${who}'s account?\n\nTheir login, personal details, ID photos and receipts are erased for good. Past sessions stay in the books as anonymous walk-ins.\n\nThis cannot be undone.`)) return;
+    try {
+      await callFunction('delete-account', { user_id: c.id, force });
+      await loadCustomers();
+      document.getElementById('custDetail').innerHTML = '';
+    } catch (err) {
+      // Mirrors delete-booking: an upcoming session or unrefunded money is a
+      // stop sign, not a dead end — staff can knowingly override.
+      if (err.canForce) {
+        if (!confirm(`${err.message}\n\nDelete the account anyway?`)) return;
+        await deleteCustomer(c, { force: true });
+        return;
+      }
+      alert(err.message);
     }
   }
 
