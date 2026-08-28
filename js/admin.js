@@ -126,7 +126,6 @@ async function main() {
 
   // ---------- Tabs ----------
   const tabs = ['dashboard', 'bookings', 'customers', 'rooms', 'availability', 'payments', 'staff', 'settings'];
-  const loaded = {};
   let activeTab = 'dashboard';
 
   document.getElementById('adminNav').addEventListener('click', (e) => {
@@ -138,20 +137,29 @@ async function main() {
     loadActiveTab();
   });
 
+  // A tab's loader can be asked to run again while its previous run is still
+  // in flight — e.g. the auth-change listener above firing a beat after the
+  // boot call already started loading the dashboard. Each loader clearing
+  // and rebuilding its own DOM atomically (see loadDashboard) already makes
+  // that safe to render, but there's no reason to let a stale trigger fire a
+  // second redundant round of queries on top — skip it and let the run
+  // already in flight finish.
+  const tabLoadInFlight = {};
   function loadActiveTab() {
     const loaders = {
       dashboard: loadDashboard, bookings: loadBookings, customers: loadCustomers,
       rooms: loadRooms, availability: loadAvailability, payments: loadPayments,
       staff: loadStaff, settings: loadSettings,
     };
-    loaders[activeTab]?.();
+    const loader = loaders[activeTab];
+    if (!loader || tabLoadInFlight[activeTab]) return;
+    tabLoadInFlight[activeTab] = Promise.resolve(loader()).finally(() => {
+      delete tabLoadInFlight[activeTab];
+    });
   }
 
   // ---------- Dashboard ----------
   async function loadDashboard() {
-    const statsEl = document.getElementById('dashStats');
-    statsEl.innerHTML = '';
-
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
@@ -167,8 +175,18 @@ async function main() {
     const revenue = (monthPayments || []).reduce((s, p) => s + Number(p.amount), 0);
 
     const stat = (label, value, cls = '') =>
-      el('div', { class: 'a-card stat-box' }, [el('div', { class: 'a-label' }, label), el('div', { class: `val ${cls}` }, String(value))]);
+      el('div', { class: 'stat-box' }, [el('div', { class: 'a-label' }, label), el('div', { class: `val ${cls}` }, String(value))]);
 
+    // The clear used to happen before the fetch above, with the append only
+    // landing once it resolved — so two overlapping loadDashboard() calls
+    // (one already in flight when a second one starts, e.g. from the
+    // sign-in auth event firing a beat after the page's own boot call) would
+    // both clear early and then each append its own 4 cards on top of
+    // whichever landed first, doubling every tile. Clearing and appending
+    // now happen back-to-back with no await between them, so whichever call
+    // finishes last always wins outright instead of stacking on the other.
+    const statsEl = document.getElementById('dashStats');
+    statsEl.innerHTML = '';
     statsEl.append(
       stat('Total bookings', bookings?.length || 0),
       stat('Pending approval', pending, 'text-gold-stat'),
@@ -320,7 +338,7 @@ async function main() {
       grid.appendChild(
         el('div', {
           class: 'wk-cell',
-          style: `grid-column:${col + 2}; grid-row:2 / span ${WEEK_ROWS}; background-image:repeating-linear-gradient(to bottom, transparent 0, transparent 51px, rgba(238,244,244,0.08) 51px, rgba(238,244,244,0.08) 52px);`,
+          style: `grid-column:${col + 2}; grid-row:2 / span ${WEEK_ROWS}; background-image:repeating-linear-gradient(to bottom, transparent 0, transparent 51px, rgba(244,248,248,0.08) 51px, rgba(244,248,248,0.08) 52px);`,
         }),
       );
     }
@@ -1013,7 +1031,7 @@ Delete anyway and write off the unrefunded amount?`,
     } else {
       history.forEach((b) => {
         detail.appendChild(
-          el('div', { style: 'display:flex;justify-content:space-between;font-size:0.85rem;padding:8px 0;border-bottom:1px solid rgba(238,244,244,0.06);' }, [
+          el('div', { style: 'display:flex;justify-content:space-between;font-size:0.85rem;padding:8px 0;border-bottom:1px solid rgba(244,248,248,0.06);' }, [
             el('span', {}, d(b.start_at)),
             el('span', { style: 'opacity:0.6;' }, b.rooms?.name || ''),
             el('span', { class: `pill pill-${b.status}` }, b.status),
@@ -1124,8 +1142,16 @@ Delete anyway and write off the unrefunded amount?`,
       const orderInput = el('input', { type: 'number', class: 'a-input', value: s.sort_order ?? 0, style: 'width:80px;' });
       const activeCb = el('input', { type: 'checkbox' });
       activeCb.checked = s.is_active;
-      async function save() {
-        const { error } = await supabase.from('services').update({
+      // Whether a field's edit can be left showing exactly what's typed (no
+      // redraw needed), or has to reach other rows: sort_order changes row
+      // order, requires_service_id changes what every other row's "Requires"
+      // dropdown may legally offer. This used to `await loadRooms()` on every
+      // field's blur — with several inputs in one row (name, then
+      // description, then price, …), tabbing through the row fired a full
+      // rooms+services teardown-and-rebuild mid-edit, visibly flashing the
+      // table and dropping whatever the next tab-stop's focus/keystroke was.
+      async function save({ needsRedraw = false } = {}) {
+        const patch = {
           name: nameInput.value,
           description: descInput.value.trim() || null,
           price: Number(priceInput.value),
@@ -1133,19 +1159,19 @@ Delete anyway and write off the unrefunded amount?`,
           requires_service_id: requiresSel.value || null,
           sort_order: Number(orderInput.value) || 0,
           is_active: activeCb.checked,
-        }).eq('id', s.id);
+        };
+        const { error } = await supabase.from('services').update(patch).eq('id', s.id);
         if (error) { alert(`Could not save "${s.name}": ${error.message}`); return; }
-        // The dependency graph changed, so every other row's "Requires" options
-        // (and the whole ordering) may no longer be valid — re-read and redraw.
-        await loadRooms();
+        Object.assign(s, patch);
+        if (needsRedraw) loadRooms();
       }
-      nameInput.addEventListener('blur', save);
-      descInput.addEventListener('blur', save);
-      priceInput.addEventListener('blur', save);
-      orderInput.addEventListener('blur', save);
-      typeSel.addEventListener('change', save);
-      requiresSel.addEventListener('change', save);
-      activeCb.addEventListener('change', save);
+      nameInput.addEventListener('blur', () => save());
+      descInput.addEventListener('blur', () => save());
+      priceInput.addEventListener('blur', () => save());
+      orderInput.addEventListener('blur', () => save({ needsRedraw: true }));
+      typeSel.addEventListener('change', () => save());
+      requiresSel.addEventListener('change', () => save({ needsRedraw: true }));
+      activeCb.addEventListener('change', () => save());
       svcBody.appendChild(el('tr', {}, [
         el('td', {}, nameInput),
         el('td', {}, descInput),
@@ -1235,7 +1261,7 @@ Delete anyway and write off the unrefunded amount?`,
       closeInput.addEventListener('blur', save);
       closedCb.addEventListener('change', () => { openInput.disabled = closeInput.disabled = closedCb.checked; save(); });
       hoursCard.appendChild(
-        el('div', { style: 'display:grid;grid-template-columns:110px 1fr 1fr 100px;gap:14px;align-items:center;padding:8px 0;border-bottom:1px solid rgba(238,244,244,0.06);' }, [
+        el('div', { style: 'display:grid;grid-template-columns:110px 1fr 1fr 100px;gap:14px;align-items:center;padding:8px 0;border-bottom:1px solid rgba(244,248,248,0.06);' }, [
           el('span', { style: 'font-size:0.85rem;' }, DAYS[h.day_of_week]),
           openInput, closeInput,
           el('label', { style: 'display:flex;align-items:center;gap:6px;font-size:0.8rem;' }, [closedCb, ' Closed']),
@@ -1249,7 +1275,7 @@ Delete anyway and write off the unrefunded amount?`,
     if (!blocks || blocks.length === 0) blocksCard.appendChild(el('p', { style: 'opacity:0.5;font-size:0.85rem;' }, 'No blocks scheduled.'));
     (blocks || []).forEach((b) => {
       blocksCard.appendChild(
-        el('div', { style: 'display:flex;justify-content:space-between;align-items:center;font-size:0.85rem;padding:8px 0;border-bottom:1px solid rgba(238,244,244,0.06);' }, [
+        el('div', { style: 'display:flex;justify-content:space-between;align-items:center;font-size:0.85rem;padding:8px 0;border-bottom:1px solid rgba(244,248,248,0.06);' }, [
           el('span', {}, `${dt(b.start_at)} – ${dt(b.end_at)}`),
           el('span', { style: 'opacity:0.5;' }, b.reason || ''),
           el('button', { class: 'a-btn-ghost', onclick: async () => { await supabase.from('blocked_slots').delete().eq('id', b.id); renderAvailability(); } }, 'Remove'),

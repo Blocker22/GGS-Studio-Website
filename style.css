@@ -1,21 +1,21 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
 :root{
-  --ink:#050708;
-  --panel:#0a0d10;
-  --panel-2:#0d1114;
-  --cream:#eef4f4;
+  --ink:#020304;
+  --panel:#0a0c0e;
+  --panel-2:#0e1113;
+  --cream:#f4f8f8;
   --gold:#ffd558;
   --gold-dim:#917932;
   --teal:#4dffdb;
-  --line: rgba(238,244,244,0.12);
+  --line: rgba(244,248,248,0.14);
   --sans: 'Inter', 'Helvetica Neue', Arial, sans-serif;
 }
 
 *{margin:0;padding:0;box-sizing:border-box;}
 html{scroll-behavior:smooth;}
 body{
-  background:rgba(3,4,5,0.92);
+  background:var(--ink);
   color:var(--cream);
   font-family:var(--sans);
   overflow-x:hidden;
@@ -29,7 +29,7 @@ nav{
   position:fixed; top:0; left:0; right:0; z-index:100;
   display:flex; align-items:center; justify-content:flex-start; gap:18px;
   padding:16px 8%;
-  background:rgba(5,7,8,0.82);
+  background:rgba(2,3,4,0.86);
   border-bottom:1px solid var(--line);
   backdrop-filter:blur(14px);
   -webkit-backdrop-filter:blur(14px);
@@ -165,7 +165,7 @@ h1 .out{ color:var(--cream); }
   margin-top:28px;
   font-size:1.05rem;
   line-height:1.6;
-  color:rgba(242,236,224,0.72);
+  color:rgba(246,241,230,0.78);
 }
 .hero-actions{
   margin-top:42px;
@@ -243,7 +243,7 @@ h1 .out{ color:var(--cream); }
   font-family:var(--sans);
   font-size:0.85rem;
   letter-spacing:0.08em;
-  color:rgba(242,236,224,0.55);
+  color:rgba(246,241,230,0.62);
 }
 .marquee-track span{flex-shrink:0; margin-right:56px; display:flex; align-items:center; gap:56px;}
 .marquee-track span::after{content:'—'; color:var(--teal);}
@@ -273,7 +273,7 @@ h2{
 .section-note{
   max-width:340px;
   font-size:0.95rem;
-  color:rgba(242,236,224,0.6);
+  color:rgba(246,241,230,0.68);
   line-height:1.6;
 }
 
@@ -309,7 +309,7 @@ h2{
   font-size:1.5rem;
   margin:20px 0 14px;
 }
-.service p{color:rgba(242,236,224,0.6); font-size:0.92rem; line-height:1.6;}
+.service p{color:rgba(246,241,230,0.68); font-size:0.92rem; line-height:1.6;}
 .service .price{
   display:block; margin-top:auto; padding-top:22px;
   font-family:var(--sans);
@@ -385,7 +385,7 @@ h2{
 .lightbox-backdrop{
   position:fixed; inset:0; z-index:1100;
   display:flex; align-items:center; justify-content:center; padding:32px;
-  background:rgba(10,10,12,0.88); backdrop-filter:blur(6px);
+  background:rgba(2,2,3,0.9); backdrop-filter:blur(6px);
   opacity:0; visibility:hidden;
   transition:opacity 0.22s ease, visibility 0.22s ease;
   cursor:zoom-out;
@@ -490,7 +490,7 @@ h2{
 .booking-summary{
   display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap;
   margin-top:8px; padding:16px 18px;
-  border:1px dashed var(--line); border-radius:3px;
+  border:1px solid var(--line); border-radius:3px;
   background:rgba(255,213,88,0.04);
 }
 .booking-summary div{display:flex; flex-direction:column; gap:6px;}
@@ -509,13 +509,13 @@ h2{
 .book-submit:hover{transform:translateY(-2px);}
 .confirm-msg{
   display:none; margin-top:18px; font-family:var(--sans); font-size:0.82rem;
-  color:var(--gold); border:1px dashed var(--gold-dim); padding:12px 14px; border-radius:3px;
+  color:var(--gold); border:1px solid var(--gold-dim); padding:12px 14px; border-radius:3px;
 }
 .confirm-msg.error{color:#e5876f; border-color:#7a4331;}
 
 .auth-step{
   margin-top:8px; padding:16px 18px;
-  border:1px dashed var(--gold-dim); border-radius:3px;
+  border:1px solid var(--gold-dim); border-radius:3px;
   background:rgba(255,213,88,0.05);
 }
 .auth-step-note{font-size:0.82rem; opacity:0.8; margin-bottom:14px;}
@@ -525,7 +525,7 @@ h2{
 .auth-signed-in{
   display:flex; align-items:center; justify-content:space-between; gap:16px;
   padding:14px 18px; margin-bottom:26px;
-  border:1px dashed var(--line); border-radius:3px;
+  border:1px solid var(--line); border-radius:3px;
   font-size:0.85rem;
 }
 .auth-signed-in button{padding:9px 16px; font-size:0.78rem;}
@@ -564,7 +564,7 @@ h2{
 .service-checks .service-check-body{display:flex; flex-direction:column; gap:3px; flex:1; min-width:0;}
 .service-checks .service-check-name{font-size:0.9rem; font-weight:600; color:var(--cream);}
 .service-checks .service-check-note{
-  font-size:0.76rem; color:rgba(242,236,224,0.55); line-height:1.45; letter-spacing:normal;
+  font-size:0.76rem; color:rgba(246,241,230,0.62); line-height:1.45; letter-spacing:normal;
 }
 .service-checks .service-check-note:empty{display:none;}
 .service-checks .service-check-price{
@@ -582,7 +582,7 @@ h2{
 .service-checks .service-check:has(input:disabled):hover{border-color:var(--line);}
 .label-note{
   font-weight:400; letter-spacing:0; text-transform:none;
-  color:rgba(242,236,224,0.45); font-size:0.72rem; margin-left:6px;
+  color:rgba(246,241,230,0.52); font-size:0.72rem; margin-left:6px;
 }
 .field.invalid .service-checks .service-check{border-color:#e5876f;}
 
@@ -610,7 +610,7 @@ h2{
 .book-list{list-style:none; margin-top:30px;}
 .book-list li{
   display:flex; gap:16px; padding:20px 0; border-bottom:1px solid var(--line);
-  font-size:0.92rem; color:rgba(242,236,224,0.75); align-items:flex-start;
+  font-size:0.92rem; color:rgba(246,241,230,0.8); align-items:flex-start;
 }
 .book-list li .tick{color:var(--teal); font-family:var(--sans);}
 
@@ -624,7 +624,7 @@ footer{padding:80px 8% 40px;}
 footer .btn-primary{margin-top:24px;}
 .footer-cols{display:flex; gap:70px; flex-wrap:wrap;}
 .footer-col h5{font-family:var(--sans); font-size:0.75rem; color:var(--gold); letter-spacing:0.08em; margin-bottom:14px;}
-.footer-col a{display:block; color:rgba(242,236,224,0.65); text-decoration:none; font-size:0.9rem; margin-bottom:9px;}
+.footer-col a{display:block; color:rgba(246,241,230,0.72); text-decoration:none; font-size:0.9rem; margin-bottom:9px;}
 .footer-col a:hover{color:var(--cream);}
 .footer-link-icon{display:flex; align-items:center; gap:9px;}
 .footer-link-icon svg{width:15px; height:15px; flex-shrink:0; opacity:0.8;}
@@ -672,7 +672,7 @@ footer .btn-primary{margin-top:24px;}
   .hero-slideshow::after{
     background:
       linear-gradient(135deg, rgba(255,213,88,0.2), rgba(77,255,219,0.18)),
-      linear-gradient(180deg, rgba(5,7,8,0.72), rgba(5,7,8,0.82) 55%, var(--ink));
+      linear-gradient(180deg, rgba(2,3,4,0.78), rgba(2,3,4,0.88) 55%, var(--ink));
   }
   .hero-actions{gap:16px;}
   .waveform{height:56px;}
@@ -748,10 +748,10 @@ footer .btn-primary{margin-top:24px;}
 
 .empty-state{
   text-align:center; padding:56px 24px;
-  border:1px dashed var(--line); border-radius:4px;
+  border:1px solid var(--line); border-radius:4px;
   background:var(--panel);
 }
-.empty-state p{color:rgba(242,236,224,0.6); margin-bottom:22px; font-size:0.95rem;}
+.empty-state p{color:rgba(246,241,230,0.68); margin-bottom:22px; font-size:0.95rem;}
 
 /* profile.html — account settings */
 .settings-card{
@@ -807,7 +807,7 @@ button:disabled, .book-submit:disabled{opacity:0.5; cursor:not-allowed; transfor
 .pay-option:has(input:checked){border-color:var(--gold-dim); background:rgba(255,213,88,0.05);}
 .pay-body{display:flex; flex-direction:column; gap:4px; flex:1; min-width:0;}
 .pay-title{font-size:0.9rem; font-weight:600;}
-.pay-note{font-size:0.78rem; color:rgba(242,236,224,0.55); line-height:1.5;}
+.pay-note{font-size:0.78rem; color:rgba(246,241,230,0.62); line-height:1.5;}
 .pay-amount{
   font-family:var(--sans); font-size:0.95rem; font-weight:700; color:var(--gold);
   white-space:nowrap; flex-shrink:0;
@@ -816,7 +816,7 @@ button:disabled, .book-submit:disabled{opacity:0.5; cursor:not-allowed; transfor
 .pay-id-upload{
   display:none;
   margin:-2px 0 4px; padding:14px 16px;
-  border:1px dashed var(--gold-dim); border-radius:3px;
+  border:1px solid var(--gold-dim); border-radius:3px;
   background:rgba(255,213,88,0.04);
 }
 .pay-id-upload.show{display:block;}
@@ -836,7 +836,7 @@ button:disabled, .book-submit:disabled{opacity:0.5; cursor:not-allowed; transfor
 .pay-id-upload .field-hint{margin-top:8px;}
 .pay-staff-notice{
   margin-top:4px; padding:12px 14px;
-  border:1px dashed var(--gold-dim); border-radius:3px;
+  border:1px solid var(--gold-dim); border-radius:3px;
   font-size:0.78rem; line-height:1.6; color:var(--gold);
 }
 .pay-staff-notice[hidden]{display:none;}
@@ -847,7 +847,7 @@ button:disabled, .book-submit:disabled{opacity:0.5; cursor:not-allowed; transfor
 }
 .terms-check{
   display:flex; align-items:flex-start; gap:12px;
-  font-size:0.82rem; color:rgba(242,236,224,0.75); line-height:1.5;
+  font-size:0.82rem; color:rgba(246,241,230,0.8); line-height:1.5;
   cursor:pointer;
 }
 .terms-check input{
@@ -862,7 +862,7 @@ button:disabled, .book-submit:disabled{opacity:0.5; cursor:not-allowed; transfor
 .modal-backdrop{
   position:fixed; inset:0; z-index:1000;
   display:flex; align-items:center; justify-content:center; padding:24px;
-  background:rgba(10,10,12,0.75); backdrop-filter:blur(4px);
+  background:rgba(2,2,3,0.78); backdrop-filter:blur(4px);
   opacity:0; visibility:hidden;
   transition:opacity 0.22s ease, visibility 0.22s ease;
 }
@@ -898,7 +898,7 @@ button:disabled, .book-submit:disabled{opacity:0.5; cursor:not-allowed; transfor
   color:var(--gold); margin:20px 0 8px;
 }
 .modal-body h4:first-child{margin-top:0;}
-.modal-body ul{margin:0; padding-left:18px; font-size:0.84rem; line-height:1.65; color:rgba(242,236,224,0.72);}
+.modal-body ul{margin:0; padding-left:18px; font-size:0.84rem; line-height:1.65; color:rgba(246,241,230,0.78);}
 .modal-body li{margin-bottom:6px;}
 /* Agree-and-continue footer, shown only when the terms are opened as a gate. */
 .modal-foot{
@@ -991,7 +991,7 @@ button:disabled, .book-submit:disabled{opacity:0.5; cursor:not-allowed; transfor
    rather than a static bar. Toggled by one `scroll` listener in auth.js. */
 nav{transition:background 0.25s ease, box-shadow 0.25s ease;}
 nav.scrolled{
-  background:rgba(5,7,8,0.94);
+  background:rgba(2,3,4,0.96);
   box-shadow:0 8px 24px rgba(0,0,0,0.35);
 }
 
@@ -1111,7 +1111,7 @@ nav.scrolled{
 .cal-detail.open{grid-template-rows:1fr; opacity:1; margin-top:18px;}
 .cal-detail-inner{overflow:hidden; min-height:0;}
 .cal-detail-day{font-size:0.85rem; font-weight:600; color:var(--gold);}
-.cal-detail-note{font-size:0.76rem; color:rgba(242,236,224,0.55); margin-top:5px;}
+.cal-detail-note{font-size:0.76rem; color:rgba(246,241,230,0.62); margin-top:5px;}
 .cal-slots{display:flex; flex-wrap:wrap; gap:8px; margin-top:12px;}
 .cal-slot{
   display:flex; flex-direction:column; gap:2px; text-align:left;
