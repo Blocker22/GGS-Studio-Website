@@ -96,19 +96,17 @@
         <label>Name</label>
         <input type="text" id="fName" placeholder="Your name" required>
       </div>
-      <div class="field-row">
-        <div class="field">
-          <label>Email</label>
-          <input type="email" id="fEmail" placeholder="you@email.com" required>
-        </div>
-        <div class="field">
-          <label>Service</label>
-          <select id="fService" required>
-            <option value="">Choose one</option>
-            <option value="room">Room only</option>
-            <option value="recording">Room + Recording</option>
-            <option value="both">Room + Recording + Mixing</option>
-          </select>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="fEmail" placeholder="you@email.com" required>
+      </div>
+      <!-- Add-ons are rendered from the `services` table by js/booking.js, so
+           anything the studio adds in the admin panel shows up here without a
+           code change. The room rate is always charged and isn't listed. -->
+      <div class="field" id="fServicesField">
+        <label>Add-ons <span class="label-note">optional — the room rate is always included</span></label>
+        <div class="service-checks" id="fServices" role="group" aria-label="Session add-ons">
+          <p class="muted">Loading add-ons…</p>
         </div>
       </div>
       <div class="field">

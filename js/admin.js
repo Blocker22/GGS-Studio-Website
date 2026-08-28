@@ -374,6 +374,70 @@ async function main() {
     servicesCache = services || [];
   }
 
+  function sortedServices() {
+    return servicesCache
+      .slice()
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name));
+  }
+
+  // Every service that reaches `rootId` by following requires_service_id — the
+  // ones that already depend on it. Offering any of them as rootId's own
+  // prerequisite would close a cycle, and a cycle is a set of services nobody
+  // could ever book.
+  function dependantsOf(rootId) {
+    const found = new Set();
+    let grew = true;
+    while (grew) {
+      grew = false;
+      servicesCache.forEach((s) => {
+        if (found.has(s.id) || !s.requires_service_id) return;
+        if (s.requires_service_id === rootId || found.has(s.requires_service_id)) {
+          found.add(s.id);
+          grew = true;
+        }
+      });
+    }
+    return found;
+  }
+
+  function requiresSelect(serviceId, currentValue) {
+    const blocked = dependantsOf(serviceId);
+    const sel = el('select', { class: 'a-input' }, [el('option', { value: '' }, '— nothing —')]);
+    sortedServices().forEach((s) => {
+      if (s.id === serviceId || blocked.has(s.id)) return;
+      sel.appendChild(el('option', { value: s.id }, s.name));
+    });
+    sel.value = currentValue || '';
+    return sel;
+  }
+
+  // Applies every services.requires_service_id rule to a set of checkboxes,
+  // whichever admin form they belong to: a service whose prerequisite is not
+  // ticked is disabled and cleared. Loops to a fixed point so chains settle.
+  function enforceServiceDeps(svcWrap) {
+    const boxes = Array.from(svcWrap.querySelectorAll('input[type="checkbox"]'));
+    const boxById = new Map(boxes.map((c) => [c.value, c]));
+    const svcById = new Map(servicesCache.map((s) => [s.id, s]));
+    for (let pass = 0; pass <= boxes.length; pass++) {
+      let changed = false;
+      boxes.forEach((cb) => {
+        const requiredId = svcById.get(cb.value)?.requires_service_id || null;
+        const requiredBox = requiredId ? boxById.get(requiredId) : null;
+        const locked = Boolean(requiredId) && (!requiredBox || !requiredBox.checked || requiredBox.disabled);
+        if (cb.disabled !== locked) { cb.disabled = locked; changed = true; }
+        if (locked && cb.checked) { cb.checked = false; changed = true; }
+      });
+      if (!changed) break;
+    }
+    boxes.forEach((cb) => {
+      const svc = svcById.get(cb.value);
+      const requiredName = svc?.requires_service_id ? svcById.get(svc.requires_service_id)?.name : null;
+      const row = cb.closest('label');
+      if (row) row.title = cb.disabled && requiredName ? `Requires ${requiredName}` : '';
+      if (row) row.style.opacity = cb.disabled ? '0.45' : '';
+    });
+  }
+
   async function loadBookings() {
     if (roomsCache.length === 0) await loadRoomsServicesCache();
 
@@ -648,20 +712,13 @@ async function main() {
     const selectedIds = new Set((booking.booking_services || []).map((bs) => bs.service_id));
     const svcWrap = document.getElementById('ebServices');
     svcWrap.innerHTML = '';
-    const recordingSvc = servicesCache.find((s) => s.slug === 'recording');
-    const mixingSvc = servicesCache.find((s) => s.slug === 'mixing');
-    servicesCache.forEach((s) => {
+    sortedServices().forEach((s) => {
       const cb = el('input', { type: 'checkbox', value: s.id });
       cb.checked = selectedIds.has(s.id);
-      if (s.id === mixingSvc?.id) {
-        cb.addEventListener('change', enforceMixingRule);
-      }
-      if (s.id === recordingSvc?.id) {
-        cb.addEventListener('change', enforceMixingRule);
-      }
+      cb.addEventListener('change', () => enforceServiceDeps(svcWrap));
       svcWrap.appendChild(el('label', { style: 'display:flex;align-items:center;gap:6px;font-size:0.82rem;' }, [cb, ` ${s.name}`]));
     });
-    enforceMixingRule();
+    enforceServiceDeps(svcWrap);
 
     renderEbPaymentStatus(booking);
     editBackdrop.classList.add('open');
@@ -706,18 +763,6 @@ async function main() {
         alert(err.message);
       }
     };
-  }
-
-  function enforceMixingRule() {
-    const svcWrap = document.getElementById('ebServices');
-    const recordingSvc = servicesCache.find((s) => s.slug === 'recording');
-    const mixingSvc = servicesCache.find((s) => s.slug === 'mixing');
-    if (!recordingSvc || !mixingSvc) return;
-    const recordingCb = svcWrap.querySelector(`input[value="${recordingSvc.id}"]`);
-    const mixingCb = svcWrap.querySelector(`input[value="${mixingSvc.id}"]`);
-    if (!recordingCb || !mixingCb) return;
-    mixingCb.disabled = !recordingCb.checked;
-    if (!recordingCb.checked) mixingCb.checked = false;
   }
 
   function closeEditModal() {
@@ -878,21 +923,12 @@ Delete anyway and write off the unrefunded amount?`,
     wireCustomerPicker('nb');
     roomSel.innerHTML = roomsCache.filter((r) => r.is_active).map((r) => `<option value="${r.id}">${r.name}</option>`).join('');
     svcWrap.innerHTML = '';
-    const recordingSvc = servicesCache.find((s) => s.slug === 'recording');
-    const mixingSvc = servicesCache.find((s) => s.slug === 'mixing');
-    const enforceNb = () => {
-      const recordingCb = svcWrap.querySelector(`input[value="${recordingSvc?.id}"]`);
-      const mixingCb = svcWrap.querySelector(`input[value="${mixingSvc?.id}"]`);
-      if (!recordingCb || !mixingCb) return;
-      mixingCb.disabled = !recordingCb.checked;
-      if (!recordingCb.checked) mixingCb.checked = false;
-    };
-    servicesCache.filter((s) => s.is_active).forEach((s) => {
+    sortedServices().filter((s) => s.is_active).forEach((s) => {
       const cb = el('input', { type: 'checkbox', value: s.id });
-      if (s.id === recordingSvc?.id || s.id === mixingSvc?.id) cb.addEventListener('change', enforceNb);
+      cb.addEventListener('change', () => enforceServiceDeps(svcWrap));
       svcWrap.appendChild(el('label', { style: 'display:flex;align-items:center;gap:6px;font-size:0.82rem;' }, [cb, ` ${s.name}`]));
     });
-    enforceNb();
+    enforceServiceDeps(svcWrap);
   }
 
   document.getElementById('newBookingForm').addEventListener('submit', async (e) => {
@@ -1076,24 +1112,60 @@ Delete anyway and write off the unrefunded amount?`,
 
     const svcBody = document.getElementById('servicesBody');
     svcBody.innerHTML = '';
-    servicesCache.forEach((s) => {
+    sortedServices().forEach((s) => {
       const nameInput = el('input', { class: 'a-input', value: s.name });
+      const descInput = el('input', { class: 'a-input', value: s.description || '', style: 'min-width:240px;' });
       const priceInput = el('input', { type: 'number', class: 'a-input', value: s.price, style: 'width:100px;' });
       const typeSel = el('select', { class: 'a-input' }, [
         el('option', { value: 'flat', ...(s.price_type === 'flat' ? { selected: 'selected' } : {}) }, 'Flat'),
         el('option', { value: 'hourly', ...(s.price_type === 'hourly' ? { selected: 'selected' } : {}) }, 'Hourly'),
       ]);
+      const requiresSel = requiresSelect(s.id, s.requires_service_id);
+      const orderInput = el('input', { type: 'number', class: 'a-input', value: s.sort_order ?? 0, style: 'width:80px;' });
       const activeCb = el('input', { type: 'checkbox' });
       activeCb.checked = s.is_active;
       async function save() {
-        await supabase.from('services').update({ name: nameInput.value, price: Number(priceInput.value), price_type: typeSel.value, is_active: activeCb.checked }).eq('id', s.id);
+        const { error } = await supabase.from('services').update({
+          name: nameInput.value,
+          description: descInput.value.trim() || null,
+          price: Number(priceInput.value),
+          price_type: typeSel.value,
+          requires_service_id: requiresSel.value || null,
+          sort_order: Number(orderInput.value) || 0,
+          is_active: activeCb.checked,
+        }).eq('id', s.id);
+        if (error) { alert(`Could not save "${s.name}": ${error.message}`); return; }
+        // The dependency graph changed, so every other row's "Requires" options
+        // (and the whole ordering) may no longer be valid — re-read and redraw.
+        await loadRooms();
       }
       nameInput.addEventListener('blur', save);
+      descInput.addEventListener('blur', save);
       priceInput.addEventListener('blur', save);
+      orderInput.addEventListener('blur', save);
       typeSel.addEventListener('change', save);
+      requiresSel.addEventListener('change', save);
       activeCb.addEventListener('change', save);
-      svcBody.appendChild(el('tr', {}, [el('td', {}, nameInput), el('td', {}, priceInput), el('td', {}, typeSel), el('td', {}, activeCb)]));
+      svcBody.appendChild(el('tr', {}, [
+        el('td', {}, nameInput),
+        el('td', {}, descInput),
+        el('td', {}, priceInput),
+        el('td', {}, typeSel),
+        el('td', {}, requiresSel),
+        el('td', {}, orderInput),
+        el('td', {}, activeCb),
+      ]));
     });
+
+    // Keep the "add service" prerequisite picker in step with the table.
+    const newRequires = document.getElementById('newSvcRequires');
+    if (newRequires) {
+      const keep = newRequires.value;
+      newRequires.innerHTML = '';
+      newRequires.appendChild(el('option', { value: '' }, '— nothing —'));
+      sortedServices().forEach((s) => newRequires.appendChild(el('option', { value: s.id }, s.name)));
+      newRequires.value = keep;
+    }
   }
 
   document.getElementById('addRoomBtn').addEventListener('click', async () => {
@@ -1107,8 +1179,19 @@ Delete anyway and write off the unrefunded amount?`,
     const name = document.getElementById('newSvcName').value.trim();
     if (!name) return;
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    await supabase.from('services').insert({ name, slug, price: Number(document.getElementById('newSvcPrice').value), price_type: document.getElementById('newSvcType').value });
+    const { error } = await supabase.from('services').insert({
+      name,
+      slug,
+      description: document.getElementById('newSvcDesc').value.trim() || null,
+      price: Number(document.getElementById('newSvcPrice').value),
+      price_type: document.getElementById('newSvcType').value,
+      requires_service_id: document.getElementById('newSvcRequires').value || null,
+      sort_order: Number(document.getElementById('newSvcOrder').value) || 0,
+    });
+    if (error) { alert(`Could not add service: ${error.message}`); return; }
     document.getElementById('newSvcName').value = '';
+    document.getElementById('newSvcDesc').value = '';
+    document.getElementById('newSvcRequires').value = '';
     loadRooms();
   });
 

@@ -5,9 +5,9 @@
   --panel:#0a0d10;
   --panel-2:#0d1114;
   --cream:#eef4f4;
-  --gold:#d7ae5c;
-  --gold-dim:#7a6431;
-  --teal:#2fb8b0;
+  --gold:#ffd558;
+  --gold-dim:#917932;
+  --teal:#4dffdb;
   --line: rgba(238,244,244,0.12);
   --sans: 'Inter', 'Helvetica Neue', Arial, sans-serif;
 }
@@ -76,7 +76,7 @@ nav{
   transition:transform 0.2s ease, box-shadow 0.2s ease;
 }
 .nav-cta{padding:13px 24px;}
-.nav-cta:hover{ transform:translateY(-2px); box-shadow:0 10px 24px rgba(215,174,92,0.28);}
+.nav-cta:hover{ transform:translateY(-2px); box-shadow:0 10px 24px rgba(255,213,88,0.28);}
 .burger{
   display:none;
   flex-direction:column; justify-content:center; gap:5px;
@@ -96,8 +96,8 @@ nav{
   overflow:hidden;
   border-bottom:1px solid var(--line);
   background:
-    radial-gradient(ellipse 80% 60% at 80% 20%, rgba(215,174,92,0.10), transparent),
-    radial-gradient(ellipse 60% 50% at 10% 90%, rgba(47,184,176,0.10), transparent);
+    radial-gradient(ellipse 80% 60% at 80% 20%, rgba(255,213,88,0.10), transparent),
+    radial-gradient(ellipse 60% 50% at 10% 90%, rgba(77,255,219,0.10), transparent);
 }
 .hero-grid{
   display:grid;
@@ -123,7 +123,7 @@ nav{
   position:absolute; inset:0;
   z-index:2;
   background:
-    linear-gradient(135deg, rgba(215,174,92,0.32), rgba(47,184,176,0.28)),
+    linear-gradient(135deg, rgba(255,213,88,0.32), rgba(77,255,219,0.28)),
     linear-gradient(to right, var(--ink), transparent 55%);
   mix-blend-mode:color;
   pointer-events:none;
@@ -186,7 +186,7 @@ h1 .out{ color:var(--cream); }
   transition:transform 0.2s ease, box-shadow 0.2s ease;
   text-decoration:none;
 }
-.btn-primary:hover{ transform:translateY(-3px); box-shadow:0 10px 24px rgba(215,174,92,0.28);}
+.btn-primary:hover{ transform:translateY(-3px); box-shadow:0 10px 24px rgba(255,213,88,0.28);}
 .btn-primary svg{width:14px;height:14px;}
 .btn-ghost{
   font-family:var(--sans);
@@ -210,7 +210,7 @@ h1 .out{ color:var(--cream); }
   padding:10px 18px; border-radius:3px; cursor:pointer; transition:background 0.2s;
   text-decoration:none; display:inline-flex; align-items:center; gap:8px;
 }
-.btn-outline:hover{background:rgba(215,174,92,0.08);}
+.btn-outline:hover{background:rgba(255,213,88,0.08);}
 
 /* waveform */
 .waveform{
@@ -280,7 +280,9 @@ h2{
 /* ---------- SERVICES ---------- */
 .services{
   display:grid;
-  grid-template-columns:repeat(3,1fr);
+  /* Rendered from the `services` table, so the count varies — let the columns
+     fit themselves rather than hardcoding three. */
+  grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));
   gap:1px;
   background:var(--line);
   border:1px solid var(--line);
@@ -290,6 +292,10 @@ h2{
   padding:44px 34px;
   transition:background 0.3s;
   position:relative;
+  /* Descriptions come from the database and vary in length, so the price is
+     pinned to the bottom of the card rather than floating wherever the copy
+     happens to end. */
+  display:flex; flex-direction:column; align-items:flex-start;
 }
 .service:hover{background:var(--panel);}
 .service .num{
@@ -305,9 +311,20 @@ h2{
 }
 .service p{color:rgba(242,236,224,0.6); font-size:0.92rem; line-height:1.6;}
 .service .price{
-  display:block; margin-top:22px;
+  display:block; margin-top:auto; padding-top:22px;
   font-family:var(--sans);
   color:var(--gold); font-size:0.95rem;
+}
+/* "Booked together with Recording" — the prerequisite set in the admin panel,
+   surfaced so the rate card matches what the booking form will let you pick. */
+.service-requires{
+  display:inline-flex; align-items:center; gap:7px;
+  margin-top:16px; font-size:0.75rem; letter-spacing:0.02em;
+  color:var(--teal); text-align:left;
+}
+.service-requires::before{
+  content:''; width:5px; height:5px; border-radius:50%;
+  background:var(--teal); flex-shrink:0;
 }
 
 /* ---------- ROOMS / GEAR STRIP ---------- */
@@ -391,7 +408,7 @@ h2{
   font-size:1.25rem; line-height:1; cursor:pointer;
   transition:border-color 0.2s, background 0.2s;
 }
-.lightbox-close:hover{border-color:var(--gold-dim); background:rgba(215,174,92,0.07);}
+.lightbox-close:hover{border-color:var(--gold-dim); background:rgba(255,213,88,0.07);}
 .gear-visual .waveform{
   width:100%; max-width:340px;
   margin-top:0;
@@ -474,7 +491,7 @@ h2{
   display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap;
   margin-top:8px; padding:16px 18px;
   border:1px dashed var(--line); border-radius:3px;
-  background:rgba(215,174,92,0.04);
+  background:rgba(255,213,88,0.04);
 }
 .booking-summary div{display:flex; flex-direction:column; gap:6px;}
 .booking-summary span{font-family:var(--sans); font-size:0.72rem; letter-spacing:0.08em; opacity:0.55;}
@@ -499,7 +516,7 @@ h2{
 .auth-step{
   margin-top:8px; padding:16px 18px;
   border:1px dashed var(--gold-dim); border-radius:3px;
-  background:rgba(215,174,92,0.05);
+  background:rgba(255,213,88,0.05);
 }
 .auth-step-note{font-size:0.82rem; opacity:0.8; margin-bottom:14px;}
 .auth-step .field{margin-bottom:0;}
@@ -513,12 +530,61 @@ h2{
 }
 .auth-signed-in button{padding:9px 16px; font-size:0.78rem;}
 
-.service-checks{display:flex; flex-direction:column; gap:10px;}
-.service-check{
-  display:flex; align-items:center; gap:10px;
-  font-size:0.88rem; cursor:pointer;
+/* Add-on toggles on the booking form. The native checkbox is kept (it stays
+   focusable and form-associated) but hidden behind a drawn tick, so the whole
+   row reads as one pressable chip.
+
+   Everything below is scoped under .service-checks because these chips are
+   <label>s sitting inside a .field, and `.field label` (display:block, gold,
+   0.75rem — the styling for a field's *caption*) would otherwise win on
+   specificity and stack the chip's parts vertically. */
+.service-checks{display:flex; flex-direction:column; gap:8px;}
+.service-checks .service-check{
+  display:flex; align-items:flex-start; gap:12px;
+  padding:12px 14px; border:1px solid var(--line); border-radius:3px;
+  cursor:pointer;
+  /* undo the .field label caption treatment */
+  font-size:0.88rem; letter-spacing:normal; color:var(--cream); margin-bottom:0;
+  transition:border-color 0.2s, background 0.2s, transform 0.2s, opacity 0.2s;
 }
-.service-check input{width:auto; accent-color:var(--gold);}
+.service-checks .service-check:hover{border-color:rgba(238,244,244,0.28);}
+.service-checks .service-check input{
+  position:absolute; opacity:0; width:1px; height:1px; pointer-events:none;
+}
+.service-checks .tick{
+  flex-shrink:0; width:20px; height:20px; border-radius:3px; margin-top:1px;
+  border:1px solid var(--line); background:var(--ink);
+  display:inline-flex; align-items:center; justify-content:center;
+}
+.service-checks .tick svg{
+  width:12px; height:12px; color:var(--ink);
+  opacity:0; transform:scale(0.6);
+  transition:opacity 0.18s ease, transform 0.18s ease;
+}
+.service-checks .service-check-body{display:flex; flex-direction:column; gap:3px; flex:1; min-width:0;}
+.service-checks .service-check-name{font-size:0.9rem; font-weight:600; color:var(--cream);}
+.service-checks .service-check-note{
+  font-size:0.76rem; color:rgba(242,236,224,0.55); line-height:1.45; letter-spacing:normal;
+}
+.service-checks .service-check-note:empty{display:none;}
+.service-checks .service-check-price{
+  font-size:0.85rem; font-weight:700;
+  color:var(--gold); white-space:nowrap; flex-shrink:0; margin-top:1px;
+}
+.service-checks .service-check:has(input:checked){
+  border-color:var(--gold-dim); background:rgba(255,213,88,0.05); transform:translateY(-1px);
+}
+.service-checks .service-check:has(input:checked) .tick{background:var(--gold); border-color:var(--gold);}
+.service-checks .service-check:has(input:checked) .tick svg{opacity:1; transform:none;}
+.service-checks .service-check:has(input:focus-visible){outline:2px solid var(--gold); outline-offset:3px;}
+/* e.g. mixing before recording is picked — visibly present, but not yet pickable. */
+.service-checks .service-check:has(input:disabled){opacity:0.45; cursor:not-allowed;}
+.service-checks .service-check:has(input:disabled):hover{border-color:var(--line);}
+.label-note{
+  font-weight:400; letter-spacing:0; text-transform:none;
+  color:rgba(242,236,224,0.45); font-size:0.72rem; margin-left:6px;
+}
+.field.invalid .service-checks .service-check{border-color:#e5876f;}
 
 .pw-wrap{position:relative;}
 .pw-wrap input{padding-right:44px;}
@@ -605,7 +671,7 @@ footer .btn-primary{margin-top:24px;}
   }
   .hero-slideshow::after{
     background:
-      linear-gradient(135deg, rgba(215,174,92,0.2), rgba(47,184,176,0.18)),
+      linear-gradient(135deg, rgba(255,213,88,0.2), rgba(77,255,219,0.18)),
       linear-gradient(180deg, rgba(5,7,8,0.72), rgba(5,7,8,0.82) 55%, var(--ink));
   }
   .hero-actions{gap:16px;}
@@ -709,7 +775,7 @@ footer .btn-primary{margin-top:24px;}
 
 button:disabled, .book-submit:disabled{opacity:0.5; cursor:not-allowed; transform:none !important;}
 .book-submit{transition:transform 0.2s, box-shadow 0.2s;}
-.book-submit:hover:not(:disabled){box-shadow:0 8px 20px rgba(215,174,92,0.22);}
+.book-submit:hover:not(:disabled){box-shadow:0 8px 20px rgba(255,213,88,0.22);}
 
 .service{cursor:default;}
 .service:hover{background:var(--panel-2);}
@@ -738,7 +804,7 @@ button:disabled, .book-submit:disabled{opacity:0.5; cursor:not-allowed; transfor
   /* nudge the dot onto the first line of the label */
   margin-top:3px;
 }
-.pay-option:has(input:checked){border-color:var(--gold-dim); background:rgba(215,174,92,0.05);}
+.pay-option:has(input:checked){border-color:var(--gold-dim); background:rgba(255,213,88,0.05);}
 .pay-body{display:flex; flex-direction:column; gap:4px; flex:1; min-width:0;}
 .pay-title{font-size:0.9rem; font-weight:600;}
 .pay-note{font-size:0.78rem; color:rgba(242,236,224,0.55); line-height:1.5;}
@@ -751,7 +817,7 @@ button:disabled, .book-submit:disabled{opacity:0.5; cursor:not-allowed; transfor
   display:none;
   margin:-2px 0 4px; padding:14px 16px;
   border:1px dashed var(--gold-dim); border-radius:3px;
-  background:rgba(215,174,92,0.04);
+  background:rgba(255,213,88,0.04);
 }
 .pay-id-upload.show{display:block;}
 .pay-id-upload label{
@@ -823,7 +889,7 @@ button:disabled, .book-submit:disabled{opacity:0.5; cursor:not-allowed; transfor
   font-size:1.2rem; line-height:1; cursor:pointer;
   transition:border-color 0.2s, background 0.2s;
 }
-.modal-close:hover{border-color:var(--gold-dim); background:rgba(215,174,92,0.07);}
+.modal-close:hover{border-color:var(--gold-dim); background:rgba(255,213,88,0.07);}
 .modal-body{
   overflow-y:auto; padding:20px 30px 30px;
 }
@@ -856,7 +922,7 @@ button:disabled, .book-submit:disabled{opacity:0.5; cursor:not-allowed; transfor
   display:flex; align-items:baseline; justify-content:space-between; gap:16px;
   padding:14px 16px; margin-bottom:14px;
   border:1px solid var(--gold-dim); border-radius:3px;
-  background:rgba(215,174,92,0.06);
+  background:rgba(255,213,88,0.06);
 }
 .pay-qr-due span{font-size:0.72rem; letter-spacing:0.08em; text-transform:uppercase; opacity:0.7;}
 .pay-qr-due strong{font-size:1.5rem; color:var(--gold);}
@@ -871,7 +937,7 @@ button:disabled, .book-submit:disabled{opacity:0.5; cursor:not-allowed; transfor
 }
 .pay-qr-tabs button:hover{border-color:rgba(238,244,244,0.32);}
 .pay-qr-tabs button[aria-selected="true"]{
-  border-color:var(--gold-dim); background:rgba(215,174,92,0.09); color:var(--gold);
+  border-color:var(--gold-dim); background:rgba(255,213,88,0.09); color:var(--gold);
 }
 .pay-qr-figure{text-align:center; margin-bottom:8px;}
 /* The QR sits on white so phone cameras can read it whatever the page theme. */
@@ -916,8 +982,9 @@ button:disabled, .book-submit:disabled{opacity:0.5; cursor:not-allowed; transfor
 @media not (prefers-reduced-motion: reduce){
   .services .service{opacity:0; transform:translateY(16px); transition:opacity 0.5s ease, transform 0.5s ease;}
   .services[data-reveal].in .service{opacity:1; transform:none;}
-  .services[data-reveal].in .service:nth-child(2){transition-delay:90ms;}
-  .services[data-reveal].in .service:nth-child(3){transition-delay:180ms;}
+  /* --i is set per card as it is rendered, so the stagger works for any number
+     of services instead of the three that used to be hardcoded here. */
+  .services[data-reveal].in .service{transition-delay:calc(var(--i, 0) * 90ms);}
 }
 
 /* Nav gains weight once you've scrolled past the hero — a subtle, dynamic cue
@@ -947,8 +1014,8 @@ nav.scrolled{
 /* One-shot glow the instant the booking summary has enough info to price. */
 @media not (prefers-reduced-motion: reduce){
   @keyframes summaryReady{
-    0%{box-shadow:0 0 0 0 rgba(215,174,92,0.35);}
-    100%{box-shadow:0 0 0 10px rgba(215,174,92,0);}
+    0%{box-shadow:0 0 0 0 rgba(255,213,88,0.35);}
+    100%{box-shadow:0 0 0 10px rgba(255,213,88,0);}
   }
   .booking-summary.ready{animation:summaryReady 0.6s ease-out;}
 }
@@ -976,7 +1043,7 @@ nav.scrolled{
   transition:border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
 }
 .cal-nav svg{width:15px; height:15px;}
-.cal-nav:hover{border-color:var(--gold-dim); background:rgba(215,174,92,0.07);}
+.cal-nav:hover{border-color:var(--gold-dim); background:rgba(255,213,88,0.07);}
 .cal-nav:active{transform:scale(0.92);}
 
 .cal-dows, .cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:6px;}
@@ -1017,7 +1084,7 @@ nav.scrolled{
 .cal-day.selected{
   background:var(--gold); color:var(--ink); border-color:var(--gold);
   transform:translateY(-2px);
-  box-shadow:0 8px 18px rgba(215,174,92,0.22);
+  box-shadow:0 8px 18px rgba(255,213,88,0.22);
 }
 .cal-day.selected .cal-daynum{color:var(--ink);}
 .cal-day.selected .cal-mark{background:var(--ink);}
@@ -1054,7 +1121,7 @@ nav.scrolled{
   transition:border-color 0.18s ease, background 0.18s ease, transform 0.15s ease;
 }
 .cal-slot em{font-style:normal; font-size:0.68rem; color:rgba(238,244,244,0.45);}
-.cal-slot:hover{border-color:var(--gold-dim); background:rgba(215,174,92,0.06); transform:translateY(-2px);}
+.cal-slot:hover{border-color:var(--gold-dim); background:rgba(255,213,88,0.06); transform:translateY(-2px);}
 .cal-slot:active{transform:scale(0.96);}
 .cal-slot.taken{border-color:var(--gold); color:var(--gold);}
 
@@ -1113,7 +1180,7 @@ nav.scrolled{
 
   /* Form fields lift toward the cursor/caret so the active row is obvious. */
   .field input, .field select{transition:border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;}
-  .field input:focus, .field select:focus{box-shadow:0 0 0 3px rgba(215,174,92,0.12);}
+  .field input:focus, .field select:focus{box-shadow:0 0 0 3px rgba(255,213,88,0.12);}
   .book-side, .book-form{transition:transform 0.3s ease;}
 }
 

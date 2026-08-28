@@ -214,7 +214,7 @@ export async function initBooking() {
   const form = document.getElementById('bookingForm');
   const nameEl = document.getElementById('fName');
   const emailEl = document.getElementById('fEmail');
-  const serviceEl = document.getElementById('fService');
+  const servicesWrap = document.getElementById('fServices');
   const dateEl = document.getElementById('fDate');
   const startEl = document.getElementById('fStart');
   const endEl = document.getElementById('fEnd');
@@ -241,7 +241,7 @@ export async function initBooking() {
 
   let session = null;
   let mainRoom = null;
-  let servicesBySlug = {};
+  let addonServices = [];
   let depositPercent = 20;
   let awaitingAuthMode = null; // 'signup' | 'login' | null
   let isStaff = false;
@@ -326,24 +326,139 @@ export async function initBooking() {
     if (Number.isFinite(pct) && pct > 0) depositPercent = pct;
     if (payDepositPct) payDepositPct.textContent = String(depositPercent);
     mainRoom = rooms?.[0] || null;
-    servicesBySlug = {};
-    (services || []).forEach((s) => {
-      servicesBySlug[s.slug] = s;
+    addonServices = (services || [])
+      .slice()
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.name.localeCompare(b.name));
+    renderServiceChecks();
+  }
+
+  function priceLabel(svc) {
+    return svc.price_type === 'hourly' ? `+ ${formatPeso(svc.price)} / hr` : `+ ${formatPeso(svc.price)} flat`;
+  }
+
+  // The add-on list is whatever the `services` table currently holds, so a
+  // service added in the admin panel appears here on the next page load with
+  // no change needed in this file.
+  function renderServiceChecks() {
+    if (!servicesWrap) return;
+    servicesWrap.innerHTML = '';
+    if (addonServices.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'muted';
+      empty.textContent = 'No add-ons available right now — the room rate covers your session.';
+      servicesWrap.appendChild(empty);
+      return;
+    }
+    addonServices.forEach((svc) => {
+      const label = document.createElement('label');
+      label.className = 'service-check';
+
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.value = svc.id;
+      cb.dataset.slug = svc.slug;
+      cb.addEventListener('change', () => {
+        syncServiceDeps();
+        updateSummary();
+      });
+
+      const tick = document.createElement('span');
+      tick.className = 'tick';
+      tick.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+
+      const name = document.createElement('span');
+      name.className = 'service-check-name';
+      name.textContent = svc.name;
+
+      const note = document.createElement('span');
+      note.className = 'service-check-note';
+      note.dataset.baseNote = svc.description || '';
+      note.textContent = note.dataset.baseNote;
+
+      const body = document.createElement('span');
+      body.className = 'service-check-body';
+      body.append(name, note);
+
+      const price = document.createElement('span');
+      price.className = 'service-check-price';
+      price.textContent = priceLabel(svc);
+
+      label.append(cb, tick, body, price);
+      servicesWrap.appendChild(label);
+    });
+    syncServiceDeps();
+  }
+
+  function serviceCheckboxes() {
+    return servicesWrap ? Array.from(servicesWrap.querySelectorAll('input[type="checkbox"]')) : [];
+  }
+
+  // A service can name a prerequisite (services.requires_service_id, set in the
+  // admin panel) — e.g. Mixing requires Recording. A service whose prerequisite
+  // is not picked stays locked and unchecked. Nothing here names a specific
+  // service; the rule lives entirely in the data.
+  //
+  // Runs to a fixed point so chains settle in one call: unchecking A locks B,
+  // which must then also lock whatever required B.
+  function syncServiceDeps() {
+    const boxes = serviceCheckboxes();
+    const boxById = new Map(boxes.map((c) => [c.value, c]));
+    const svcById = new Map(addonServices.map((s) => [s.id, s]));
+
+    for (let pass = 0; pass <= boxes.length; pass++) {
+      let changed = false;
+      boxes.forEach((cb) => {
+        const requiredId = svcById.get(cb.value)?.requires_service_id || null;
+        const requiredBox = requiredId ? boxById.get(requiredId) : null;
+        // A prerequisite that isn't offered at all (inactive, or deleted) locks
+        // its dependants rather than silently letting them through.
+        const locked = Boolean(requiredId) && (!requiredBox || !requiredBox.checked || requiredBox.disabled);
+        if (cb.disabled !== locked) {
+          cb.disabled = locked;
+          changed = true;
+        }
+        if (locked && cb.checked) {
+          cb.checked = false;
+          changed = true;
+        }
+      });
+      if (!changed) break;
+    }
+
+    // Say why a locked row can't be picked, in place of its description.
+    boxes.forEach((cb) => {
+      const row = cb.closest('.service-check');
+      const note = row?.querySelector('.service-check-note');
+      if (!note) return;
+      const requiredId = svcById.get(cb.value)?.requires_service_id || null;
+      const requiredName = requiredId ? svcById.get(requiredId)?.name : null;
+      if (cb.disabled) {
+        note.textContent = requiredName
+          ? `Add ${requiredName} first — this can't be booked on its own.`
+          : "This add-on isn't available on its own right now.";
+      } else {
+        note.textContent = note.dataset.baseNote || '';
+      }
+      note.hidden = !note.textContent;
     });
   }
 
-  function addonServiceIds(service) {
-    // Mixing is never offered on its own — you can't mix a session you
-    // didn't record here, so it's only ever paired with recording.
-    if (service === 'recording') return [servicesBySlug.recording?.id].filter(Boolean);
-    if (service === 'both') return [servicesBySlug.recording?.id, servicesBySlug.mixing?.id].filter(Boolean);
-    return [];
+  function addonServiceIds() {
+    return serviceCheckboxes().filter((c) => c.checked && !c.disabled).map((c) => c.value);
   }
 
-  function addonTotal(service, durationHours) {
-    return addonServiceIds(service).reduce((sum, id) => {
-      const svc = Object.values(servicesBySlug).find((s) => s.id === id);
-      if (!svc) return sum;
+  // "Room only" when nothing extra is picked — the confirmation line still has
+  // to name what was booked.
+  function selectedServiceLabel() {
+    const picked = new Set(addonServiceIds());
+    const names = addonServices.filter((s) => picked.has(s.id)).map((s) => s.name);
+    return names.length ? `Room + ${names.join(' + ')}` : 'Room only';
+  }
+
+  function addonTotal(durationHours) {
+    const picked = new Set(addonServiceIds());
+    return addonServices.reduce((sum, svc) => {
+      if (!picked.has(svc.id)) return sum;
       return sum + (svc.price_type === 'hourly' ? Number(svc.price) * durationHours : Number(svc.price));
     }, 0);
   }
@@ -351,18 +466,18 @@ export async function initBooking() {
   // Returns the session total in pesos, or null when the form isn't complete
   // enough to price yet. Shared by the summary and the payment options.
   function currentTotal() {
-    if (!mainRoom || !serviceEl.value || !startEl.value || !endEl.value) return null;
+    if (!mainRoom || !startEl.value || !endEl.value) return null;
     const [sh, sm] = startEl.value.split(':').map(Number);
     const [eh, em] = endEl.value.split(':').map(Number);
     const rawDuration = (eh * 60 + em - (sh * 60 + sm)) / 60;
     if (rawDuration <= 0) return null;
     const duration = Math.ceil(rawDuration * 10) / 10;
-    return Math.ceil(Number(mainRoom.hourly_rate) * duration + addonTotal(serviceEl.value, duration));
+    return Math.ceil(Number(mainRoom.hourly_rate) * duration + addonTotal(duration));
   }
 
   function updateSummary() {
     document.getElementById('bookingSummary').classList.remove('ready');
-    if (!mainRoom || !serviceEl.value || !startEl.value || !endEl.value) {
+    if (!mainRoom || !startEl.value || !endEl.value) {
       setFigure(sumDuration, '—');
       setFigure(sumPrice, '—');
       refreshPayOptions();
@@ -378,7 +493,7 @@ export async function initBooking() {
       return;
     }
     const duration = Math.ceil(rawDuration * 10) / 10;
-    const price = Math.ceil(Number(mainRoom.hourly_rate) * duration + addonTotal(serviceEl.value, duration));
+    const price = Math.ceil(Number(mainRoom.hourly_rate) * duration + addonTotal(duration));
     setFigure(sumDuration, `${duration} hr${duration !== 1 ? 's' : ''}`);
     setFigure(sumPrice, formatPeso(price));
     document.getElementById('bookingSummary').classList.add('ready');
@@ -431,7 +546,7 @@ export async function initBooking() {
 
   payOptionEls.forEach((r) => r.addEventListener('change', refreshPayOptions));
 
-  [serviceEl, startEl, endEl].forEach((el) => el.addEventListener('input', updateSummary));
+  [startEl, endEl].forEach((el) => el.addEventListener('input', updateSummary));
 
   // Every problem with the form, as [control, reason] pairs, so the whole
   // form can be marked up in one pass instead of surfacing one complaint at a
@@ -442,8 +557,6 @@ export async function initBooking() {
 
     if (!emailEl.value.trim()) errors.push([emailEl, 'Please enter your email.']);
     else if (!isEmail(emailEl.value)) errors.push([emailEl, "That doesn't look like an email address — check for a typo."]);
-
-    if (!serviceEl.value) errors.push([serviceEl, 'Please choose a service.']);
 
     if (!dateEl.value) errors.push([dateEl, 'Please choose a date.']);
     else if (dateEl.min && dateEl.value < dateEl.min) errors.push([dateEl, 'That date has already passed — pick today or later.']);
@@ -499,7 +612,7 @@ export async function initBooking() {
       room_id: mainRoom.id,
       start_at: startAt.toISOString(),
       end_at: endAt.toISOString(),
-      service_ids: addonServiceIds(serviceEl.value),
+      service_ids: addonServiceIds(),
       payment_option: payOption,
       // The full directory URL, not just the origin — this project's GitHub
       // Pages site lives under a subpath (/GGS-Studio-Website/), and
@@ -517,7 +630,7 @@ export async function initBooking() {
     submitBtn.textContent = 'Sending…';
     const result = await callFunction('create-booking', session, payload);
 
-    const serviceLabel = serviceEl.options[serviceEl.selectedIndex].text;
+    const serviceLabel = selectedServiceLabel();
     const bookedStart = startEl.value;
     const bookedEnd = endEl.value;
 
@@ -542,6 +655,7 @@ export async function initBooking() {
       submitBtn.textContent = 'Slot held ✓';
       hideAuthStep();
       form.reset();
+      syncServiceDeps();
       if (idImageEl) idImageEl.value = '';
       await refreshAuthUI();
       updateSummary();
@@ -573,6 +687,7 @@ export async function initBooking() {
     submitBtn.textContent = 'Request sent ✓';
     hideAuthStep();
     form.reset();
+    syncServiceDeps();
     clearFormErrors(form);
     if (idImageEl) idImageEl.value = '';
     await refreshAuthUI();

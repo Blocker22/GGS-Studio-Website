@@ -46,6 +46,8 @@
     color-scheme:dark;
   }
   .a-input:focus{border-color:var(--gold);}
+  .a-hint{font-size:0.78rem; line-height:1.6; color:rgba(242,236,224,0.55); max-width:78ch;}
+  .a-hint strong{color:var(--cream); font-weight:600;}
   .a-btn-gold{
     background:var(--gold); color:var(--ink); font-weight:600; border:none; border-radius:3px;
     padding:10px 18px; font-size:0.82rem; cursor:pointer; font-family:var(--sans);
@@ -108,14 +110,14 @@
   .cal-dow{background:var(--panel-2); padding:8px; text-align:center; font-size:0.68rem; letter-spacing:0.06em; opacity:0.5;}
   .cal-day{background:var(--panel); min-height:100px; padding:6px; display:flex; flex-direction:column; gap:3px;}
   .cal-day.other-month{opacity:0.35;}
-  .cal-day.today{background:rgba(215,174,92,0.06);}
+  .cal-day.today{background:rgba(255,213,88,0.06);}
   .cal-daynum{font-size:0.72rem; opacity:0.6; margin-bottom:2px;}
   .cal-chip{
     font-size:0.68rem; padding:3px 6px; border-radius:2px; cursor:pointer; white-space:nowrap;
     overflow:hidden; text-overflow:ellipsis; border-left:2px solid var(--gold-dim);
-    background:rgba(215,174,92,0.08); color:var(--cream);
+    background:rgba(255,213,88,0.08); color:var(--cream);
   }
-  .cal-chip.status-confirmed{border-color:var(--teal); background:rgba(47,184,176,0.08);}
+  .cal-chip.status-confirmed{border-color:var(--teal); background:rgba(77,255,219,0.08);}
   .cal-chip.status-cancelled{border-color:#7a4331; background:rgba(229,135,111,0.08); opacity:0.6;}
   .cal-chip.status-completed, .cal-chip.status-no_show{border-color:var(--line); opacity:0.5;}
   .cal-chip:hover{filter:brightness(1.3);}
@@ -156,10 +158,10 @@
   .wk-cell.hour-line{border-top:1px solid var(--line);}
   .wk-block{
     margin:1px 2px; padding:3px 6px; border-radius:2px; font-size:0.68rem; overflow:hidden;
-    border-left:2px solid var(--gold-dim); background:rgba(215,174,92,0.12); color:var(--cream);
+    border-left:2px solid var(--gold-dim); background:rgba(255,213,88,0.12); color:var(--cream);
     cursor:pointer; line-height:1.3;
   }
-  .wk-block.status-confirmed{border-color:var(--teal); background:rgba(47,184,176,0.12);}
+  .wk-block.status-confirmed{border-color:var(--teal); background:rgba(77,255,219,0.12);}
   .wk-block.status-cancelled{border-color:#7a4331; background:rgba(229,135,111,0.1); opacity:0.55;}
   .wk-block.status-completed, .wk-block.status-no_show{border-color:var(--line); opacity:0.5;}
   .wk-block:hover{filter:brightness(1.25);}
@@ -412,17 +414,30 @@
       <div class="a-label" style="margin-bottom:10px;">Services / add-ons</div>
       <div class="a-card" style="overflow-x:auto; margin-bottom:14px;">
         <table class="a-table">
-          <thead><tr><th>Name</th><th>Price</th><th>Type</th><th>Active</th></tr></thead>
+          <thead><tr><th>Name</th><th>Description</th><th>Price</th><th>Type</th><th>Requires</th><th>Order</th><th>Active</th></tr></thead>
           <tbody id="servicesBody"></tbody>
         </table>
       </div>
+      <p class="a-hint" style="margin:-6px 0 14px;">
+        <strong>Requires</strong> makes a service unbookable on its own — pick another
+        service and customers can only tick this one after that one. Leave it as
+        &ldquo;&mdash; nothing &mdash;&rdquo; for a service that stands alone. Name, description
+        and price show on the landing page; <strong>Order</strong> sorts the cards there
+        and the add-on list on the booking form.
+      </p>
       <div class="a-card" style="padding:18px; display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
         <div><label class="a-label">New service name</label><input class="a-input" id="newSvcName"></div>
+        <div style="flex:1; min-width:220px;"><label class="a-label">Description</label><input class="a-input" id="newSvcDesc" placeholder="Shown on the landing page" style="width:100%;"></div>
         <div><label class="a-label">Price</label><input type="number" class="a-input" id="newSvcPrice" value="0" style="width:100px;"></div>
         <div>
           <label class="a-label">Type</label>
           <select class="a-input" id="newSvcType"><option value="flat">Flat</option><option value="hourly">Hourly</option></select>
         </div>
+        <div>
+          <label class="a-label">Requires</label>
+          <select class="a-input" id="newSvcRequires"><option value="">&mdash; nothing &mdash;</option></select>
+        </div>
+        <div><label class="a-label">Order</label><input type="number" class="a-input" id="newSvcOrder" value="0" style="width:80px;"></div>
         <button class="a-btn-gold" id="addSvcBtn">Add service</button>
       </div>
     </section>
