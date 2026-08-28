@@ -431,26 +431,31 @@ h2{
 .stat span{font-family:var(--sans); font-size:0.78rem; opacity:0.6;}
 
 /* ---------- BOOKING ---------- */
+/* This section runs noticeably tighter than the rest of the page's vertical
+   rhythm — it's the one part of the site people use rather than read, so it
+   trades a little breathing room for fitting more of the form on screen. */
 .booking{
   background:var(--ink);
+  padding-top:72px; padding-bottom:72px;
 }
+.booking .section-head{margin-bottom:36px;}
 .book-grid{
-  display:grid; grid-template-columns:1.05fr 0.95fr; gap:56px;
+  display:grid; grid-template-columns:1.05fr 0.95fr; gap:36px;
 }
 .book-form{
   background:var(--panel);
   border:1px solid var(--line);
-  padding:44px;
+  padding:30px;
   border-radius:4px;
 }
-.field{margin-bottom:22px;}
+.field{margin-bottom:15px;}
 .field label{
   display:block; font-family:var(--sans); font-size:0.75rem;
   letter-spacing:0.08em; color:var(--gold); margin-bottom:9px;
 }
 .field input, .field select{
   width:100%; background:var(--ink); border:1px solid var(--line); color:var(--cream);
-  padding:13px 14px; font-family:var(--sans); font-size:0.95rem; border-radius:3px;
+  padding:11px 13px; font-family:var(--sans); font-size:0.95rem; border-radius:3px;
   outline:none; transition:border-color 0.2s;
   color-scheme:dark;
 }
@@ -464,7 +469,7 @@ h2{
 .field input[type="time"]::-webkit-calendar-picker-indicator:hover{opacity:1;}
 .field select option{background:var(--ink); color:var(--cream);}
 .field input[readonly]{opacity:0.75; cursor:not-allowed;}
-.field-row{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+.field-row{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
 
 /* Invalid state, set by js/form-validate.js. The red outline marks *which*
    control is wrong; .field-error underneath says what about it is wrong. */
@@ -489,7 +494,7 @@ h2{
 
 .booking-summary{
   display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap;
-  margin-top:8px; padding:16px 18px;
+  margin-top:6px; padding:12px 16px;
   border:1px solid var(--line); border-radius:3px;
   background:rgba(255,213,88,0.04);
 }
@@ -498,12 +503,12 @@ h2{
 .booking-summary strong{font-family:var(--sans); font-size:1.3rem; color:var(--gold); font-weight:700;}
 
 .submit-row{
-  display:flex; align-items:center; justify-content:space-between; margin-top:30px; gap:16px; flex-wrap:wrap;
+  display:flex; align-items:center; justify-content:space-between; margin-top:20px; gap:16px; flex-wrap:wrap;
 }
 .book-submit{
   width:100%;
   font-family:var(--sans); font-weight:600; letter-spacing:0.03em;
-  background:var(--gold); color:var(--ink); border:none; padding:16px; font-size:0.92rem;
+  background:var(--gold); color:var(--ink); border:none; padding:13px; font-size:0.92rem;
   border-radius:3px; cursor:pointer; transition:transform 0.2s;
 }
 .book-submit:hover{transform:translateY(-2px);}
@@ -514,7 +519,7 @@ h2{
 .confirm-msg.error{color:#e5876f; border-color:#7a4331;}
 
 .auth-step{
-  margin-top:8px; padding:16px 18px;
+  margin-top:6px; padding:13px 16px;
   border:1px solid var(--gold-dim); border-radius:3px;
   background:rgba(255,213,88,0.05);
 }
@@ -524,7 +529,7 @@ h2{
 .auth-toggle-row button{width:auto; padding:9px 16px; font-size:0.78rem;}
 .auth-signed-in{
   display:flex; align-items:center; justify-content:space-between; gap:16px;
-  padding:14px 18px; margin-bottom:26px;
+  padding:11px 16px; margin-bottom:18px;
   border:1px solid var(--line); border-radius:3px;
   font-size:0.85rem;
 }
@@ -684,8 +689,9 @@ footer .btn-primary{margin-top:24px;}
   .console{max-width:280px;}
   .gear-copy .stat-row{gap:28px;}
 
-  .book-grid{grid-template-columns:1fr; gap:50px;}
-  .book-form{padding:32px 24px;}
+  .booking{padding-top:56px; padding-bottom:56px;}
+  .book-grid{grid-template-columns:1fr; gap:32px;}
+  .book-form{padding:24px 20px;}
   .field-row{grid-template-columns:1fr;}
 
   .footer-top{flex-direction:column; align-items:flex-start;}
@@ -716,7 +722,7 @@ footer .btn-primary{margin-top:24px;}
   .gear-copy .stat-row{gap:24px; flex-wrap:wrap;}
   .stat{min-width:40%;}
 
-  .book-form{padding:26px 18px;}
+  .book-form{padding:20px 16px;}
   .submit-row{flex-direction:column; align-items:stretch;}
   .nav-greet{border:none; padding:8px 4px;}
 
@@ -786,8 +792,8 @@ button:disabled, .book-submit:disabled{opacity:0.5; cursor:not-allowed; transfor
 
 /* ---------- PAYMENT OPTIONS ---------- */
 .pay-options{
-  margin-top:22px; padding-top:22px; border-top:1px solid var(--line);
-  display:flex; flex-direction:column; gap:10px;
+  margin-top:16px; padding-top:16px; border-top:1px solid var(--line);
+  display:flex; flex-direction:column; gap:8px;
 }
 .pay-heading{
   display:block; font-family:var(--sans); font-size:0.75rem;
@@ -795,7 +801,7 @@ button:disabled, .book-submit:disabled{opacity:0.5; cursor:not-allowed; transfor
 }
 .pay-option{
   display:flex; align-items:flex-start; gap:12px;
-  padding:14px 16px; border:1px solid var(--line); border-radius:3px;
+  padding:11px 14px; border:1px solid var(--line); border-radius:3px;
   cursor:pointer; transition:border-color 0.2s, background 0.2s;
 }
 .pay-option:hover{border-color:rgba(238,244,244,0.28);}
@@ -815,7 +821,7 @@ button:disabled, .book-submit:disabled{opacity:0.5; cursor:not-allowed; transfor
 
 .pay-id-upload{
   display:none;
-  margin:-2px 0 4px; padding:14px 16px;
+  margin:-2px 0 4px; padding:11px 14px;
   border:1px solid var(--gold-dim); border-radius:3px;
   background:rgba(255,213,88,0.04);
 }
@@ -843,7 +849,7 @@ button:disabled, .book-submit:disabled{opacity:0.5; cursor:not-allowed; transfor
 
 /* ---------- TERMS & CONDITIONS ---------- */
 .terms-block{
-  margin-top:22px; padding-top:22px; border-top:1px solid var(--line);
+  margin-top:16px; padding-top:16px; border-top:1px solid var(--line);
 }
 .terms-check{
   display:flex; align-items:flex-start; gap:12px;
@@ -1028,11 +1034,11 @@ nav.scrolled{
   background:var(--panel);
   border:1px solid var(--line);
   border-radius:4px;
-  padding:22px 22px 18px;
+  padding:18px 18px 14px;
 }
 .cal-head{
   display:flex; align-items:center; justify-content:space-between; gap:12px;
-  margin-bottom:18px;
+  margin-bottom:14px;
 }
 .cal-month{font-size:1rem; font-weight:600; letter-spacing:0.01em;}
 .cal-nav{

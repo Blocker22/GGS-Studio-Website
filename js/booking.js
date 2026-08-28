@@ -8,6 +8,7 @@ import { getSupabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase-client.
 import { signUpChecked } from './auth.js';
 import { openPaymentModal } from './payment-qr.js';
 import { clearFormErrors, clearFieldError, showFieldErrors, setFieldError, isEmail } from './form-validate.js';
+import { compressImageIfNeeded } from './image-compress.js';
 
 const FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
 
@@ -228,6 +229,26 @@ export async function initBooking() {
   const payOptions = document.getElementById('payOptions');
   const payIdUpload = document.getElementById('payIdUpload');
   const idImageEl = document.getElementById('fIdImage');
+  const idImageHint = idImageEl?.closest('.pay-id-upload')?.querySelector('.field-hint') || null;
+  const idImageHintDefault = idImageHint?.textContent || '';
+
+  // Compress as soon as a photo is picked, not at submit time — the result
+  // (or a clear "still too large" message) shows up immediately instead of
+  // only surfacing after the customer has filled out the rest of the form.
+  idImageEl?.addEventListener('change', async () => {
+    const file = idImageEl.files?.[0];
+    if (!file) return;
+    clearFieldError(idImageEl);
+    if (file.size <= 2 * 1024 * 1024) return;
+    if (idImageHint) idImageHint.textContent = 'Compressing photo…';
+    const compressed = await compressImageIfNeeded(file);
+    if (compressed !== file) {
+      const dt = new DataTransfer();
+      dt.items.add(compressed);
+      idImageEl.files = dt.files;
+    }
+    if (idImageHint) idImageHint.textContent = idImageHintDefault;
+  });
   const payDepositPct = document.getElementById('payDepositPct');
 
   const authSignedIn = document.getElementById('authSignedIn');
@@ -572,7 +593,6 @@ export async function initBooking() {
     if (!isStaff && selectedPayOption() === 'cash' && idImageEl) {
       const file = idImageEl.files?.[0];
       if (!file) errors.push([idImageEl, 'Please attach a photo of a valid ID to pay in cash.']);
-      else if (file.size > 2 * 1024 * 1024) errors.push([idImageEl, 'That ID photo is over 2MB — please attach a smaller one.']);
     }
 
     if (termsEl && !termsEl.checked) {
@@ -585,9 +605,12 @@ export async function initBooking() {
   // customer-ids bucket and returns the stored path. Storage RLS restricts
   // both the write and any later read to that customer plus studio staff.
   async function uploadIdImage(userId) {
-    const file = idImageEl?.files?.[0];
+    let file = idImageEl?.files?.[0];
     if (!file) throw new Error('Please attach a photo of a valid ID to pay in cash.');
-    if (file.size > 2 * 1024 * 1024) throw new Error('That ID photo is over 2MB — please attach a smaller one.');
+    // Belt-and-suspenders: the change handler above already compresses on
+    // selection, but this covers a file assigned any other way (browser
+    // autofill, a script, a future code path) reaching submit uncompressed.
+    file = await compressImageIfNeeded(file);
 
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
     const path = `${userId}/${Date.now()}.${ext || 'jpg'}`;

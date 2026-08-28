@@ -19,10 +19,13 @@
 <link rel="icon" type="image/png" href="assets/Logo_NoBG.png">
 <link rel="stylesheet" href="style.css">
 <style>
-  .account-book{
-    background:var(--panel); border:1px solid var(--line); border-radius:4px;
-    padding:44px; margin-bottom:70px;
-  }
+  /* Not its own card — .book-form and .cal inside already carry that look
+     (the same as the booking section on the landing page), so this used to
+     double up: a bordered, 44px-padded box wrapped around another bordered,
+     padded box, eating that much width twice over before the actual fields
+     started. Just spacing now, matching how the landing page treats it. */
+  .account-book{margin-bottom:56px; scroll-margin-top:110px;}
+  .account-book .section-tag{margin-top:4px;}
   .booking-card{
     background:var(--panel); border:1px solid var(--line); border-left:2px solid var(--gold-dim);
     border-radius:4px; padding:24px 28px; margin-bottom:14px;
@@ -52,8 +55,6 @@
     font-size:0.75rem; letter-spacing:0.08em; color:var(--gold);
     margin:40px 0 16px; padding-bottom:8px; border-bottom:1px solid var(--line);
   }
-  .account-book{scroll-margin-top:110px;}
-
   /* Reschedule panel drops below the card's two columns. */
   .booking-card{flex-wrap:wrap;}
   .reschedule-panel{
@@ -143,7 +144,7 @@
         <div class="pay-id-upload" id="payIdUpload">
           <label>Photo of a valid ID</label>
           <input type="file" id="fIdImage" accept="image/png, image/jpeg, image/webp, image/heic">
-          <p class="field-hint">School, student, or any other valid ID. Max 2MB.</p>
+          <p class="field-hint">School, student, or any other valid ID.</p>
         </div>
 
         <label class="pay-option">
