@@ -34,11 +34,14 @@ const NAV_LINKS = [
   { label: 'The Room', hash: '#room' },
 ];
 
-// The 4th slot toggles: "Book a session" signed out, "My Bookings" signed in
-// — swapped in render() below rather than showing both at once.
+// Book a session and My Bookings are always both shown now, signed in or not —
+// booking needs no account any more, and a guest browser can have real
+// bookings to manage (see device.js), so hiding My Bookings behind a session
+// would hide exactly the thing a signed-out visitor most needs.
 function renderNav(navEl) {
   const onIndex = currentPage() === '';
   const bookHref = onIndex ? '#book' : './#book';
+  const accountHref = onIndex ? 'account' : './account';
 
   const links = NAV_LINKS.map((l) => {
     const href = onIndex ? l.hash : `./${l.hash}`;
@@ -47,7 +50,7 @@ function renderNav(navEl) {
 
   navEl.innerHTML = `
     <div class="logo"><a href="./"><img src="assets/Logo_NoBG.png" alt="GGS Studio"></a></div>
-    <div class="nav-links" id="navLinks">${links}<a href="${bookHref}" id="navBookLink">Book a session</a></div>
+    <div class="nav-links" id="navLinks">${links}<a href="${bookHref}" id="navBookLink">Book a session</a><a href="${accountHref}" id="navBookingsLink">My Bookings</a></div>
     <div class="nav-right">
       <a href="login" class="nav-cta" id="navAuth">Sign in</a>
       <button class="burger" id="burgerBtn" aria-label="Toggle menu" aria-expanded="false" aria-controls="navLinks">
@@ -55,7 +58,6 @@ function renderNav(navEl) {
       </button>
     </div>
   `;
-  return bookHref;
 }
 
 // Gives the bar visual weight once you've scrolled off the hero, instead of
@@ -97,7 +99,7 @@ function markCurrentNavLink() {
 export async function initAuthNav() {
   normalizeUrl();
   const navEl = document.querySelector('nav');
-  const bookHref = navEl ? renderNav(navEl) : null;
+  if (navEl) renderNav(navEl);
   if (navEl) initScrollShadow(navEl);
   initBurger();
   markCurrentNavLink();
@@ -113,8 +115,6 @@ export async function initAuthNav() {
   greet.style.display = 'none';
   el.parentNode.insertBefore(greet, el);
 
-  const bookLink = document.getElementById('navBookLink');
-
   async function render(session) {
     el.textContent = session ? 'Sign out' : 'Sign in';
     // Omit the param entirely for the home page rather than sending
@@ -123,16 +123,6 @@ export async function initAuthNav() {
     // /account instead of back to /.
     const page = currentPage();
     el.href = session ? '#' : (page ? `login?next=${encodeURIComponent(page)}` : 'login');
-    if (bookLink) {
-      if (session) {
-        bookLink.textContent = 'My Bookings';
-        bookLink.href = 'account';
-      } else {
-        bookLink.textContent = 'Book a session';
-        bookLink.href = bookHref;
-      }
-      markCurrentNavLink(); // href just changed, so "current" needs a re-check
-    }
     if (!session) {
       greet.style.display = 'none';
       return;
