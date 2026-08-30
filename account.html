@@ -167,7 +167,7 @@
       </div>
 
       <div id="authStep" class="auth-step" style="display:none;">
-        <p class="auth-step-note" id="authStepNote">One more step — create an account (or log in) to confirm this booking.</p>
+        <p class="auth-step-note" id="authStepNote">That email already has a GGS Studio account. Enter its password to confirm this booking, or use a different email address.</p>
         <div class="field">
           <label>Password</label>
           <div class="pw-wrap">
@@ -220,6 +220,7 @@
 
 <script type="module">
   import { getSupabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './js/supabase-client.js';
+  import { deviceCredentials, fetchGuestBookings } from './js/device.js';
   import { initBooking } from './js/booking.js';
   import { initAuthNav } from './js/auth.js';
   import { initBookingCalendar } from './js/availability.js';
@@ -239,13 +240,20 @@
     return `${dateStr} · ${timeStr}`;
   }
 
+  // `session` is null for bookings made on this browser without an account —
+  // the device credentials in the body stand in for the bearer token then, and
+  // the Edge Function works out which of the two it was handed.
   async function callFunction(name, session, body){
     const res = await fetch(`${FUNCTIONS_URL}/${name}`, {
       method:'POST',
-      headers:{ 'Content-Type':'application/json', apikey: SUPABASE_ANON_KEY, Authorization:`Bearer ${session.access_token}` },
-      body: JSON.stringify(body),
+      headers:{
+        'Content-Type':'application/json',
+        apikey: SUPABASE_ANON_KEY,
+        Authorization:`Bearer ${session?.access_token || SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({ ...deviceCredentials(), ...body }),
     });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Something went wrong.');
     return data;
   }
@@ -450,29 +458,46 @@
     upcomingList.innerHTML = '';
     pastList.innerHTML = '';
 
-    // Staff can read every booking under RLS, so this page has to scope itself
-    // to the signed-in customer — otherwise an admin's "My bookings" lists the
-    // whole studio's calendar as if it were their own.
-    const [{ data: bookings, error }, { data: cutoffRows }] = await Promise.all([
-      supabase
-        .from('bookings')
-        .select('*, rooms(name), booking_services(quantity, services(name, price_type, unit_label)), payments(id, method, type, status, amount, rejection_reason)')
-        .eq('customer_id', session.user.id)
-        .order('start_at', { ascending: false }),
-      supabase.from('app_settings').select('value').eq('key', 'reschedule_cutoff_hours'),
-    ]);
-    // Mirror the studio's configured cutoff rather than hardcoding 24h here.
-    const parsedCutoff = Number(cutoffRows?.[0]?.value);
-    const cutoffHours = Number.isFinite(parsedCutoff) && parsedCutoff >= 0 ? parsedCutoff : 24;
+    let bookings = [];
+    let cutoffHours = 24;
 
-    if (error){
-      upcomingList.innerHTML = `<p class="muted">Could not load bookings: ${error.message}</p>`;
-      return;
+    if (!session){
+      // Signed out: the only bookings we can show are the ones this browser
+      // made without an account. RLS gives an anonymous visitor nothing, so
+      // these come back through the guest-bookings Edge Function instead.
+      try {
+        const guest = await fetchGuestBookings();
+        bookings = guest.bookings;
+        cutoffHours = guest.cutoffHours;
+      } catch (err) {
+        upcomingList.innerHTML = `<p class="muted">Could not load bookings: ${err.message}</p>`;
+        return;
+      }
+    } else {
+      // Staff can read every booking under RLS, so this page has to scope itself
+      // to the signed-in customer — otherwise an admin's "My bookings" lists the
+      // whole studio's calendar as if it were their own.
+      const [{ data: rows, error }, { data: cutoffRows }] = await Promise.all([
+        supabase
+          .from('bookings')
+          .select('*, rooms(name), booking_services(quantity, services(name, price_type, unit_label)), payments(id, method, type, status, amount, rejection_reason)')
+          .eq('customer_id', session.user.id)
+          .order('start_at', { ascending: false }),
+        supabase.from('app_settings').select('value').eq('key', 'reschedule_cutoff_hours'),
+      ]);
+      if (error){
+        upcomingList.innerHTML = `<p class="muted">Could not load bookings: ${error.message}</p>`;
+        return;
+      }
+      bookings = rows || [];
+      // Mirror the studio's configured cutoff rather than hardcoding 24h here.
+      const parsedCutoff = Number(cutoffRows?.[0]?.value);
+      cutoffHours = Number.isFinite(parsedCutoff) && parsedCutoff >= 0 ? parsedCutoff : 24;
     }
 
     const now = new Date();
-    const upcoming = (bookings || []).filter(b => new Date(b.start_at) >= now && b.status !== 'cancelled').reverse();
-    const past = (bookings || []).filter(b => new Date(b.start_at) < now || b.status === 'cancelled');
+    const upcoming = bookings.filter(b => new Date(b.start_at) >= now && b.status !== 'cancelled').reverse();
+    const past = bookings.filter(b => new Date(b.start_at) < now || b.status === 'cancelled');
 
     // --i drives the CSS stagger so a list of cards fans in one after another.
     const append = (list) => (b, i) => {
@@ -490,14 +515,37 @@
 
   async function refreshBookingsPanel(supabase){
     const { data } = await supabase.auth.getSession();
-    if (!data.session){
-      document.getElementById('signedOutMsg').style.display = 'block';
-      document.getElementById('bookingsRoot').style.display = 'none';
+    const session = data.session;
+    const signedOutMsg = document.getElementById('signedOutMsg');
+    const bookingsRoot = document.getElementById('bookingsRoot');
+
+    if (session){
+      signedOutMsg.style.display = 'none';
+      bookingsRoot.style.display = 'block';
+      await loadBookings(supabase, session);
       return;
     }
-    document.getElementById('signedOutMsg').style.display = 'none';
-    document.getElementById('bookingsRoot').style.display = 'block';
-    await loadBookings(supabase, data.session);
+
+    // Signed out, but this browser may still have booked as a guest. Show those
+    // rather than a bare "sign in" wall — and keep the sign-in prompt alongside,
+    // because a browser is a fragile place to keep the only record of a session.
+    const { bookings } = await fetchGuestBookings();
+    if (bookings.length === 0){
+      signedOutMsg.innerHTML =
+        '<p>Sign in to see the sessions you\'ve booked — or just book below, no account needed.</p>' +
+        '<a href="login?next=account" class="btn-primary">Sign in</a>';
+      signedOutMsg.style.display = 'block';
+      bookingsRoot.style.display = 'none';
+      return;
+    }
+
+    signedOutMsg.innerHTML =
+      '<p>These are the sessions booked on this browser. They live in this browser only — ' +
+      'sign in (or make an account with the same email) and they follow you to every device.</p>' +
+      '<a href="login?next=account" class="btn-primary">Sign in</a>';
+    signedOutMsg.style.display = 'block';
+    bookingsRoot.style.display = 'block';
+    await loadBookings(supabase, null);
   }
 
   // Coming back from PayMongo's hosted checkout. The webhook is what actually
@@ -528,6 +576,9 @@
     await refreshBookingsPanel(supabase);
     supabase.auth.onAuthStateChange(() => refreshBookingsPanel(supabase));
     window.addEventListener('ggs:booking-created', () => refreshBookingsPanel(supabase));
+    // Claiming runs just after a sign-in, so the list rendered on SIGNED_IN is
+    // drawn before the guest bookings have moved across — redraw once they have.
+    window.addEventListener('ggs:bookings-claimed', () => refreshBookingsPanel(supabase));
   })();
 </script>
 

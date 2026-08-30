@@ -74,6 +74,7 @@
 <script type="module">
   import { getSupabase } from './js/supabase-client.js';
   import { initAuthNav, signUpChecked } from './js/auth.js';
+  import { claimGuestBookings } from './js/device.js';
   import { initPasswordToggles } from './js/booking.js';
   import { clearFormErrors, showFieldErrors, setFieldError, isEmail } from './js/form-validate.js';
 
@@ -103,8 +104,8 @@
     document.getElementById('authTag').textContent = signup ? 'Join the studio' : 'Welcome back';
     document.getElementById('authTitle').textContent = signup ? 'Create account' : 'Sign in';
     document.getElementById('authNote').textContent = signup
-      ? 'Create an account to book sessions and track them in one place.'
-      : 'Sign in to book a session and manage your bookings.';
+      ? "You don't need an account to book — this is for keeping your sessions in one place, on every device."
+      : 'Sign in to pick up every session booked with this email, from any device.';
     nameField.classList.toggle('open', signup);
     // Re-trigger the crossfade: the class has to come off for a reflow first.
     authHead.classList.remove('swapping');
@@ -174,6 +175,11 @@
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       }
+      // auth.js claims guest bookings on every sign-in, but this page navigates
+      // away immediately and would cut that request off mid-flight. Do it here
+      // and wait, so the bookings have moved across before My Bookings loads.
+      const { data: signedIn } = await supabase.auth.getSession();
+      if (signedIn.session) await claimGuestBookings(signedIn.session);
       location.href = next;
     } catch (err) {
       submit.disabled = false;

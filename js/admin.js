@@ -544,7 +544,10 @@ async function main() {
 
     const filtered = allBookings.filter((b) => {
       if (status && b.status !== status) return false;
-      if (search && !(b.profiles?.full_name || b.guest_name || '').toLowerCase().includes(search)) return false;
+      // Guest bookings are found by the email as readily as by the name — often
+      // the email is the only thing staff have to go on from a phone call.
+      const haystack = [b.profiles?.full_name, b.guest_name, b.guest_email].filter(Boolean).join(' ').toLowerCase();
+      if (search && !haystack.includes(search)) return false;
       if (from && new Date(b.start_at) < new Date(from)) return false;
       if (to && new Date(b.start_at) > new Date(to + 'T23:59:59')) return false;
       return true;
@@ -581,7 +584,7 @@ async function main() {
         el('tr', {}, [
           el('td', {}, dt(b.start_at)),
           el('td', {}, b.rooms?.name || ''),
-          el('td', {}, b.profiles?.full_name || (b.guest_name ? `${b.guest_name} (guest)` : '—')),
+          el('td', {}, customerCell(b)),
           el('td', {}, payOptionCell(b)),
           el('td', { style: 'opacity:0.6;' }, (b.booking_services || [])
             .filter((bs) => bs.services?.name)
@@ -594,6 +597,18 @@ async function main() {
         ]),
       );
     });
+  }
+
+  // Booking no longer requires an account, so for a good share of rows the only
+  // way to reach the customer is the email they typed on the form. Showing it
+  // under the name means staff never have to go hunting for it.
+  function customerCell(b) {
+    const name = b.profiles?.full_name || b.guest_name || '—';
+    const nodes = [el('span', {}, b.profiles ? name : (b.guest_name ? `${name} (guest)` : name))];
+    if (!b.profiles && b.guest_email) {
+      nodes.push(el('span', { style: 'display:block;font-size:0.78em;opacity:0.6;' }, b.guest_email));
+    }
+    return nodes;
   }
 
   const PAY_OPTION_LABEL = { cash: 'Cash', deposit: 'Downpayment (online)', full: 'Full (online)' };

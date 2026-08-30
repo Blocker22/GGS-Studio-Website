@@ -527,6 +527,18 @@ h2{
 .auth-step .field{margin-bottom:0;}
 .auth-toggle-row{margin-top:10px; text-align:center;}
 .auth-toggle-row button{width:auto; padding:8px 16px; font-size:0.76rem;}
+
+/* The "keep track of your bookings" offer that follows a guest booking. Built
+   in js/booking.js and appended after #confirmMsg, so it borrows .auth-step's
+   look — an invitation sitting under the confirmation, not another form field. */
+.save-account-offer{margin-top:14px; padding:14px 16px;}
+.save-account-offer .auth-step-note{line-height:1.55; opacity:0.85;}
+.save-account-offer .auth-step-note strong{display:block; margin-bottom:4px; opacity:1;}
+.save-account-offer .field{margin-bottom:12px;}
+.save-account-actions{display:flex; align-items:center; gap:12px; flex-wrap:wrap;}
+.save-account-actions .btn-primary{width:auto; padding:9px 18px; font-size:0.78rem;}
+.save-account-actions .btn-ghost{width:auto; padding:9px 14px; font-size:0.76rem;}
+.save-account-offer .confirm-msg{margin-top:12px;}
 .auth-signed-in{
   display:flex; align-items:center; justify-content:space-between; gap:16px;
   padding:9px 16px; margin-bottom:12px;

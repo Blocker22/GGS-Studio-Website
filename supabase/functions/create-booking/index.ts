@@ -1,11 +1,21 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+import {
+  adminClient,
+  corsHeaders,
+  guestEmailBlocked,
+  json,
+  linkDeviceEmail,
+  normalizeEmail,
+  resolveCaller,
+} from "./guest.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+// Booking does not require an account. A visitor gives a name and an email and
+// the slot is theirs; their browser keeps a device secret (see guest.ts) that
+// lets them manage the booking afterwards, and registering later with the same
+// email pulls the whole history into the account.
+//
+// The one thing an anonymous caller may not do is book under an email that
+// already has a login, unless this browser has signed into that account before.
 
 const PAYMONGO_API = "https://api.paymongo.com/v1";
 const PAYMENT_OPTIONS = ["cash", "deposit", "full"];
@@ -28,13 +38,6 @@ function quantityFor(service: ServiceRow, quantities: Record<string, unknown>): 
   if (service.price_type !== "unit") return 1;
   const raw = Math.floor(Number(quantities?.[service.id]));
   return Number.isFinite(raw) && raw >= 1 ? raw : 1;
-}
-
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...corsHeaders, "Content-Type": "application/json" },
-  });
 }
 
 // A service may name another as its prerequisite (services.requires_service_id),
@@ -64,25 +67,7 @@ function toCentavos(peso: number): number {
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-  const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const authHeader = req.headers.get("Authorization") ?? "";
-
-  const callerClient = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-    global: { headers: { Authorization: authHeader } },
-  });
-  const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
-
-  const { data: userData, error: userErr } = await callerClient.auth.getUser();
-  if (userErr || !userData?.user) return json({ error: "Not authenticated." }, 401);
-  const caller = userData.user;
-
-  const { data: callerProfile } = await admin
-    .from("profiles")
-    .select("role")
-    .eq("id", caller.id)
-    .single();
-  const isStaff = callerProfile?.role === "staff" || callerProfile?.role === "admin";
+  const admin = adminClient();
 
   let body: any;
   try {
@@ -90,6 +75,14 @@ Deno.serve(async (req: Request) => {
   } catch {
     return json({ error: "Invalid JSON body." }, 400);
   }
+
+  // A first-time visitor's browser is enrolled here — this is the only function
+  // that mints a device, so an unknown id can't be used to probe anywhere else.
+  const resolved = await resolveCaller(admin, req, body ?? {}, { registerDevice: true });
+  if ("error" in resolved) return resolved.error;
+  const caller = resolved.caller;
+  const isStaff = caller.isStaff;
+  const isGuest = !caller.userId;
 
   const {
     room_id,
@@ -100,6 +93,8 @@ Deno.serve(async (req: Request) => {
     notes,
     customer_id: bodyCustomerId,
     guest_name: bodyGuestName,
+    guest_email: bodyGuestEmail,
+    guest_phone: bodyGuestPhone,
     payment_option: bodyPaymentOption,
     id_image_path: bodyIdImagePath,
     return_url: bodyReturnUrl,
@@ -122,11 +117,42 @@ Deno.serve(async (req: Request) => {
     ? service_quantities
     : {};
 
-  // Only staff may book on behalf of another customer, or a walk-in/phone
-  // customer who never made an account (guest_name, no customer_id).
-  const guestName = isStaff && typeof bodyGuestName === "string" && bodyGuestName.trim() ? bodyGuestName.trim() : null;
-  const customerId = guestName ? null : (isStaff && typeof bodyCustomerId === "string" ? bodyCustomerId : caller.id);
-  if (!customerId && !guestName) return json({ error: "customer_id or guest_name is required." }, 400);
+  // --- Who the booking is for ---------------------------------------------
+  // Three shapes: staff booking for a walk-in or another customer; a signed-in
+  // customer booking for themselves; an anonymous visitor booking by name and
+  // email, owned by their device until they claim it.
+  let customerId: string | null = null;
+  let guestName: string | null = null;
+  let guestEmail: string | null = null;
+  let guestPhone: string | null = null;
+  let deviceId: string | null = null;
+
+  if (isStaff) {
+    guestName = typeof bodyGuestName === "string" && bodyGuestName.trim() ? bodyGuestName.trim() : null;
+    customerId = guestName ? null : (typeof bodyCustomerId === "string" ? bodyCustomerId : caller.userId);
+    if (!customerId && !guestName) return json({ error: "customer_id or guest_name is required." }, 400);
+    guestEmail = normalizeEmail(bodyGuestEmail);
+  } else if (isGuest) {
+    guestName = typeof bodyGuestName === "string" ? bodyGuestName.trim() : "";
+    if (!guestName) return json({ error: "Please tell us your name." }, 400);
+    if (guestName.length > 120) return json({ error: "That name is too long." }, 400);
+    guestEmail = normalizeEmail(bodyGuestEmail);
+    if (!guestEmail) return json({ error: "Please give a valid email address so we can confirm your booking." }, 400);
+
+    deviceId = caller.deviceId;
+    if (!deviceId) return json({ error: "This browser isn't set up for guest bookings." }, 400);
+
+    const blocked = await guestEmailBlocked(admin, guestEmail, deviceId);
+    if (blocked) return json(blocked, 409);
+
+    guestPhone = typeof bodyGuestPhone === "string" && bodyGuestPhone.trim()
+      ? bodyGuestPhone.trim().slice(0, 40)
+      : null;
+  } else {
+    customerId = caller.userId;
+    guestEmail = caller.email;
+    deviceId = caller.deviceId;
+  }
 
   // Staff bookings are taken in person, so they always settle as cash.
   const paymentOption: string = isStaff
@@ -135,15 +161,18 @@ Deno.serve(async (req: Request) => {
 
   // A self-serve cash booking is only accepted with a photo of a valid ID, and
   // that has to be checked server-side — a client could otherwise skip it.
+  // Signed-in customers upload under their user id; guests, who have none, use
+  // guest/<device id>, and either way the path must match the caller we just
+  // authenticated rather than whatever the body claims.
   let idImagePath: string | null = null;
   if (paymentOption === "cash" && !isStaff) {
     if (typeof bodyIdImagePath !== "string" || !bodyIdImagePath.trim()) {
       return json({ error: "A photo of a valid ID is required to pay in cash." }, 400);
     }
     idImagePath = bodyIdImagePath.trim();
-    // The upload must genuinely live in this customer's own folder, and exist.
-    if (!idImagePath.startsWith(caller.id + "/")) {
-      return json({ error: "That ID upload does not belong to your account." }, 403);
+    const expectedPrefix = caller.userId ? `${caller.userId}/` : `guest/${deviceId}/`;
+    if (!idImagePath.startsWith(expectedPrefix)) {
+      return json({ error: "That ID upload does not belong to you." }, 403);
     }
     const slash = idImagePath.lastIndexOf("/");
     const folder = idImagePath.slice(0, slash);
@@ -203,6 +232,9 @@ Deno.serve(async (req: Request) => {
     .insert({
       customer_id: customerId,
       guest_name: guestName,
+      guest_email: guestEmail,
+      guest_phone: guestPhone,
+      device_id: deviceId,
       room_id,
       start_at,
       end_at,
@@ -212,7 +244,7 @@ Deno.serve(async (req: Request) => {
       payment_option: paymentOption,
       id_image_path: idImagePath,
       notes: typeof notes === "string" ? notes : null,
-      created_by: isStaff ? caller.id : null,
+      created_by: isStaff ? caller.userId : null,
     })
     .select()
     .single();
@@ -226,6 +258,10 @@ Deno.serve(async (req: Request) => {
     }
     return json({ error: "Could not create booking.", detail: insertErr.message }, 400);
   }
+
+  // Remember which address this browser books under, so the fraud check can
+  // tell "my own laptop" from a stranger's the next time round.
+  await linkDeviceEmail(admin, deviceId, guestEmail, caller.userId);
 
   if (services.length > 0) {
     const rows = services.map((s) => {
@@ -247,7 +283,7 @@ Deno.serve(async (req: Request) => {
 
   // Cash: nothing to charge now. Staff verify the ID and take the money on the day.
   if (paymentOption === "cash") {
-    return json({ booking, payment_required: false, payment_option: "cash" });
+    return json({ booking, payment_required: false, payment_option: "cash", guest: isGuest });
   }
 
   // --- Online payment ------------------------------------------------------
@@ -276,7 +312,7 @@ Deno.serve(async (req: Request) => {
   // booking, and say so plainly instead of implying the money went through.
   async function fallbackToCash(notice: string, detail: unknown = null) {
     await admin.from("bookings").update({ payment_option: "cash" }).eq("id", booking.id);
-    return json({ booking, payment_required: false, payment_option: "cash", notice, detail });
+    return json({ booking, payment_required: false, payment_option: "cash", notice, detail, guest: isGuest });
   }
 
   if (!paymongoEnabled || !paymongoKey) {
@@ -310,6 +346,7 @@ Deno.serve(async (req: Request) => {
       payment_id: payment.id,
       amount_due: amountDue,
       deposit_percent: depositPercent,
+      guest: isGuest,
     });
   }
 
@@ -403,5 +440,6 @@ Deno.serve(async (req: Request) => {
     amount_due: amountDue,
     deposit_percent: depositPercent,
     checkout_url: checkoutUrl,
+    guest: isGuest,
   });
 });

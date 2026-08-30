@@ -22,6 +22,7 @@
 // existing terms modal handle agreement.
 
 import { getSupabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase-client.js';
+import { deviceCredentials, fetchGuestBookings } from './device.js';
 
 const FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
 const SCROLL_REVEAL_PX = 380;
@@ -260,27 +261,37 @@ export async function initChatbot() {
       supabase = sb;
       const { data: sessionData } = await sb.auth.getSession();
       const session = sessionData?.session;
-      if (!session) {
-        return {
-          text: 'You are not signed in on this device, so I cannot look up your sessions. Sign in and I will be able to see them here.',
-          actions: [{ label: 'Sign in', href: 'login?next=account' }],
-          quick: ['book', 'rates'],
-        };
-      }
-      const { data: bookings, error } = await sb
-        .from('bookings')
-        .select('start_at, end_at, status, total_price, rooms(name)')
-        .eq('customer_id', session.user.id)
-        .gte('start_at', new Date().toISOString())
-        .neq('status', 'cancelled')
-        .order('start_at')
-        .limit(3);
 
-      if (error) return { text: 'I could not read your bookings just now. The My Bookings page will have them.', actions: [{ label: 'My bookings', href: 'account' }] };
-      if (!bookings?.length) {
+      // Signed out is no longer a dead end: booking needs no account, so this
+      // browser may well have sessions of its own to show.
+      let bookings = [];
+      if (session) {
+        const { data, error } = await sb
+          .from('bookings')
+          .select('start_at, end_at, status, total_price, rooms(name)')
+          .eq('customer_id', session.user.id)
+          .gte('start_at', new Date().toISOString())
+          .neq('status', 'cancelled')
+          .order('start_at')
+          .limit(3);
+        if (error) return { text: 'I could not read your bookings just now. The My Bookings page will have them.', actions: [{ label: 'My bookings', href: 'account' }] };
+        bookings = data || [];
+      } else {
+        const guest = await fetchGuestBookings();
+        bookings = guest.bookings
+          .filter((b) => new Date(b.start_at) >= new Date() && b.status !== 'cancelled')
+          .sort((a, b) => new Date(a.start_at) - new Date(b.start_at))
+          .slice(0, 3);
+      }
+
+      if (!bookings.length) {
         return {
-          text: 'You have no upcoming sessions booked at the moment.',
-          actions: [{ label: 'Book one now', href: bookHref() }],
+          text: session
+            ? 'You have no upcoming sessions booked at the moment.'
+            : "I can't see any sessions booked on this browser. If you booked on another device, sign in and they'll all be here.",
+          actions: session
+            ? [{ label: 'Book one now', href: bookHref() }]
+            : [{ label: 'Book one now', href: bookHref() }, { label: 'Sign in', href: 'login?next=account' }],
           quick: ['rates', 'hours'],
         };
       }
@@ -929,15 +940,18 @@ export async function initChatbot() {
   // the cutoff rule, the "no-shows aren't refunded" logic, and everything else
   // the server enforces is enforced here too — the chat is just another door.
 
+  // `session` is null when the booking was made on this browser without an
+  // account — the device credentials in the body are the authority then, and
+  // the server applies exactly the same rules either way.
   async function callBookingFunction(name, session, body) {
     const res = await fetch(`${FUNCTIONS_URL}/${name}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         apikey: SUPABASE_ANON_KEY,
-        Authorization: `Bearer ${session.access_token}`,
+        Authorization: `Bearer ${session?.access_token || SUPABASE_ANON_KEY}`,
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify({ ...deviceCredentials(), ...body }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || 'Something went wrong.');
@@ -1118,38 +1132,48 @@ export async function initChatbot() {
       const session = sessionData?.session;
       const f = await loadFacts();
 
-      // Not signed in: the bot can't look anything up or act on your behalf,
-      // but the policy itself doesn't need an account to explain.
-      if (!session) {
+      // Signed in or not, the bot can act — a booking made without an account is
+      // managed with this browser's device credentials instead of a session.
+      let bookings = [];
+      if (session) {
+        const { data, error } = await sb
+          .from('bookings')
+          .select('id, start_at, end_at, status, total_price, rooms(name)')
+          .eq('customer_id', session.user.id)
+          .in('status', ['pending', 'confirmed'])
+          .gte('start_at', new Date().toISOString())
+          .order('start_at')
+          .limit(5);
+        if (error) {
+          await sendBotMessage('I could not load your bookings just now.', { actions: [{ label: 'My bookings', href: 'account' }] });
+          renderQuick(DEFAULT_QUICK);
+          return;
+        }
+        bookings = data || [];
+      } else {
+        const guest = await fetchGuestBookings();
+        bookings = guest.bookings
+          .filter((b) => ['pending', 'confirmed'].includes(b.status) && new Date(b.start_at) >= new Date())
+          .sort((a, b) => new Date(a.start_at) - new Date(b.start_at))
+          .slice(0, 5);
+      }
+
+      // Nothing to act on — so answer the policy question that was actually
+      // asked, which needs no account to explain.
+      if (!bookings.length) {
         await sendBotMessage(
-          `You can cancel or reschedule free of charge any time up to ${f.cutoffHours} hours before your session — `
-          + `sign in and I can do it for you right here, or use My Bookings. `
-          + `Inside that window it's phone-only: call the studio on +63 976 350 6301. `
-          + `No-shows aren't refunded, so it's always worth telling us if you're running late.`,
-          { actions: [{ label: 'Sign in', href: 'login?next=account' }] },
+          `You can cancel or reschedule free of charge any time up to ${f.cutoffHours} hours before your session, `
+          + `right here or from My Bookings. Inside that window it's phone-only: call the studio on +63 976 350 6301. `
+          + `No-shows aren't refunded, so it's always worth telling us if you're running late.`
+          + (session
+            ? " You have no upcoming sessions at the moment, though."
+            : " I can't see any sessions booked on this browser — if you booked on another device, sign in and I'll find them."),
+          {
+            actions: session
+              ? [{ label: 'Book a session', href: bookHref() }]
+              : [{ label: 'Sign in', href: 'login?next=account' }, { label: 'Book a session', href: bookHref() }],
+          },
         );
-        renderQuick(DEFAULT_QUICK);
-        return;
-      }
-
-      const { data: bookings, error } = await sb
-        .from('bookings')
-        .select('id, start_at, end_at, status, total_price, rooms(name)')
-        .eq('customer_id', session.user.id)
-        .in('status', ['pending', 'confirmed'])
-        .gte('start_at', new Date().toISOString())
-        .order('start_at')
-        .limit(5);
-
-      if (error) {
-        await sendBotMessage('I could not load your bookings just now.', { actions: [{ label: 'My bookings', href: 'account' }] });
-        renderQuick(DEFAULT_QUICK);
-        return;
-      }
-      if (!bookings?.length) {
-        await sendBotMessage('You have no upcoming sessions to cancel or reschedule.', {
-          actions: [{ label: 'Book one now', href: bookHref() }],
-        });
         renderQuick(DEFAULT_QUICK);
         return;
       }

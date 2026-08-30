@@ -1,14 +1,30 @@
 // Supabase-backed booking flow. Visually this is the original single-form
 // layout (Name / Email / Service / Date / Start / End). Behind the scenes it
 // talks to Postgres for live rates and to the create-booking Edge Function to
-// place the booking. Account creation/login is NOT required to fill out the
-// form — it only kicks in when the visitor submits and isn't signed in yet,
-// using the name/email they already typed.
+// place the booking.
+//
+// No account is required to book. Name and email are enough: the booking is
+// owned by this browser, which proves itself with the device secret in
+// device.js, and the visitor is offered an account afterwards — the point of
+// which is that it survives clearing your browser and follows you to your
+// phone. Signing in claims every booking made under the same email.
+//
+// The one place a password is still demanded up front is an email that already
+// has an account. Booking anonymously in a registered customer's name is
+// refused by create-booking, so the form asks them to sign in instead.
 import { getSupabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase-client.js';
 import { signUpChecked } from './auth.js';
 import { openPaymentModal } from './payment-qr.js';
 import { clearFormErrors, clearFieldError, showFieldErrors, setFieldError, isEmail } from './form-validate.js';
 import { compressImageIfNeeded } from './image-compress.js';
+import {
+  claimGuestBookings,
+  deviceCredentials,
+  getDevice,
+  lastGuestEmail,
+  lastGuestName,
+  rememberGuestBooking,
+} from './device.js';
 
 const FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
 
@@ -42,6 +58,8 @@ export function initTermsModal() {
         <h4>Booking &amp; Confirmation</h4>
         <ul>
           <li>Your booking is confirmed the moment you complete it. Slots are held on a first-come, first-served basis, and we'll only reach out if there's an issue with your booking.</li>
+          <li>No account is needed to book — your name and email are enough. The browser you booked from is what lets you view, reschedule, or cancel that booking afterwards, so clearing its site data means losing that access. Creating an account (any time, including after you book) keeps your bookings reachable from any device.</li>
+          <li>If the email address you enter already belongs to a GGS Studio account, you'll be asked to sign in before the booking goes through. This is to stop anyone from booking in someone else's name.</li>
           <li>Sessions start and end at the booked times. Please arrive on time — late arrivals do not extend the session.</li>
           <li>The person booking is responsible for everyone they bring and for the conduct of their group for the duration of the session.</li>
         </ul>
@@ -94,6 +112,7 @@ export function initTermsModal() {
         <h4>Data &amp; Privacy</h4>
         <ul>
           <li>Your name, email, ID photo, and payment receipts are collected solely to manage your booking and payment, and are handled in accordance with the Data Privacy Act (RA 10173). They are stored in private, access-controlled storage readable only by you and GGS Studio staff, and are never sold or shared beyond what is needed to process your booking.</li>
+          <li>Booking without an account stores a random identifier and a random key in your browser. They are not linked to any advertising, are never shared with anyone, and exist only so this browser can prove that a booking is yours. Clearing your browser data erases them, and with them your access to those bookings.</li>
           <li>Our <a href="privacy" target="_blank" rel="noopener">Privacy Policy</a> sets out in full what we collect, why, who processes it on our behalf, how long we keep it, and the rights you have over it. It forms part of these terms.</li>
           <li>You can delete your account at any time from your Profile page. Doing so erases your login, personal details, ID photos, and receipts; past sessions remain in the studio's books as anonymised walk-in bookings, because we are required to keep those financial records.</li>
         </ul>
@@ -203,18 +222,26 @@ function to12Hour(time) {
   return `${hour}:${String(m).padStart(2, '0')} ${period}`;
 }
 
+// `session` may be null — that's a guest call, authorised by the device
+// credentials that ride along in every body instead of by a bearer token.
+// The Edge Function decides which of the two it got; nothing here assumes.
 async function callFunction(name, session, body) {
   const res = await fetch(`${FUNCTIONS_URL}/${name}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${session.access_token}`,
+      Authorization: `Bearer ${session?.access_token || SUPABASE_ANON_KEY}`,
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...deviceCredentials(), ...body }),
   });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Something went wrong.');
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.error || 'Something went wrong.');
+    err.code = data.code || null;
+    err.status = res.status;
+    throw err;
+  }
   return data;
 }
 
@@ -268,13 +295,17 @@ export async function initBooking() {
   const authPassword = document.getElementById('authPassword');
   const authMsg = document.getElementById('authMsg');
   const authToggleRow = document.getElementById('authToggleRow');
+  // Kept in the markup but never shown any more: the auth step only ever means
+  // "this email is taken", and there is no sign-up alternative to toggle to.
   const authToggleBtn = document.getElementById('authToggleBtn');
+  if (authToggleBtn) authToggleBtn.hidden = true;
 
   let session = null;
   let mainRoom = null;
   let addonServices = [];
   let depositPercent = 20;
-  let awaitingAuthMode = null; // 'signup' | 'login' | null
+  // Non-null only while the "this email has an account" password step is up.
+  let awaitingAuthMode = null; // 'login' | null
   let isStaff = false;
 
   async function refreshAuthUI() {
@@ -302,6 +333,10 @@ export async function initBooking() {
       if (authSignedIn) authSignedIn.style.display = 'none';
       emailEl.readOnly = false;
       isStaff = false;
+      // Someone who has booked here before as a guest shouldn't have to retype
+      // the details their earlier bookings are filed under.
+      if (!emailEl.value.trim()) emailEl.value = lastGuestEmail() || '';
+      if (!nameEl.value.trim()) nameEl.value = lastGuestName() || '';
     }
     refreshPayOptions();
   }
@@ -318,22 +353,28 @@ export async function initBooking() {
     submitBtn.textContent = 'Confirm booking request';
   }
 
-  function showAuthStep(mode) {
-    awaitingAuthMode = mode;
+  // Only ever 'login' now. Booking itself needs no account; this step appears
+  // solely because the email typed in belongs to one, and letting an anonymous
+  // visitor book in a registered customer's name is the fraud we're preventing.
+  function showAuthStep(note) {
+    awaitingAuthMode = 'login';
     clearFieldError(authPassword);
     authStep.style.display = 'block';
-    authToggleRow.style.display = 'block';
+    // There's no "create an account instead" alternative here — that address is
+    // already taken, which is the entire reason we're asking.
+    authToggleRow.style.display = 'none';
     authStepNote.textContent =
-      mode === 'signup'
-        ? 'One more step — create an account to confirm this booking.'
-        : 'Welcome back — enter your password to confirm this booking.';
-    authToggleBtn.textContent = mode === 'signup' ? 'Already have an account? Log in instead' : 'New here? Create an account instead';
-    submitBtn.textContent = mode === 'signup' ? 'Create account & confirm booking' : 'Log in & confirm booking';
+      note ||
+      'That email already has a GGS Studio account. Enter its password to confirm this booking, ' +
+        'or use a different email address.';
+    submitBtn.textContent = 'Log in & confirm booking';
     authPassword.focus();
   }
 
-  authToggleBtn.addEventListener('click', () => {
-    showAuthStep(awaitingAuthMode === 'signup' ? 'login' : 'signup');
+  // Typing a different address is the other way out of the login step, so drop
+  // back to plain guest booking as soon as the email changes.
+  emailEl.addEventListener('input', () => {
+    if (awaitingAuthMode && !session) hideAuthStep();
   });
 
   supabase.auth.getSession().then(({ data }) => {
@@ -675,9 +716,11 @@ export async function initBooking() {
     return errors;
   }
 
-  // Uploads the valid ID into the customer's own folder in the private
-  // customer-ids bucket and returns the stored path. Storage RLS restricts
-  // both the write and any later read to that customer plus studio staff.
+  // Uploads the valid ID into the caller's own folder in the private
+  // customer-ids bucket and returns the stored path. Signed-in customers own
+  // <user id>/…; a guest browser owns guest/<device id>/…. Storage RLS lets
+  // either write only into its own folder, and nobody but studio staff (or the
+  // owning customer) read anything back — anonymous callers have no read at all.
   async function uploadIdImage(userId) {
     let file = idImageEl?.files?.[0];
     if (!file) throw new Error('Please attach a photo of a valid ID to pay in cash.');
@@ -687,7 +730,8 @@ export async function initBooking() {
     file = await compressImageIfNeeded(file);
 
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '');
-    const path = `${userId}/${Date.now()}.${ext || 'jpg'}`;
+    const folder = userId ? userId : `guest/${getDevice().id}`;
+    const path = `${folder}/${Date.now()}.${ext || 'jpg'}`;
     const { error } = await supabase.storage.from('customer-ids').upload(path, file, {
       contentType: file.type || 'image/jpeg',
       upsert: false,
@@ -696,13 +740,140 @@ export async function initBooking() {
     return path;
   }
 
+  // Offered once a guest booking has gone through, never before it. The pitch
+  // has to be honest about what an account actually buys: this booking is
+  // already made and this browser can already manage it — an account is what
+  // keeps it reachable after you clear your browser, and what puts it on your
+  // phone too. Declining costs the visitor nothing.
+  let saveOffer = null;
+  function showSaveAccountOffer(booking) {
+    const email = booking?.guest_email || emailEl.value.trim();
+    const name = booking?.guest_name || nameEl.value.trim();
+    if (!email) return;
+
+    if (!saveOffer) {
+      saveOffer = document.createElement('div');
+      saveOffer.className = 'auth-step save-account-offer';
+      saveOffer.innerHTML = `
+        <p class="auth-step-note">
+          <strong>Want to keep track of your bookings?</strong>
+          This browser remembers what you booked, but that's all it is — one browser.
+          Pick a password and you'll be able to see and change your sessions from any device,
+          and we'll pull in everything you've ever booked with this email.
+        </p>
+        <div class="field">
+          <label>Password <span class="label-note">optional — at least 6 characters</span></label>
+          <div class="pw-wrap">
+            <input type="password" data-save-pw placeholder="••••••••" minlength="6" autocomplete="new-password">
+            <button type="button" class="pw-toggle" data-save-pw-toggle aria-label="Show password">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${EYE_OPEN}</svg>
+            </button>
+          </div>
+        </div>
+        <div class="save-account-actions">
+          <button type="button" class="btn-primary" data-save-go>Create my account</button>
+          <button type="button" class="btn-ghost" data-save-skip>No thanks</button>
+        </div>
+        <div class="confirm-msg" data-save-msg></div>`;
+      confirmMsg.insertAdjacentElement('afterend', saveOffer);
+
+      const pw = saveOffer.querySelector('[data-save-pw]');
+      const msg = saveOffer.querySelector('[data-save-msg]');
+      const goBtn = saveOffer.querySelector('[data-save-go]');
+
+      // This panel is built after initPasswordToggles() has already run, so its
+      // eye button is wired here rather than being picked up by that sweep.
+      saveOffer.querySelector('[data-save-pw-toggle]').addEventListener('click', (ev) => {
+        const btn = ev.currentTarget;
+        const show = pw.type === 'password';
+        pw.type = show ? 'text' : 'password';
+        btn.querySelector('svg').innerHTML = show ? EYE_OFF : EYE_OPEN;
+        btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+      });
+
+      saveOffer.querySelector('[data-save-skip]').addEventListener('click', () => {
+        saveOffer.style.display = 'none';
+      });
+
+      goBtn.addEventListener('click', async () => {
+        const password = pw.value;
+        msg.classList.remove('error');
+        msg.style.display = 'none';
+        if (password.length < 6) {
+          msg.textContent = '⚠ Please choose a password of at least 6 characters.';
+          msg.classList.add('error');
+          msg.style.display = 'block';
+          pw.focus();
+          return;
+        }
+        goBtn.disabled = true;
+        goBtn.textContent = 'Creating…';
+        try {
+          const result = await signUpChecked(supabase, saveOffer.dataset.email, password, saveOffer.dataset.name);
+          const newSession = result.session;
+          if (!newSession) {
+            // Email confirmation is switched on: the account exists but can't
+            // claim anything until the address is confirmed.
+            msg.textContent =
+              'Almost there — check your email to confirm your account. Your booking is safe either way, ' +
+              'and it will appear under My Bookings once you confirm.';
+            msg.style.display = 'block';
+            goBtn.disabled = true;
+            goBtn.textContent = 'Check your email';
+            return;
+          }
+          session = newSession;
+          const claim = await claimGuestBookings(newSession);
+          msg.textContent =
+            claim.claimed > 0
+              ? `✓ Account created — ${claim.claimed} booking${claim.claimed === 1 ? '' : 's'} moved into it. ` +
+                'You can see them under My Bookings from any device now.'
+              : '✓ Account created. Your bookings will show up under My Bookings.';
+          msg.style.display = 'block';
+          saveOffer.querySelector('.field').style.display = 'none';
+          saveOffer.querySelector('.save-account-actions').style.display = 'none';
+          await refreshAuthUI();
+        } catch (err) {
+          msg.textContent = `⚠ ${err.message}`;
+          msg.classList.add('error');
+          msg.style.display = 'block';
+          goBtn.disabled = false;
+          goBtn.textContent = 'Create my account';
+        }
+      });
+    }
+
+    // form.reset() has already wiped the fields by the time this runs, so the
+    // details are carried on the panel itself rather than re-read from the form.
+    saveOffer.dataset.email = email;
+    saveOffer.dataset.name = name;
+    saveOffer.style.display = 'block';
+    const pw = saveOffer.querySelector('[data-save-pw]');
+    const msg = saveOffer.querySelector('[data-save-msg]');
+    const goBtn = saveOffer.querySelector('[data-save-go]');
+    pw.value = '';
+    msg.textContent = '';
+    msg.style.display = 'none';
+    msg.classList.remove('error');
+    goBtn.disabled = false;
+    goBtn.textContent = 'Create my account';
+    saveOffer.querySelector('.field').style.display = '';
+    saveOffer.querySelector('.save-account-actions').style.display = '';
+  }
+
+  function hideSaveAccountOffer() {
+    if (saveOffer) saveOffer.style.display = 'none';
+  }
+
   async function placeBooking() {
     const startAt = new Date(`${dateEl.value}T${startEl.value}:00`);
     const endAt = new Date(`${dateEl.value}T${endEl.value}:00`);
 
+    // Re-read rather than trusting the cached copy: a session could have been
+    // established (or expired) since the page loaded. A null session here is
+    // perfectly normal — it just means this is a guest booking.
     const { data: sessionData } = await supabase.auth.getSession();
     session = sessionData.session;
-    if (!session) throw new Error('Please sign in to continue.');
 
     const payOption = selectedPayOption();
     const payload = {
@@ -712,6 +883,10 @@ export async function initBooking() {
       service_ids: addonServiceIds(),
       service_quantities: Object.fromEntries(addonServiceIds().map((id) => [id, serviceQuantity(id)])),
       payment_option: payOption,
+      // Ignored by the server when a session is present; the name and email on
+      // an account's booking come from the account.
+      guest_name: nameEl.value.trim(),
+      guest_email: emailEl.value.trim(),
       // The full directory URL, not just the origin — this project's GitHub
       // Pages site lives under a subpath (/GGS-Studio-Website/), and
       // location.origin alone drops that, so the PayMongo redirect back
@@ -722,11 +897,12 @@ export async function initBooking() {
     // ID and there's nothing to upload.
     if (payOption === 'cash' && !isStaff) {
       submitBtn.textContent = 'Uploading ID…';
-      payload.id_image_path = await uploadIdImage(session.user.id);
+      payload.id_image_path = await uploadIdImage(session?.user?.id || null);
     }
 
     submitBtn.textContent = 'Sending…';
     const result = await callFunction('create-booking', session, payload);
+    if (result.guest) rememberGuestBooking(result.booking);
 
     const serviceLabel = selectedServiceLabel();
     const bookedStart = startEl.value;
@@ -758,6 +934,7 @@ export async function initBooking() {
       await refreshAuthUI();
       updateSummary();
       refreshPayOptions();
+      if (result.guest) showSaveAccountOffer(result.booking);
       return;
     }
 
@@ -791,6 +968,7 @@ export async function initBooking() {
     await refreshAuthUI();
     updateSummary();
     refreshPayOptions();
+    if (result.guest) showSaveAccountOffer(b);
     window.dispatchEvent(new CustomEvent('ggs:booking-created', { detail: b }));
   }
 
@@ -820,16 +998,19 @@ export async function initBooking() {
       return;
     }
 
-    // Step 2: we're mid-auth (password box showing) — try to sign in/up.
+    // Step 2: the password box is showing because this email belongs to an
+    // account — sign in, then carry straight on into the booking.
     if (awaitingAuthMode) {
+      // The form stays editable while the password box is up, so re-check it
+      // rather than signing in and then failing on a date that was cleared.
+      const stillWrong = collectBookingErrors();
+      if (stillWrong.length) {
+        showFieldErrors(stillWrong);
+        return;
+      }
       const password = authPassword.value;
       if (!password) {
         setFieldError(authPassword, 'Please enter a password.');
-        authPassword.focus();
-        return;
-      }
-      if (password.length < 6) {
-        setFieldError(authPassword, 'Password must be at least 6 characters.');
         authPassword.focus();
         return;
       }
@@ -839,38 +1020,20 @@ export async function initBooking() {
       }
       submitBtn.disabled = true;
       try {
-        // Registering signs the account in as part of signUpChecked, so the
-        // booking below carries straight on — no second password prompt.
-        let newSession = null;
-        if (awaitingAuthMode === 'signup') {
-          try {
-            const result = await signUpChecked(supabase, emailEl.value.trim(), password, nameEl.value.trim());
-            newSession = result.session;
-          } catch (err) {
-            if (/already registered/i.test(err.message)) {
-              showAuthStep('login');
-              setFieldError(emailEl, err.message);
-              submitBtn.disabled = false;
-              return;
-            }
-            throw err;
+        const { data: signIn, error } = await supabase.auth.signInWithPassword({
+          email: emailEl.value.trim(),
+          password,
+        });
+        if (error) {
+          if (/invalid login credentials/i.test(error.message)) {
+            setFieldError(authPassword, "That password doesn't match this email. Try again, or book with a different email.");
+            authPassword.focus();
+            submitBtn.disabled = false;
+            return;
           }
-        } else {
-          const { data: signIn, error } = await supabase.auth.signInWithPassword({
-            email: emailEl.value.trim(),
-            password,
-          });
-          if (error) {
-            if (/invalid login credentials/i.test(error.message)) {
-              setFieldError(authPassword, "That password doesn't match this email. Try again.");
-              authPassword.focus();
-              submitBtn.disabled = false;
-              return;
-            }
-            throw error;
-          }
-          newSession = signIn.session;
+          throw error;
         }
+        let newSession = signIn.session;
         // onAuthStateChange will populate `session` too; take it directly so
         // we don't have to wait a tick.
         if (!newSession) {
@@ -878,6 +1041,9 @@ export async function initBooking() {
           newSession = data.session;
         }
         session = newSession;
+        // Signing in is also what makes this browser a recognised device for
+        // that address, and pulls in anything booked under it as a guest.
+        if (session) await claimGuestBookings(session);
         if (!session) {
           authMsg.textContent = 'Check your email to confirm your account, then submit again to book.';
           authMsg.classList.add('error');
@@ -910,19 +1076,26 @@ export async function initBooking() {
       return;
     }
 
-    if (!session) {
-      showAuthStep('signup');
-      return;
-    }
-
+    // No account needed from here on — the name and email above are enough.
     submitBtn.disabled = true;
     submitBtn.textContent = 'Sending…';
+    hideSaveAccountOffer();
     try {
       await placeBooking();
     } catch (err) {
+      // The server refused an anonymous booking under an email that already has
+      // a login. That's not an error to apologise for — it's the point — so ask
+      // for the password rather than dead-ending on a red message.
+      if (err.code === 'account_exists') {
+        showAuthStep();
+        setFieldError(emailEl, 'This email has an account — sign in below, or use a different address.');
+        submitBtn.disabled = false;
+        return;
+      }
       confirmMsg.textContent = `⚠ ${err.message}`;
       confirmMsg.classList.add('error');
       confirmMsg.style.display = 'block';
+      submitBtn.textContent = 'Confirm booking request';
     } finally {
       submitBtn.disabled = false;
     }

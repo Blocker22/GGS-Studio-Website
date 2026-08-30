@@ -2,10 +2,15 @@
 // the exact amount, and uploads their receipt for staff to verify by hand.
 //
 // Receipts never touch this file's storage — they go straight into the private
-// `payment-receipts` bucket under the customer's own user id, and the payment
+// `payment-receipts` bucket under the customer's own folder, and the payment
 // row itself is only ever written by the submit-receipt Edge Function. RLS on
 // the bucket restricts reads to the uploader plus studio staff.
+//
+// This works for a guest booking too: with no account there is no user id to
+// name a folder with, so the upload goes to guest/<device id>/ and the Edge
+// Function authorises it with the device handshake instead of a session.
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './supabase-client.js';
+import { deviceCredentials, getDevice } from './device.js';
 
 const FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
 const RECEIPT_BUCKET = 'payment-receipts';
@@ -24,17 +29,19 @@ export function formatPeso(amount) {
   return '₱' + Math.round(Number(amount) || 0).toLocaleString('en-PH');
 }
 
+// `session` may be null on a guest booking; the device credentials in the body
+// are what authorise the call then.
 async function callFunction(name, session, body) {
   const res = await fetch(`${FUNCTIONS_URL}/${name}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${session.access_token}`,
+      Authorization: `Bearer ${session?.access_token || SUPABASE_ANON_KEY}`,
     },
-    body: JSON.stringify(body),
+    body: JSON.stringify({ ...deviceCredentials(), ...body }),
   });
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || 'Something went wrong.');
   return data;
 }
@@ -130,15 +137,17 @@ function renderChannels(modal) {
   });
 }
 
-// Uploads into the customer's own folder in the private receipts bucket and
-// returns the stored path. The Edge Function re-checks both the folder and
-// that the object actually exists before it touches the payment row.
+// Uploads into the caller's own folder in the private receipts bucket and
+// returns the stored path — <user id>/ when signed in, guest/<device id>/ when
+// not. The Edge Function re-checks both the folder and that the object actually
+// exists before it touches the payment row.
 async function uploadReceipt(supabase, userId, bookingId, file) {
   if (file.size > MAX_RECEIPT_BYTES) {
     throw new Error('That file is over 5MB — please attach a smaller screenshot.');
   }
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
-  const path = `${userId}/${bookingId}-${Date.now()}.${ext}`;
+  const folder = userId || `guest/${getDevice().id}`;
+  const path = `${folder}/${bookingId}-${Date.now()}.${ext}`;
   const { error } = await supabase.storage.from(RECEIPT_BUCKET).upload(path, file, {
     contentType: file.type || 'application/octet-stream',
     upsert: false,
@@ -152,7 +161,7 @@ async function uploadReceipt(supabase, userId, bookingId, file) {
  *
  * @param {object}   opts
  * @param {object}   opts.supabase       initialised Supabase client
- * @param {object}   opts.session        the signed-in session (for the Edge Function call)
+ * @param {object|null} opts.session     the signed-in session, or null for a guest booking
  * @param {object}   opts.booking        the booking row — only `id` is required
  * @param {number}   opts.amountDue      pesos the customer has to send
  * @param {string}   opts.paymentOption  'deposit' | 'full'
@@ -219,7 +228,7 @@ export function openPaymentModal({
     submitBtn.disabled = true;
     submitBtn.textContent = 'Uploading…';
     try {
-      const receiptPath = await uploadReceipt(supabase, session.user.id, booking.id, file);
+      const receiptPath = await uploadReceipt(supabase, session?.user?.id || null, booking.id, file);
       submitBtn.textContent = 'Sending…';
       const result = await callFunction('submit-receipt', session, {
         booking_id: booking.id,

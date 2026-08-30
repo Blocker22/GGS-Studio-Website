@@ -2,6 +2,7 @@
 // sign-up wrapper that turns Supabase's deliberately-vague "already
 // registered" response into a real error.
 import { getSupabase } from './supabase-client.js';
+import { claimGuestBookings } from './device.js';
 
 // Every page is a sibling static file with no .html in its URL (GitHub Pages
 // resolves /login to login.html natively; server.js does the same locally
@@ -152,7 +153,16 @@ export async function initAuthNav() {
   const { data } = await supabase.auth.getSession();
   await render(data.session);
   // Deferred: querying Supabase from inside this callback can deadlock the auth lock.
-  supabase.auth.onAuthStateChange((_event, session) => setTimeout(() => render(session), 0));
+  supabase.auth.onAuthStateChange((event, session) => {
+    setTimeout(() => render(session), 0);
+    // Signing in anywhere on the site sweeps up everything booked under this
+    // address without an account, and marks this browser as one that has
+    // legitimately signed into it. Fire-and-forget: it must never hold up or
+    // break the sign-in itself, and claimGuestBookings swallows its own errors.
+    if (session && (event === 'SIGNED_IN' || event === 'USER_UPDATED')) {
+      setTimeout(() => claimGuestBookings(session), 0);
+    }
+  });
   window.addEventListener('ggs:profile-updated', async () => {
     const { data: d } = await supabase.auth.getSession();
     render(d.session);
