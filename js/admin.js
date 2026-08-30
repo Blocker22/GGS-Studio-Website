@@ -20,6 +20,60 @@ function el(tag, attrs = {}, children = []) {
   return node;
 }
 
+// window.prompt()/confirm() are blocked in some hosts this admin panel runs
+// in (e.g. an editor's embedded webview throws "prompt() is not supported"
+// instead of showing anything), so every yes/no or fill-in-a-value question
+// goes through this instead — same modal-backdrop/.modal look already used
+// for the payment QR modal, resolved as a promise rather than blocking.
+function dialogModal({ title, message, showInput, inputPlaceholder, confirmLabel = 'OK', cancelLabel = 'Cancel' }) {
+  return new Promise((resolve) => {
+    const inputEl = showInput
+      ? el('input', { class: 'a-input', placeholder: inputPlaceholder || '', style: 'margin-top:10px; width:100%;' })
+      : null;
+    const finish = (value) => {
+      backdrop.classList.remove('open');
+      setTimeout(() => backdrop.remove(), 200);
+      document.removeEventListener('keydown', onKey);
+      resolve(value);
+    };
+    const onKey = (e) => {
+      if (e.key === 'Escape') finish(null);
+      else if (e.key === 'Enter' && inputEl && document.activeElement === inputEl) finish(inputEl.value);
+    };
+    const dialog = el('div', { class: 'modal', role: 'dialog', 'aria-modal': 'true', style: 'width:min(420px, 100%);' }, [
+      el('button', { type: 'button', class: 'modal-close', 'aria-label': 'Close', onclick: () => finish(null) }, '×'),
+      el('h3', {}, title),
+      el('div', { class: 'modal-body' }, [
+        el('p', { style: 'font-size:0.88rem; line-height:1.55; white-space:pre-wrap; margin:0;' }, message),
+        ...(inputEl ? [inputEl] : []),
+      ]),
+      el('div', { class: 'modal-foot', style: 'display:flex; gap:10px; justify-content:flex-end;' }, [
+        el('button', { type: 'button', class: 'a-btn-ghost', onclick: () => finish(null) }, cancelLabel),
+        el('button', { type: 'button', class: 'a-btn-gold', onclick: () => finish(inputEl ? inputEl.value : true) }, confirmLabel),
+      ]),
+    ]);
+    const backdrop = el('div', { class: 'modal-backdrop' }, [dialog]);
+    backdrop.addEventListener('click', (e) => { if (e.target === backdrop) finish(null); });
+    document.addEventListener('keydown', onKey);
+    document.body.appendChild(backdrop);
+    requestAnimationFrame(() => backdrop.classList.add('open'));
+    if (inputEl) inputEl.focus();
+  });
+}
+
+// Drop-in replacement for window.prompt(): resolves to the typed string, or
+// null if the dialog was cancelled/dismissed — same contract callers already
+// coded against.
+function promptDialog(message, opts = {}) {
+  return dialogModal({ title: opts.title || 'Enter a value', message, showInput: true, inputPlaceholder: opts.placeholder, confirmLabel: opts.confirmLabel || 'OK' });
+}
+
+// Drop-in replacement for window.confirm(): resolves true/false.
+function confirmDialog(message, opts = {}) {
+  return dialogModal({ title: opts.title || 'Confirm', message, showInput: false, confirmLabel: opts.confirmLabel || 'OK', cancelLabel: opts.cancelLabel || 'Cancel' })
+    .then((v) => v === true);
+}
+
 const EYE_OPEN = '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/>';
 const EYE_OFF = '<path d="M17.94 17.94A10.94 10.94 0 0 1 12 19c-7 0-11-7-11-7a20.6 20.6 0 0 1 5.06-5.94M9.9 4.24A10.6 10.6 0 0 1 12 4c7 0 11 7 11 7a20.6 20.6 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"/><path d="M1 1l22 22"/>';
 
@@ -598,7 +652,7 @@ async function main() {
 
   async function markPaid(booking) {
     const remaining = Number(booking.total_price) - paidAmount(booking);
-    const input = prompt(`Amount received in cash (₱), leave blank for full remaining balance ₱${Math.round(remaining)}:`);
+    const input = await promptDialog(`Amount received in cash (₱), leave blank for full remaining balance ₱${Math.round(remaining)}:`);
     if (input === null) return;
     const amount = input.trim() ? Number(input) : undefined;
     try {
@@ -772,7 +826,7 @@ async function main() {
     }
     btn.onclick = async () => {
       const remaining = total - paid;
-      const input = prompt(`Amount received in cash (₱), leave blank for full remaining balance ₱${Math.round(remaining)}:`);
+      const input = await promptDialog(`Amount received in cash (₱), leave blank for full remaining balance ₱${Math.round(remaining)}:`);
       if (input === null) return;
       const amount = input.trim() ? Number(input) : undefined;
       try {
@@ -845,7 +899,7 @@ async function main() {
     }
   }
   async function cancelBooking(id) {
-    const reason = prompt('Cancellation reason (optional):') || undefined;
+    const reason = (await promptDialog('Cancellation reason (optional):')) || undefined;
     try {
       await callFunction('cancel-booking', { booking_id: id, reason });
       loadBookings();
@@ -860,13 +914,13 @@ async function main() {
   // refuses when money was taken and never refunded unless force is passed,
   // so the confirm here has to name that before re-sending with force:true.
   async function deleteBooking(id, { onDeleted } = {}) {
-    if (!confirm('Permanently delete this booking? This cannot be undone.')) return;
+    if (!(await confirmDialog('Permanently delete this booking? This cannot be undone.'))) return;
     try {
       await callFunction('delete-booking', { booking_id: id });
       (onDeleted || loadBookings)();
     } catch (err) {
       if (err.unrefundedAmount) {
-        const force = confirm(
+        const force = await confirmDialog(
           `${err.message}
 
 Delete anyway and write off the unrefunded amount?`,
@@ -1058,7 +1112,7 @@ Delete anyway and write off the unrefunded amount?`,
 
   async function deleteCustomer(c, { force = false } = {}) {
     const who = c.full_name || 'this customer';
-    if (!force && !confirm(`Permanently delete ${who}'s account?\n\nTheir login, personal details, ID photos and receipts are erased for good. Past sessions stay in the books as anonymous walk-ins.\n\nThis cannot be undone.`)) return;
+    if (!force && !(await confirmDialog(`Permanently delete ${who}'s account?\n\nTheir login, personal details, ID photos and receipts are erased for good. Past sessions stay in the books as anonymous walk-ins.\n\nThis cannot be undone.`))) return;
     try {
       await callFunction('delete-account', { user_id: c.id, force });
       await loadCustomers();
@@ -1067,7 +1121,7 @@ Delete anyway and write off the unrefunded amount?`,
       // Mirrors delete-booking: an upcoming session or unrefunded money is a
       // stop sign, not a dead end — staff can knowingly override.
       if (err.canForce) {
-        if (!confirm(`${err.message}\n\nDelete the account anyway?`)) return;
+        if (!(await confirmDialog(`${err.message}\n\nDelete the account anyway?`))) return;
         await deleteCustomer(c, { force: true });
         return;
       }
@@ -1343,7 +1397,7 @@ Delete anyway and write off the unrefunded amount?`,
         actions.append(el('button', {
           class: 'a-btn-ghost',
           onclick: async () => {
-            const amountStr = prompt('Refund amount in ₱ (blank = full remaining):');
+            const amountStr = await promptDialog('Refund amount in ₱ (blank = full remaining):');
             if (amountStr === null) return;
             try {
               await callFunction('admin-refund', { payment_id: p.id, amount: amountStr.trim() ? Number(amountStr) : undefined });
@@ -1431,14 +1485,14 @@ Delete anyway and write off the unrefunded amount?`,
   async function verifyPayment(p, approve) {
     let payload = { payment_id: p.id, approve };
     if (approve) {
-      const amountStr = prompt(
+      const amountStr = await promptDialog(
         `Approve this transfer? Blank keeps the expected ₱${Math.round(Number(p.amount))} — ` +
         'enter a different figure only if the receipt shows another amount.',
       );
       if (amountStr === null) return;
       if (amountStr.trim()) payload.amount = Number(amountStr);
     } else {
-      const reason = prompt('Why is this receipt being rejected? The customer sees this.');
+      const reason = await promptDialog('Why is this receipt being rejected? The customer sees this.');
       if (reason === null) return;
       payload.reason = reason;
     }

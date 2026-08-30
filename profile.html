@@ -145,6 +145,42 @@
     el.style.display = 'block';
   }
 
+  // window.confirm() throws in some hosts this page can be viewed in (e.g. an
+  // editor's embedded webview), so this rebuilds the same yes/no question out
+  // of the modal-backdrop/.modal styling already used for the payment QR modal.
+  function confirmDialog(message){
+    return new Promise((resolve) => {
+      const backdrop = document.createElement('div');
+      backdrop.className = 'modal-backdrop';
+      backdrop.innerHTML = `
+        <div class="modal" role="dialog" aria-modal="true" style="width:min(420px, 100%);">
+          <button type="button" class="modal-close" aria-label="Close">&times;</button>
+          <h3>Confirm</h3>
+          <div class="modal-body">
+            <p style="font-size:0.88rem; line-height:1.55; white-space:pre-wrap; margin:0;">${message}</p>
+          </div>
+          <div class="modal-foot" style="display:flex; gap:10px; justify-content:flex-end;">
+            <button type="button" class="btn-ghost" data-confirm-no>Cancel</button>
+            <button type="button" class="btn-primary" style="width:auto;" data-confirm-yes>OK</button>
+          </div>
+        </div>`;
+      const finish = (value) => {
+        backdrop.classList.remove('open');
+        setTimeout(() => backdrop.remove(), 200);
+        document.removeEventListener('keydown', onKey);
+        resolve(value);
+      };
+      const onKey = (e) => { if (e.key === 'Escape') finish(false); };
+      backdrop.addEventListener('click', (e) => { if (e.target === backdrop) finish(false); });
+      backdrop.querySelector('.modal-close').addEventListener('click', () => finish(false));
+      backdrop.querySelector('[data-confirm-no]').addEventListener('click', () => finish(false));
+      backdrop.querySelector('[data-confirm-yes]').addEventListener('click', () => finish(true));
+      document.addEventListener('keydown', onKey);
+      document.body.appendChild(backdrop);
+      requestAnimationFrame(() => backdrop.classList.add('open'));
+    });
+  }
+
   document.getElementById('nameForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const msg = document.getElementById('nameMsg');
@@ -200,7 +236,7 @@
     const msg = document.getElementById('deleteMsg');
     msg.style.display = 'none';
     if (deleteConfirm.value.trim() !== 'DELETE') return;
-    if (!confirm('Last check — permanently delete your GGS Studio account?\n\nThis erases your details and uploaded files for good. It cannot be undone.')) return;
+    if (!(await confirmDialog('Last check — permanently delete your GGS Studio account?\n\nThis erases your details and uploaded files for good. It cannot be undone.'))) return;
 
     const { data } = await supabase.auth.getSession();
     if (!data.session) return;
