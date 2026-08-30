@@ -241,8 +241,11 @@
     </div>
   </div>
   <div class="footer-bottom">
-    <span>© 2026 GGS Studio. All tracks stay yours.</span>
-    <span>Analog in. Digital out.</span>
+    <span>© 2026 GGS Studio. All rights reserved.</span>
+    <span class="footer-legal">
+      <a href="privacy">Privacy Policy</a>
+      <button type="button" class="footer-legal-link" data-terms-toggle>Terms &amp; Conditions</button>
+    </span>
   </div>
 </footer>
 
@@ -401,10 +404,12 @@
   import { initAuthNav } from './js/auth.js';
   import { initBookingCalendar } from './js/availability.js';
   import { initServicesSection } from './js/services-section.js';
+  import { initChatbot } from './js/chatbot.js';
   initAuthNav();
   initBooking();
   initBookingCalendar();
   initServicesSection();
+  initChatbot();
 </script>
 
 </body>

@@ -94,6 +94,16 @@ export function initTermsModal() {
         <h4>Data &amp; Privacy</h4>
         <ul>
           <li>Your name, email, ID photo, and payment receipts are collected solely to manage your booking and payment, and are handled in accordance with the Data Privacy Act (RA 10173). They are stored in private, access-controlled storage readable only by you and GGS Studio staff, and are never sold or shared beyond what is needed to process your booking.</li>
+          <li>Our <a href="privacy" target="_blank" rel="noopener">Privacy Policy</a> sets out in full what we collect, why, who processes it on our behalf, how long we keep it, and the rights you have over it. It forms part of these terms.</li>
+          <li>You can delete your account at any time from your Profile page. Doing so erases your login, personal details, ID photos, and receipts; past sessions remain in the studio's books as anonymised walk-in bookings, because we are required to keep those financial records.</li>
+        </ul>
+
+        <h4>Site Assistant</h4>
+        <ul>
+          <li>The chat assistant on this site is an automated tool provided for convenience. Most of its answers are drawn directly from our published rates and policies; more open-ended questions are answered with the help of a third-party AI provider, as described in the Privacy Policy.</li>
+          <li>Its replies are informational only and are <strong>not a binding quotation or confirmation</strong>. The price shown on the booking form at the moment you book, and these Terms &amp; Conditions, are what govern your session. Where the assistant and this page disagree, this page wins.</li>
+          <li>The assistant cannot make, change, cancel, or take payment for a booking — only you can, through the booking form and the My Bookings page.</li>
+          <li>Please don't type passwords, card numbers, or other sensitive details into the chat. Misusing the assistant — for spam, abuse, or anything unrelated to the studio — may lead to it being withdrawn.</li>
         </ul>
 
         <h4>Consumer Rights</h4>
@@ -373,6 +383,9 @@ export async function initBooking() {
       return;
     }
     addonServices.forEach((svc) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'service-check-wrap';
+
       const label = document.createElement('label');
       label.className = 'service-check';
 
@@ -381,27 +394,51 @@ export async function initBooking() {
       cb.value = svc.id;
       cb.dataset.slug = svc.slug;
       cb.addEventListener('change', () => {
-        if (qtyInput) qtyInput.disabled = !cb.checked;
+        if (expand) {
+          expand.classList.toggle('open', cb.checked);
+          // A freshly-revealed quantity field should read as "unset" rather
+          // than carry over whatever was left from the last time this same
+          // add-on was checked.
+          if (cb.checked && qtyInput) qtyInput.focus({ preventScroll: true });
+        }
         syncServiceDeps();
         updateSummary();
       });
 
+      // 'unit' pricing (e.g. per song/per track) needs a quantity, so
+      // checking the box reveals a small panel asking for it — rather than
+      // cramming a number field into the row itself — and the price is
+      // priced against whatever's typed there instead of a flat/hourly rate.
+      let expand = null;
       let qtyInput = null;
       if (svc.price_type === 'unit') {
+        const unitWord = svc.unit_label || 'unit';
+        expand = document.createElement('div');
+        expand.className = 'service-check-expand';
+
+        const qtyLabel = document.createElement('span');
+        qtyLabel.className = 'service-check-qty-label';
+        qtyLabel.textContent = `How many ${unitWord}s?`;
+
         qtyInput = document.createElement('input');
         qtyInput.type = 'number';
         qtyInput.className = 'service-check-qty';
         qtyInput.min = '1';
         qtyInput.step = '1';
         qtyInput.value = '1';
-        qtyInput.disabled = true;
         qtyInput.dataset.qtyFor = svc.id;
-        qtyInput.setAttribute('aria-label', `Number of ${svc.unit_label || 'units'} for ${svc.name}`);
-        qtyInput.addEventListener('click', (e) => e.stopPropagation());
-        qtyInput.addEventListener('input', () => {
-          if (Number(qtyInput.value) < 1) qtyInput.value = '1';
+        qtyInput.setAttribute('aria-label', `Number of ${unitWord}s for ${svc.name}`);
+        // Zero (or blank, or negative) buys nothing, so it's not a valid
+        // quantity — snap back to 1 as soon as the field stops being edited
+        // rather than silently pricing it as zero.
+        qtyInput.addEventListener('blur', () => {
+          const n = Math.floor(Number(qtyInput.value));
+          qtyInput.value = String(Number.isFinite(n) && n >= 1 ? n : 1);
           updateSummary();
         });
+        qtyInput.addEventListener('input', updateSummary);
+
+        expand.append(qtyLabel, qtyInput);
       }
 
       const tick = document.createElement('span');
@@ -425,13 +462,10 @@ export async function initBooking() {
       price.className = 'service-check-price';
       price.textContent = priceLabel(svc);
 
-      const trailing = document.createElement('span');
-      trailing.className = 'service-check-trailing';
-      if (qtyInput) trailing.append(qtyInput);
-      trailing.append(price);
-
-      label.append(cb, tick, body, trailing);
-      servicesWrap.appendChild(label);
+      label.append(cb, tick, body, price);
+      wrap.append(label);
+      if (expand) wrap.append(expand);
+      servicesWrap.appendChild(wrap);
     });
     syncServiceDeps();
   }
@@ -475,8 +509,8 @@ export async function initBooking() {
     // Say why a locked row can't be picked, in place of its description.
     boxes.forEach((cb) => {
       const row = cb.closest('.service-check');
-      const qtyInput = row?.querySelector('.service-check-qty');
-      if (qtyInput) qtyInput.disabled = !cb.checked;
+      const expand = row?.parentElement.querySelector('.service-check-expand');
+      if (expand) expand.classList.toggle('open', cb.checked);
       const note = row?.querySelector('.service-check-note');
       if (!note) return;
       const requiredId = svcById.get(cb.value)?.requires_service_id || null;

@@ -224,8 +224,10 @@
   import { initAuthNav } from './js/auth.js';
   import { initBookingCalendar } from './js/availability.js';
   import { openPaymentModal } from './js/payment-qr.js';
+  import { initChatbot } from './js/chatbot.js';
 
   initBookingCalendar();
+  initChatbot();
 
   const FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
 

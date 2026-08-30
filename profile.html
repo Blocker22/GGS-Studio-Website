@@ -134,9 +134,11 @@
   import { getSupabase, SUPABASE_URL, SUPABASE_ANON_KEY } from './js/supabase-client.js';
   import { initAuthNav } from './js/auth.js';
   import { initPasswordToggles } from './js/booking.js';
+  import { initChatbot } from './js/chatbot.js';
 
   initAuthNav();
   initPasswordToggles();
+  initChatbot();
   const supabase = await getSupabase();
 
   function showMsg(el, text, isError){
