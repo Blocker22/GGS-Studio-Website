@@ -496,11 +496,25 @@ export async function initChatbot() {
     renderQuick(answer.quick?.length ? [...answer.quick, 'where'] : DEFAULT_QUICK);
   }
 
+  // A quick-reply button's own click handler never awaits this, so without a
+  // catch here any error thrown anywhere downstream — the wizard, the manage-
+  // bookings flow, anything runIntent reaches — became an unhandled promise
+  // rejection: invisible in the UI, the conversation just stops dead. Every
+  // preset click is now guaranteed to end in either a normal reply or a
+  // visible error message, never silence.
   async function handlePreset(id) {
     addMessage('user', QUICK_LABELS[id]);
     history.push({ role: 'user', text: QUICK_LABELS[id] });
     quickWrap.innerHTML = '';
-    await runIntent(id);
+    try {
+      await runIntent(id);
+    } catch (err) {
+      console.error('[chatbot] preset failed:', id, err);
+      await sendBotMessage(`Sorry, something went wrong on my end (${err?.message || 'unknown error'}). Please try again, or reach the studio directly.`, {
+        actions: [{ label: 'Email the studio', href: 'mailto:ggs.studio2026@gmail.com' }],
+      });
+      renderQuick(DEFAULT_QUICK);
+    }
   }
 
   // The only path that spends an API call.
@@ -667,9 +681,16 @@ export async function initChatbot() {
 
           nextBtn.disabled = true;
           nextBtn.textContent = 'Checking availability…';
-          const ok = await validateSlot(startAt, endAt, box);
-          nextBtn.disabled = false;
-          nextBtn.textContent = 'Continue';
+          let ok = false;
+          try {
+            ok = await validateSlot(startAt, endAt, box);
+          } catch (err) {
+            console.error('[chatbot] slot check failed:', err);
+            showWizardError(box, 'Could not verify availability just now — please try again.');
+          } finally {
+            nextBtn.disabled = false;
+            nextBtn.textContent = 'Continue';
+          }
           if (!ok) return;
 
           refs.dateEl.value = dateI.value; fireEvent(refs.dateEl, 'input'); fireEvent(refs.dateEl, 'change');
@@ -876,17 +897,29 @@ export async function initChatbot() {
       renderQuick(DEFAULT_QUICK);
       return;
     }
-    await loadFacts();
-    // Scroll to the real form right away, not just before the final submit —
-    // watching it fill itself in as you answer is the whole point of doing
-    // this through chat instead of typing straight into it.
-    refs.form.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' });
-    await sendBotMessage("Let's get you booked — I've scrolled you to the form so you can watch it fill in as we go.");
-    await wizardDateTime(refs);
-    await wizardAddons(refs);
-    await wizardContact(refs);
-    await wizardPayment();
-    await wizardReview(refs);
+    try {
+      await loadFacts();
+      // Scroll to the real form right away, not just before the final submit —
+      // watching it fill itself in as you answer is the whole point of doing
+      // this through chat instead of typing straight into it.
+      refs.form.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' });
+      await sendBotMessage("Let's get you booked — I've scrolled you to the form so you can watch it fill in as we go.");
+      await wizardDateTime(refs);
+      await wizardAddons(refs);
+      await wizardContact(refs);
+      await wizardPayment();
+      await wizardReview(refs);
+    } catch (err) {
+      // Anything that goes wrong partway through used to just stop the
+      // conversation dead with no explanation — whatever got filled in stays
+      // filled in, so pointing at the form itself is a real fallback, not a
+      // dead end.
+      console.error('[chatbot] booking wizard failed:', err);
+      await sendBotMessage(`Something went wrong while I was filling that out (${err?.message || 'unknown error'}). The form has whatever I'd already filled in — you can finish it there.`, {
+        actions: [{ label: 'Go to the booking form', href: bookHref() }],
+      });
+      renderQuick(DEFAULT_QUICK);
+    }
   }
 
   // === Cancel / reschedule ==================================================
@@ -932,31 +965,51 @@ export async function initChatbot() {
   }
 
   async function handleCancelClick(b, session) {
-    addMessage('user', `Cancel my ${describeBooking(b)}`);
-    await sendBotMessage('Cancelling is free right now, but it cannot be undone. Go ahead?');
-    const ok = await wizardConfirm({ confirmLabel: 'Yes, cancel it' });
-    if (!ok) {
-      await sendBotMessage("No problem — I've left it as it is.");
-      renderQuick(['mine', 'book']);
-      return;
-    }
-    await sendBotMessage('Cancelling it now…');
     try {
-      await callBookingFunction('cancel-booking', session, { booking_id: b.id, reason: 'Cancelled via chat assistant' });
-      await sendBotMessage('Done — that session is cancelled.');
+      addMessage('user', `Cancel my ${describeBooking(b)}`);
+      await sendBotMessage('Cancelling is free right now, but it cannot be undone. Go ahead?');
+      const ok = await wizardConfirm({ confirmLabel: 'Yes, cancel it' });
+      if (!ok) {
+        await sendBotMessage("No problem — I've left it as it is.");
+        renderQuick(['mine', 'book']);
+        return;
+      }
+      await sendBotMessage('Cancelling it now…');
+      try {
+        await callBookingFunction('cancel-booking', session, { booking_id: b.id, reason: 'Cancelled via chat assistant' });
+        await sendBotMessage('Done — that session is cancelled.');
+      } catch (err) {
+        await sendBotMessage(`I could not cancel it: ${err.message}`, { actions: [{ label: 'Try My Bookings', href: 'account' }] });
+      }
+      renderQuick(['mine', 'book']);
     } catch (err) {
-      await sendBotMessage(`I could not cancel it: ${err.message}`, { actions: [{ label: 'Try My Bookings', href: 'account' }] });
+      console.error('[chatbot] cancel flow failed:', err);
+      await sendBotMessage(`Something went wrong (${err?.message || 'unknown error'}). Please try from My Bookings instead.`, {
+        actions: [{ label: 'My bookings', href: 'account' }],
+      });
+      renderQuick(DEFAULT_QUICK);
     }
-    renderQuick(['mine', 'book']);
   }
 
   async function handleReschedClick(b, session, cutoffHours) {
+    try {
+      await handleReschedClickInner(b, session, cutoffHours);
+    } catch (err) {
+      console.error('[chatbot] reschedule flow failed:', err);
+      await sendBotMessage(`Something went wrong (${err?.message || 'unknown error'}). Please try from My Bookings instead.`, {
+        actions: [{ label: 'My bookings', href: 'account' }],
+      });
+      renderQuick(DEFAULT_QUICK);
+    }
+  }
+
+  async function handleReschedClickInner(b, session, cutoffHours) {
     addMessage('user', `Reschedule my ${describeBooking(b)}`);
     const durationMs = new Date(b.end_at).getTime() - new Date(b.start_at).getTime();
     const startsAt = new Date(b.start_at);
     await sendBotMessage('Sure — pick a new date and start time. The session keeps its current length.');
 
-    await new Promise((resolve) => {
+    await new Promise((resolve, reject) => {
       const earliest = new Date(Date.now() + cutoffHours * 3600000);
       const html = `
         <div class="ggs-wizard-row">
@@ -970,38 +1023,48 @@ export async function initChatbot() {
       mountWizardBox(html, (box) => {
         const nextBtn = box.querySelector('[data-w-next]');
         nextBtn.addEventListener('click', async () => {
-          const dateI = box.querySelector('[data-w-date]');
-          const startI = box.querySelector('[data-w-start]');
-          if (!dateI.value || !startI.value) return showWizardError(box, 'Please pick a date and time.');
-          const newStart = new Date(`${dateI.value}T${startI.value}:00`);
-          if (Number.isNaN(newStart.getTime())) return showWizardError(box, 'That date/time is not valid.');
-          if (newStart.getTime() - Date.now() < cutoffHours * 3600000) {
-            return showWizardError(box, `New time must be at least ${cutoffHours} hours from now.`);
-          }
-          const newEnd = new Date(newStart.getTime() + durationMs);
-
-          nextBtn.disabled = true;
-          nextBtn.textContent = 'Checking availability…';
-          const ok = await validateSlot(newStart, newEnd, box);
-          nextBtn.disabled = false;
-          nextBtn.textContent = 'Save new time';
-          if (!ok) return;
-
-          lockWizardBox(box);
-          addMessage('user', `${fmtDateHuman(dateI.value)}, ${to12Hour(startI.value)}`);
-          await sendBotMessage('Updating your booking…');
           try {
-            await callBookingFunction('update-booking', session, {
-              booking_id: b.id,
-              start_at: newStart.toISOString(),
-              end_at: newEnd.toISOString(),
-            });
-            await sendBotMessage("Done — your session has been moved.");
+            const dateI = box.querySelector('[data-w-date]');
+            const startI = box.querySelector('[data-w-start]');
+            if (!dateI.value || !startI.value) return showWizardError(box, 'Please pick a date and time.');
+            const newStart = new Date(`${dateI.value}T${startI.value}:00`);
+            if (Number.isNaN(newStart.getTime())) return showWizardError(box, 'That date/time is not valid.');
+            if (newStart.getTime() - Date.now() < cutoffHours * 3600000) {
+              return showWizardError(box, `New time must be at least ${cutoffHours} hours from now.`);
+            }
+            const newEnd = new Date(newStart.getTime() + durationMs);
+
+            nextBtn.disabled = true;
+            nextBtn.textContent = 'Checking availability…';
+            let ok = false;
+            try {
+              ok = await validateSlot(newStart, newEnd, box);
+            } catch (err) {
+              console.error('[chatbot] slot check failed:', err);
+              showWizardError(box, 'Could not verify availability just now — please try again.');
+            }
+            nextBtn.disabled = false;
+            nextBtn.textContent = 'Save new time';
+            if (!ok) return;
+
+            lockWizardBox(box);
+            addMessage('user', `${fmtDateHuman(dateI.value)}, ${to12Hour(startI.value)}`);
+            await sendBotMessage('Updating your booking…');
+            try {
+              await callBookingFunction('update-booking', session, {
+                booking_id: b.id,
+                start_at: newStart.toISOString(),
+                end_at: newEnd.toISOString(),
+              });
+              await sendBotMessage("Done — your session has been moved.");
+            } catch (err) {
+              await sendBotMessage(`I could not reschedule it: ${err.message}`, { actions: [{ label: 'Try My Bookings', href: 'account' }] });
+            }
+            renderQuick(['mine', 'book']);
+            resolve();
           } catch (err) {
-            await sendBotMessage(`I could not reschedule it: ${err.message}`, { actions: [{ label: 'Try My Bookings', href: 'account' }] });
+            reject(err);
           }
-          renderQuick(['mine', 'book']);
-          resolve();
         });
       });
     });
@@ -1048,43 +1111,58 @@ export async function initChatbot() {
   }
 
   async function startManageBookings() {
-    const sb = supabase || (await getSupabase());
-    supabase = sb;
-    const { data: sessionData } = await sb.auth.getSession();
-    const session = sessionData?.session;
-    if (!session) {
-      await sendBotMessage('You need to be signed in for me to manage your bookings.', {
-        actions: [{ label: 'Sign in', href: 'login?next=account' }],
+    try {
+      const sb = supabase || (await getSupabase());
+      supabase = sb;
+      const { data: sessionData } = await sb.auth.getSession();
+      const session = sessionData?.session;
+      const f = await loadFacts();
+
+      // Not signed in: the bot can't look anything up or act on your behalf,
+      // but the policy itself doesn't need an account to explain.
+      if (!session) {
+        await sendBotMessage(
+          `You can cancel or reschedule free of charge any time up to ${f.cutoffHours} hours before your session — `
+          + `sign in and I can do it for you right here, or use My Bookings. `
+          + `Inside that window it's phone-only: call the studio on +63 976 350 6301. `
+          + `No-shows aren't refunded, so it's always worth telling us if you're running late.`,
+          { actions: [{ label: 'Sign in', href: 'login?next=account' }] },
+        );
+        renderQuick(DEFAULT_QUICK);
+        return;
+      }
+
+      const { data: bookings, error } = await sb
+        .from('bookings')
+        .select('id, start_at, end_at, status, total_price, rooms(name)')
+        .eq('customer_id', session.user.id)
+        .in('status', ['pending', 'confirmed'])
+        .gte('start_at', new Date().toISOString())
+        .order('start_at')
+        .limit(5);
+
+      if (error) {
+        await sendBotMessage('I could not load your bookings just now.', { actions: [{ label: 'My bookings', href: 'account' }] });
+        renderQuick(DEFAULT_QUICK);
+        return;
+      }
+      if (!bookings?.length) {
+        await sendBotMessage('You have no upcoming sessions to cancel or reschedule.', {
+          actions: [{ label: 'Book one now', href: bookHref() }],
+        });
+        renderQuick(DEFAULT_QUICK);
+        return;
+      }
+
+      await sendBotMessage(`You can cancel or reschedule free of charge up to ${f.cutoffHours} hours before a session. Here's what's coming up — pick one:`);
+      mountBookingPicker(bookings, f.cutoffHours, session);
+    } catch (err) {
+      console.error('[chatbot] manage bookings failed:', err);
+      await sendBotMessage(`Something went wrong (${err?.message || 'unknown error'}). Please try from My Bookings instead.`, {
+        actions: [{ label: 'My bookings', href: 'account' }],
       });
       renderQuick(DEFAULT_QUICK);
-      return;
     }
-
-    const f = await loadFacts();
-    const { data: bookings, error } = await sb
-      .from('bookings')
-      .select('id, start_at, end_at, status, total_price, rooms(name)')
-      .eq('customer_id', session.user.id)
-      .in('status', ['pending', 'confirmed'])
-      .gte('start_at', new Date().toISOString())
-      .order('start_at')
-      .limit(5);
-
-    if (error) {
-      await sendBotMessage('I could not load your bookings just now.', { actions: [{ label: 'My bookings', href: 'account' }] });
-      renderQuick(DEFAULT_QUICK);
-      return;
-    }
-    if (!bookings?.length) {
-      await sendBotMessage('You have no upcoming sessions to cancel or reschedule.', {
-        actions: [{ label: 'Book one now', href: bookHref() }],
-      });
-      renderQuick(DEFAULT_QUICK);
-      return;
-    }
-
-    await sendBotMessage(`You can cancel or reschedule free of charge up to ${f.cutoffHours} hours before a session. Here's what's coming up — pick one:`);
-    mountBookingPicker(bookings, f.cutoffHours, session);
   }
 
   // --- Open / close -------------------------------------------------------
