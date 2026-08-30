@@ -69,7 +69,11 @@ export async function initServicesSection() {
     cards.push({
       title: s.name,
       description: s.description || '',
-      price: s.price_type === 'hourly' ? `+ ${peso(s.price)} / hr` : `+ ${peso(s.price)} flat`,
+      price: s.price_type === 'hourly'
+        ? `+ ${peso(s.price)} / hr`
+        : s.price_type === 'unit'
+        ? `+ ${peso(s.price)} / ${s.unit_label || 'unit'}`
+        : `+ ${peso(s.price)} flat`,
       // Only name a prerequisite that is itself on offer — pointing at a
       // service nobody can see would read as a dead end.
       requiresName: s.requires_service_id ? nameById.get(s.requires_service_id) : null,

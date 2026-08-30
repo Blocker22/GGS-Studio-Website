@@ -461,7 +461,7 @@ async function main() {
 
     const { data, error } = await supabase
       .from('bookings')
-      .select('*, rooms(id,name), profiles!bookings_customer_id_fkey(id,full_name), booking_services(service_id, services(name)), payments(amount, status, method, type, rejection_reason)')
+      .select('*, rooms(id,name), profiles!bookings_customer_id_fkey(id,full_name), booking_services(service_id, quantity, services(name, price_type, unit_label)), payments(amount, status, method, type, rejection_reason)')
       .order('start_at', { ascending: false });
     if (error) {
       document.getElementById('bookingsBody').innerHTML = `<tr><td colspan="7">Error: ${error.message}</td></tr>`;
@@ -529,7 +529,10 @@ async function main() {
           el('td', {}, b.rooms?.name || ''),
           el('td', {}, b.profiles?.full_name || (b.guest_name ? `${b.guest_name} (guest)` : '—')),
           el('td', {}, payOptionCell(b)),
-          el('td', { style: 'opacity:0.6;' }, (b.booking_services || []).map((bs) => bs.services?.name).filter(Boolean).join(', ') || '—'),
+          el('td', { style: 'opacity:0.6;' }, (b.booking_services || [])
+            .filter((bs) => bs.services?.name)
+            .map((bs) => bs.services.price_type === 'unit' ? `${bs.services.name} (${bs.quantity} ${bs.services.unit_label || 'unit'})` : bs.services.name)
+            .join(', ') || '—'),
           el('td', {}, peso(b.total_price)),
           el('td', {}, paymentPill(b)),
           el('td', {}, el('span', { class: `pill pill-${b.status}` }, b.status.replace('_', ' '))),
@@ -1137,7 +1140,9 @@ Delete anyway and write off the unrefunded amount?`,
       const typeSel = el('select', { class: 'a-input' }, [
         el('option', { value: 'flat', ...(s.price_type === 'flat' ? { selected: 'selected' } : {}) }, 'Flat'),
         el('option', { value: 'hourly', ...(s.price_type === 'hourly' ? { selected: 'selected' } : {}) }, 'Hourly'),
+        el('option', { value: 'unit', ...(s.price_type === 'unit' ? { selected: 'selected' } : {}) }, 'Per unit'),
       ]);
+      const unitInput = el('input', { class: 'a-input', value: s.unit_label || '', placeholder: 'e.g. song', style: 'width:100px;' });
       const requiresSel = requiresSelect(s.id, s.requires_service_id);
       const orderInput = el('input', { type: 'number', class: 'a-input', value: s.sort_order ?? 0, style: 'width:80px;' });
       const activeCb = el('input', { type: 'checkbox' });
@@ -1156,6 +1161,7 @@ Delete anyway and write off the unrefunded amount?`,
           description: descInput.value.trim() || null,
           price: Number(priceInput.value),
           price_type: typeSel.value,
+          unit_label: unitInput.value.trim() || null,
           requires_service_id: requiresSel.value || null,
           sort_order: Number(orderInput.value) || 0,
           is_active: activeCb.checked,
@@ -1168,6 +1174,7 @@ Delete anyway and write off the unrefunded amount?`,
       nameInput.addEventListener('blur', () => save());
       descInput.addEventListener('blur', () => save());
       priceInput.addEventListener('blur', () => save());
+      unitInput.addEventListener('blur', () => save());
       orderInput.addEventListener('blur', () => save({ needsRedraw: true }));
       typeSel.addEventListener('change', () => save());
       requiresSel.addEventListener('change', () => save({ needsRedraw: true }));
@@ -1177,6 +1184,7 @@ Delete anyway and write off the unrefunded amount?`,
         el('td', {}, descInput),
         el('td', {}, priceInput),
         el('td', {}, typeSel),
+        el('td', {}, unitInput),
         el('td', {}, requiresSel),
         el('td', {}, orderInput),
         el('td', {}, activeCb),
@@ -1211,12 +1219,14 @@ Delete anyway and write off the unrefunded amount?`,
       description: document.getElementById('newSvcDesc').value.trim() || null,
       price: Number(document.getElementById('newSvcPrice').value),
       price_type: document.getElementById('newSvcType').value,
+      unit_label: document.getElementById('newSvcUnit').value.trim() || null,
       requires_service_id: document.getElementById('newSvcRequires').value || null,
       sort_order: Number(document.getElementById('newSvcOrder').value) || 0,
     });
     if (error) { alert(`Could not add service: ${error.message}`); return; }
     document.getElementById('newSvcName').value = '';
     document.getElementById('newSvcDesc').value = '';
+    document.getElementById('newSvcUnit').value = '';
     document.getElementById('newSvcRequires').value = '';
     loadRooms();
   });

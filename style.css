@@ -436,26 +436,26 @@ h2{
    trades a little breathing room for fitting more of the form on screen. */
 .booking{
   background:var(--ink);
-  padding-top:72px; padding-bottom:72px;
+  padding-top:48px; padding-bottom:48px;
 }
-.booking .section-head{margin-bottom:36px;}
+.booking .section-head{margin-bottom:24px;}
 .book-grid{
-  display:grid; grid-template-columns:1.05fr 0.95fr; gap:36px;
+  display:grid; grid-template-columns:1.05fr 0.95fr; gap:24px;
 }
 .book-form{
   background:var(--panel);
   border:1px solid var(--line);
-  padding:30px;
+  padding:20px;
   border-radius:4px;
 }
-.field{margin-bottom:15px;}
+.field{margin-bottom:10px;}
 .field label{
-  display:block; font-family:var(--sans); font-size:0.75rem;
-  letter-spacing:0.08em; color:var(--gold); margin-bottom:9px;
+  display:block; font-family:var(--sans); font-size:0.72rem;
+  letter-spacing:0.08em; color:var(--gold); margin-bottom:5px;
 }
 .field input, .field select{
   width:100%; background:var(--ink); border:1px solid var(--line); color:var(--cream);
-  padding:11px 13px; font-family:var(--sans); font-size:0.95rem; border-radius:3px;
+  padding:8px 12px; font-family:var(--sans); font-size:0.9rem; border-radius:3px;
   outline:none; transition:border-color 0.2s;
   color-scheme:dark;
 }
@@ -469,7 +469,7 @@ h2{
 .field input[type="time"]::-webkit-calendar-picker-indicator:hover{opacity:1;}
 .field select option{background:var(--ink); color:var(--cream);}
 .field input[readonly]{opacity:0.75; cursor:not-allowed;}
-.field-row{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+.field-row{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
 
 /* Invalid state, set by js/form-validate.js. The red outline marks *which*
    control is wrong; .field-error underneath says what about it is wrong. */
@@ -494,44 +494,44 @@ h2{
 
 .booking-summary{
   display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap;
-  margin-top:6px; padding:12px 16px;
+  margin-top:4px; padding:9px 14px;
   border:1px solid var(--line); border-radius:3px;
   background:rgba(255,213,88,0.04);
 }
-.booking-summary div{display:flex; flex-direction:column; gap:6px;}
-.booking-summary span{font-family:var(--sans); font-size:0.72rem; letter-spacing:0.08em; opacity:0.55;}
-.booking-summary strong{font-family:var(--sans); font-size:1.3rem; color:var(--gold); font-weight:700;}
+.booking-summary div{display:flex; flex-direction:column; gap:4px;}
+.booking-summary span{font-family:var(--sans); font-size:0.7rem; letter-spacing:0.08em; opacity:0.55;}
+.booking-summary strong{font-family:var(--sans); font-size:1.12rem; color:var(--gold); font-weight:700;}
 
 .submit-row{
-  display:flex; align-items:center; justify-content:space-between; margin-top:20px; gap:16px; flex-wrap:wrap;
+  display:flex; align-items:center; justify-content:space-between; margin-top:14px; gap:16px; flex-wrap:wrap;
 }
 .book-submit{
   width:100%;
   font-family:var(--sans); font-weight:600; letter-spacing:0.03em;
-  background:var(--gold); color:var(--ink); border:none; padding:13px; font-size:0.92rem;
+  background:var(--gold); color:var(--ink); border:none; padding:11px; font-size:0.9rem;
   border-radius:3px; cursor:pointer; transition:transform 0.2s;
 }
 .book-submit:hover{transform:translateY(-2px);}
 .confirm-msg{
-  display:none; margin-top:18px; font-family:var(--sans); font-size:0.82rem;
-  color:var(--gold); border:1px solid var(--gold-dim); padding:12px 14px; border-radius:3px;
+  display:none; margin-top:14px; font-family:var(--sans); font-size:0.8rem;
+  color:var(--gold); border:1px solid var(--gold-dim); padding:10px 13px; border-radius:3px;
 }
 .confirm-msg.error{color:#e5876f; border-color:#7a4331;}
 
 .auth-step{
-  margin-top:6px; padding:13px 16px;
+  margin-top:4px; padding:10px 14px;
   border:1px solid var(--gold-dim); border-radius:3px;
   background:rgba(255,213,88,0.05);
 }
-.auth-step-note{font-size:0.82rem; opacity:0.8; margin-bottom:14px;}
+.auth-step-note{font-size:0.8rem; opacity:0.8; margin-bottom:10px;}
 .auth-step .field{margin-bottom:0;}
-.auth-toggle-row{margin-top:14px; text-align:center;}
-.auth-toggle-row button{width:auto; padding:9px 16px; font-size:0.78rem;}
+.auth-toggle-row{margin-top:10px; text-align:center;}
+.auth-toggle-row button{width:auto; padding:8px 16px; font-size:0.76rem;}
 .auth-signed-in{
   display:flex; align-items:center; justify-content:space-between; gap:16px;
-  padding:11px 16px; margin-bottom:18px;
+  padding:9px 16px; margin-bottom:12px;
   border:1px solid var(--line); border-radius:3px;
-  font-size:0.85rem;
+  font-size:0.83rem;
 }
 .auth-signed-in button{padding:9px 16px; font-size:0.78rem;}
 
@@ -543,10 +543,10 @@ h2{
    <label>s sitting inside a .field, and `.field label` (display:block, gold,
    0.75rem — the styling for a field's *caption*) would otherwise win on
    specificity and stack the chip's parts vertically. */
-.service-checks{display:flex; flex-direction:column; gap:8px;}
+.service-checks{display:flex; flex-direction:column; gap:5px;}
 .service-checks .service-check{
-  display:flex; align-items:flex-start; gap:12px;
-  padding:12px 14px; border:1px solid var(--line); border-radius:3px;
+  display:flex; align-items:flex-start; gap:10px;
+  padding:8px 11px; border:1px solid var(--line); border-radius:3px;
   cursor:pointer;
   /* undo the .field label caption treatment */
   font-size:0.88rem; letter-spacing:normal; color:var(--cream); margin-bottom:0;
@@ -569,13 +569,23 @@ h2{
 .service-checks .service-check-body{display:flex; flex-direction:column; gap:3px; flex:1; min-width:0;}
 .service-checks .service-check-name{font-size:0.9rem; font-weight:600; color:var(--cream);}
 .service-checks .service-check-note{
-  font-size:0.76rem; color:rgba(246,241,230,0.62); line-height:1.45; letter-spacing:normal;
+  font-size:0.74rem; color:rgba(246,241,230,0.62); line-height:1.35; letter-spacing:normal;
 }
 .service-checks .service-check-note:empty{display:none;}
+.service-checks .service-check-trailing{
+  display:flex; align-items:center; gap:8px; flex-shrink:0; margin-top:1px;
+}
 .service-checks .service-check-price{
   font-size:0.85rem; font-weight:700;
-  color:var(--gold); white-space:nowrap; flex-shrink:0; margin-top:1px;
+  color:var(--gold); white-space:nowrap;
 }
+.service-checks .service-check-qty{
+  width:48px; background:var(--ink); border:1px solid var(--line); color:var(--cream);
+  padding:5px 6px; font-family:var(--sans); font-size:0.82rem; border-radius:3px;
+  text-align:center; outline:none; color-scheme:dark;
+}
+.service-checks .service-check-qty:disabled{opacity:0.4; cursor:not-allowed;}
+.service-checks .service-check-qty:focus{border-color:var(--gold);}
 .service-checks .service-check:has(input:checked){
   border-color:var(--gold-dim); background:rgba(255,213,88,0.05); transform:translateY(-1px);
 }
@@ -689,9 +699,9 @@ footer .btn-primary{margin-top:24px;}
   .console{max-width:280px;}
   .gear-copy .stat-row{gap:28px;}
 
-  .booking{padding-top:56px; padding-bottom:56px;}
-  .book-grid{grid-template-columns:1fr; gap:32px;}
-  .book-form{padding:24px 20px;}
+  .booking{padding-top:36px; padding-bottom:36px;}
+  .book-grid{grid-template-columns:1fr; gap:24px;}
+  .book-form{padding:18px 16px;}
   .field-row{grid-template-columns:1fr;}
 
   .footer-top{flex-direction:column; align-items:flex-start;}
@@ -722,7 +732,7 @@ footer .btn-primary{margin-top:24px;}
   .gear-copy .stat-row{gap:24px; flex-wrap:wrap;}
   .stat{min-width:40%;}
 
-  .book-form{padding:20px 16px;}
+  .book-form{padding:16px 14px;}
   .submit-row{flex-direction:column; align-items:stretch;}
   .nav-greet{border:none; padding:8px 4px;}
 
@@ -792,16 +802,16 @@ button:disabled, .book-submit:disabled{opacity:0.5; cursor:not-allowed; transfor
 
 /* ---------- PAYMENT OPTIONS ---------- */
 .pay-options{
-  margin-top:16px; padding-top:16px; border-top:1px solid var(--line);
-  display:flex; flex-direction:column; gap:8px;
+  margin-top:12px; padding-top:12px; border-top:1px solid var(--line);
+  display:flex; flex-direction:column; gap:6px;
 }
 .pay-heading{
-  display:block; font-family:var(--sans); font-size:0.75rem;
-  letter-spacing:0.08em; color:var(--gold); margin-bottom:4px;
+  display:block; font-family:var(--sans); font-size:0.73rem;
+  letter-spacing:0.08em; color:var(--gold); margin-bottom:2px;
 }
 .pay-option{
-  display:flex; align-items:flex-start; gap:12px;
-  padding:11px 14px; border:1px solid var(--line); border-radius:3px;
+  display:flex; align-items:flex-start; gap:10px;
+  padding:8px 12px; border:1px solid var(--line); border-radius:3px;
   cursor:pointer; transition:border-color 0.2s, background 0.2s;
 }
 .pay-option:hover{border-color:rgba(238,244,244,0.28);}
@@ -811,24 +821,24 @@ button:disabled, .book-submit:disabled{opacity:0.5; cursor:not-allowed; transfor
   margin-top:3px;
 }
 .pay-option:has(input:checked){border-color:var(--gold-dim); background:rgba(255,213,88,0.05);}
-.pay-body{display:flex; flex-direction:column; gap:4px; flex:1; min-width:0;}
-.pay-title{font-size:0.9rem; font-weight:600;}
-.pay-note{font-size:0.78rem; color:rgba(246,241,230,0.62); line-height:1.5;}
+.pay-body{display:flex; flex-direction:column; gap:3px; flex:1; min-width:0;}
+.pay-title{font-size:0.88rem; font-weight:600;}
+.pay-note{font-size:0.76rem; color:rgba(246,241,230,0.62); line-height:1.4;}
 .pay-amount{
-  font-family:var(--sans); font-size:0.95rem; font-weight:700; color:var(--gold);
+  font-family:var(--sans); font-size:0.92rem; font-weight:700; color:var(--gold);
   white-space:nowrap; flex-shrink:0;
 }
 
 .pay-id-upload{
   display:none;
-  margin:-2px 0 4px; padding:11px 14px;
+  margin:-2px 0 4px; padding:9px 12px;
   border:1px solid var(--gold-dim); border-radius:3px;
   background:rgba(255,213,88,0.04);
 }
 .pay-id-upload.show{display:block;}
 .pay-id-upload label{
-  display:block; font-family:var(--sans); font-size:0.75rem;
-  letter-spacing:0.08em; color:var(--gold); margin-bottom:9px;
+  display:block; font-family:var(--sans); font-size:0.73rem;
+  letter-spacing:0.08em; color:var(--gold); margin-bottom:6px;
 }
 .pay-id-upload input[type="file"]{
   width:100%; font-family:var(--sans); font-size:0.82rem; color:var(--cream);
@@ -849,11 +859,11 @@ button:disabled, .book-submit:disabled{opacity:0.5; cursor:not-allowed; transfor
 
 /* ---------- TERMS & CONDITIONS ---------- */
 .terms-block{
-  margin-top:16px; padding-top:16px; border-top:1px solid var(--line);
+  margin-top:12px; padding-top:12px; border-top:1px solid var(--line);
 }
 .terms-check{
-  display:flex; align-items:flex-start; gap:12px;
-  font-size:0.82rem; color:rgba(246,241,230,0.8); line-height:1.5;
+  display:flex; align-items:flex-start; gap:10px;
+  font-size:0.8rem; color:rgba(246,241,230,0.8); line-height:1.4;
   cursor:pointer;
 }
 .terms-check input{

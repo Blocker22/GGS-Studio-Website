@@ -18,7 +18,17 @@ type ServiceRow = {
   slug: string;
   is_active: boolean;
   requires_service_id: string | null;
+  unit_label: string | null;
 };
+
+// Only 'unit'-priced services take a quantity; anything else books as one.
+// Clamped to a positive integer so a bad/missing client value can't zero out
+// or invert the price.
+function quantityFor(service: ServiceRow, quantities: Record<string, unknown>): number {
+  if (service.price_type !== "unit") return 1;
+  const raw = Math.floor(Number(quantities?.[service.id]));
+  return Number.isFinite(raw) && raw >= 1 ? raw : 1;
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -86,6 +96,7 @@ Deno.serve(async (req: Request) => {
     start_at,
     end_at,
     service_ids,
+    service_quantities,
     notes,
     customer_id: bodyCustomerId,
     guest_name: bodyGuestName,
@@ -107,6 +118,9 @@ Deno.serve(async (req: Request) => {
     return json({ error: "Cannot book a time in the past." }, 400);
   }
   const ids: string[] = Array.isArray(service_ids) ? service_ids : [];
+  const quantities: Record<string, unknown> = (service_quantities && typeof service_quantities === "object")
+    ? service_quantities
+    : {};
 
   // Only staff may book on behalf of another customer, or a walk-in/phone
   // customer who never made an account (guest_name, no customer_id).
@@ -154,7 +168,7 @@ Deno.serve(async (req: Request) => {
   // the message. It's a handful of rows.
   const { data: allServices, error: svcErr } = await admin
     .from("services")
-    .select("id, name, price, price_type, slug, is_active, requires_service_id");
+    .select("id, name, price, price_type, slug, is_active, requires_service_id, unit_label");
   if (svcErr || !allServices) {
     return json({ error: "Could not load services.", detail: svcErr?.message ?? null }, 500);
   }
@@ -177,10 +191,11 @@ Deno.serve(async (req: Request) => {
 
   const durationHours = (end.getTime() - start.getTime()) / 3600000;
   const subtotal = Number(room.hourly_rate) * durationHours;
-  const addonsTotal = services.reduce(
-    (sum, s) => sum + (s.price_type === "hourly" ? Number(s.price) * durationHours : Number(s.price)),
-    0,
-  );
+  const addonsTotal = services.reduce((sum, s) => {
+    if (s.price_type === "hourly") return sum + Number(s.price) * durationHours;
+    if (s.price_type === "unit") return sum + Number(s.price) * quantityFor(s, quantities);
+    return sum + Number(s.price);
+  }, 0);
   const totalPrice = Math.ceil(subtotal + addonsTotal);
 
   const { data: booking, error: insertErr } = await admin
@@ -213,11 +228,20 @@ Deno.serve(async (req: Request) => {
   }
 
   if (services.length > 0) {
-    const rows = services.map((s) => ({
-      booking_id: booking.id,
-      service_id: s.id,
-      price_at_booking: s.price_type === "hourly" ? Number(s.price) * durationHours : Number(s.price),
-    }));
+    const rows = services.map((s) => {
+      const qty = quantityFor(s, quantities);
+      const price = s.price_type === "hourly"
+        ? Number(s.price) * durationHours
+        : s.price_type === "unit"
+        ? Number(s.price) * qty
+        : Number(s.price);
+      return {
+        booking_id: booking.id,
+        service_id: s.id,
+        quantity: qty,
+        price_at_booking: price,
+      };
+    });
     await admin.from("booking_services").insert(rows);
   }
 

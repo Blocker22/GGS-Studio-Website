@@ -354,7 +354,9 @@ export async function initBooking() {
   }
 
   function priceLabel(svc) {
-    return svc.price_type === 'hourly' ? `+ ${formatPeso(svc.price)} / hr` : `+ ${formatPeso(svc.price)} flat`;
+    if (svc.price_type === 'hourly') return `+ ${formatPeso(svc.price)} / hr`;
+    if (svc.price_type === 'unit') return `+ ${formatPeso(svc.price)} / ${svc.unit_label || 'unit'}`;
+    return `+ ${formatPeso(svc.price)} flat`;
   }
 
   // The add-on list is whatever the `services` table currently holds, so a
@@ -379,9 +381,28 @@ export async function initBooking() {
       cb.value = svc.id;
       cb.dataset.slug = svc.slug;
       cb.addEventListener('change', () => {
+        if (qtyInput) qtyInput.disabled = !cb.checked;
         syncServiceDeps();
         updateSummary();
       });
+
+      let qtyInput = null;
+      if (svc.price_type === 'unit') {
+        qtyInput = document.createElement('input');
+        qtyInput.type = 'number';
+        qtyInput.className = 'service-check-qty';
+        qtyInput.min = '1';
+        qtyInput.step = '1';
+        qtyInput.value = '1';
+        qtyInput.disabled = true;
+        qtyInput.dataset.qtyFor = svc.id;
+        qtyInput.setAttribute('aria-label', `Number of ${svc.unit_label || 'units'} for ${svc.name}`);
+        qtyInput.addEventListener('click', (e) => e.stopPropagation());
+        qtyInput.addEventListener('input', () => {
+          if (Number(qtyInput.value) < 1) qtyInput.value = '1';
+          updateSummary();
+        });
+      }
 
       const tick = document.createElement('span');
       tick.className = 'tick';
@@ -404,7 +425,12 @@ export async function initBooking() {
       price.className = 'service-check-price';
       price.textContent = priceLabel(svc);
 
-      label.append(cb, tick, body, price);
+      const trailing = document.createElement('span');
+      trailing.className = 'service-check-trailing';
+      if (qtyInput) trailing.append(qtyInput);
+      trailing.append(price);
+
+      label.append(cb, tick, body, trailing);
       servicesWrap.appendChild(label);
     });
     syncServiceDeps();
@@ -449,6 +475,8 @@ export async function initBooking() {
     // Say why a locked row can't be picked, in place of its description.
     boxes.forEach((cb) => {
       const row = cb.closest('.service-check');
+      const qtyInput = row?.querySelector('.service-check-qty');
+      if (qtyInput) qtyInput.disabled = !cb.checked;
       const note = row?.querySelector('.service-check-note');
       if (!note) return;
       const requiredId = svcById.get(cb.value)?.requires_service_id || null;
@@ -468,11 +496,21 @@ export async function initBooking() {
     return serviceCheckboxes().filter((c) => c.checked && !c.disabled).map((c) => c.value);
   }
 
+  // For a 'unit' service, how many the customer set in its quantity input
+  // (defaults to 1 if the field can't be found for some reason).
+  function serviceQuantity(serviceId) {
+    const input = servicesWrap?.querySelector(`.service-check-qty[data-qty-for="${serviceId}"]`);
+    const n = input ? Math.floor(Number(input.value)) : 1;
+    return Number.isFinite(n) && n >= 1 ? n : 1;
+  }
+
   // "Room only" when nothing extra is picked — the confirmation line still has
   // to name what was booked.
   function selectedServiceLabel() {
     const picked = new Set(addonServiceIds());
-    const names = addonServices.filter((s) => picked.has(s.id)).map((s) => s.name);
+    const names = addonServices
+      .filter((s) => picked.has(s.id))
+      .map((s) => (s.price_type === 'unit' ? `${s.name} (${serviceQuantity(s.id)} ${s.unit_label || 'unit'})` : s.name));
     return names.length ? `Room + ${names.join(' + ')}` : 'Room only';
   }
 
@@ -480,7 +518,9 @@ export async function initBooking() {
     const picked = new Set(addonServiceIds());
     return addonServices.reduce((sum, svc) => {
       if (!picked.has(svc.id)) return sum;
-      return sum + (svc.price_type === 'hourly' ? Number(svc.price) * durationHours : Number(svc.price));
+      if (svc.price_type === 'hourly') return sum + Number(svc.price) * durationHours;
+      if (svc.price_type === 'unit') return sum + Number(svc.price) * serviceQuantity(svc.id);
+      return sum + Number(svc.price);
     }, 0);
   }
 
@@ -636,6 +676,7 @@ export async function initBooking() {
       start_at: startAt.toISOString(),
       end_at: endAt.toISOString(),
       service_ids: addonServiceIds(),
+      service_quantities: Object.fromEntries(addonServiceIds().map((id) => [id, serviceQuantity(id)])),
       payment_option: payOption,
       // The full directory URL, not just the origin — this project's GitHub
       // Pages site lives under a subpath (/GGS-Studio-Website/), and

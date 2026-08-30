@@ -422,19 +422,20 @@
       <div class="a-label" style="margin-bottom:10px;">Services / add-ons</div>
       <div class="a-card" style="overflow-x:auto; margin-bottom:14px;">
         <table class="a-table">
-          <thead><tr><th>Name</th><th>Description</th><th>Price</th><th>Type</th><th>Requires</th><th>Order</th><th>Active</th></tr></thead>
+          <thead><tr><th>Name</th><th>Description</th><th>Price</th><th>Type</th><th>Unit</th><th>Requires</th><th>Order</th><th>Active</th></tr></thead>
           <tbody id="servicesBody"></tbody>
         </table>
       </div>
-      <p class="a-hint" style="margin:-6px 0 14px;"><strong>Requires</strong> locks a service until its prerequisite is picked. <strong>Order</strong> sorts the landing page and booking form.</p>
+      <p class="a-hint" style="margin:-6px 0 14px;"><strong>Requires</strong> locks a service until its prerequisite is picked. <strong>Order</strong> sorts the landing page and booking form. <strong>Unit</strong> only applies to "Per unit" pricing, e.g. "song" or "track" — the customer enters a quantity and the price multiplies by it.</p>
       <div class="a-card" style="padding:18px; display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
         <div><label class="a-label">New service name</label><input class="a-input" id="newSvcName"></div>
         <div style="flex:1; min-width:220px;"><label class="a-label">Description</label><input class="a-input" id="newSvcDesc" placeholder="Shown on the landing page" style="width:100%;"></div>
         <div><label class="a-label">Price</label><input type="number" class="a-input" id="newSvcPrice" value="0" style="width:100px;"></div>
         <div>
           <label class="a-label">Type</label>
-          <select class="a-input" id="newSvcType"><option value="flat">Flat</option><option value="hourly">Hourly</option></select>
+          <select class="a-input" id="newSvcType"><option value="flat">Flat</option><option value="hourly">Hourly</option><option value="unit">Per unit</option></select>
         </div>
+        <div><label class="a-label">Unit name</label><input class="a-input" id="newSvcUnit" placeholder="e.g. song" style="width:110px;"></div>
         <div>
           <label class="a-label">Requires</label>
           <select class="a-input" id="newSvcRequires"><option value="">&mdash; nothing &mdash;</option></select>

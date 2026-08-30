@@ -24,45 +24,45 @@
      double up: a bordered, 44px-padded box wrapped around another bordered,
      padded box, eating that much width twice over before the actual fields
      started. Just spacing now, matching how the landing page treats it. */
-  .account-book{margin-bottom:56px; scroll-margin-top:110px;}
+  .account-book{margin-bottom:32px; scroll-margin-top:110px;}
   .account-book .section-tag{margin-top:4px;}
   .booking-card{
     background:var(--panel); border:1px solid var(--line); border-left:2px solid var(--gold-dim);
-    border-radius:4px; padding:24px 28px; margin-bottom:14px;
-    display:flex; align-items:flex-start; justify-content:space-between; gap:20px; flex-wrap:wrap;
+    border-radius:4px; padding:14px 18px; margin-bottom:10px;
+    display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap;
     transition:border-color 0.2s, background 0.2s;
   }
   .booking-card:hover{background:var(--panel-2);}
   .booking-card.status-confirmed{border-left-color:var(--teal);}
   .booking-card.status-cancelled{border-left-color:#7a4331; opacity:0.65;}
-  .booking-card h3{font-size:1.05rem; margin-bottom:6px;}
-  .booking-card .meta{font-size:0.85rem; opacity:0.7; margin-bottom:4px;}
+  .booking-card h3{font-size:0.98rem; margin-bottom:4px;}
+  .booking-card .meta{font-size:0.82rem; opacity:0.7; margin-bottom:3px;}
   .status-pill{
-    display:inline-block; font-size:0.7rem; letter-spacing:0.06em; text-transform:capitalize;
-    padding:4px 10px; border-radius:20px; border:1px solid var(--line); margin-bottom:10px;
+    display:inline-block; font-size:0.68rem; letter-spacing:0.06em; text-transform:capitalize;
+    padding:3px 9px; border-radius:20px; border:1px solid var(--line); margin-bottom:6px;
   }
   .status-pending{color:var(--gold); border-color:var(--gold-dim);}
   .status-confirmed{color:var(--teal); border-color:var(--teal);}
   .status-cancelled{color:#e5876f; border-color:#7a4331;}
   .status-completed, .status-no_show{opacity:0.6;}
-  .booking-actions{display:flex; gap:10px; flex-wrap:wrap; align-items:flex-start;}
-  .booking-actions .btn-primary{padding:9px 18px; font-size:0.78rem;}
+  .booking-actions{display:flex; gap:8px; flex-wrap:wrap; align-items:flex-start;}
+  .booking-actions .btn-primary{padding:7px 16px; font-size:0.76rem;}
   .pay-state{max-width:46ch;}
   .pay-state-pending, .pay-state-rejected{color:var(--gold); opacity:1;}
   .pay-state-submitted{color:var(--teal); opacity:1;}
   .pay-state-succeeded{color:var(--teal); opacity:0.85;}
   .section-sub{
-    font-size:0.75rem; letter-spacing:0.08em; color:var(--gold);
-    margin:40px 0 16px; padding-bottom:8px; border-bottom:1px solid var(--line);
+    font-size:0.73rem; letter-spacing:0.08em; color:var(--gold);
+    margin:28px 0 12px; padding-bottom:6px; border-bottom:1px solid var(--line);
   }
   /* Reschedule panel drops below the card's two columns. */
   .booking-card{flex-wrap:wrap;}
   .reschedule-panel{
-    flex-basis:100%; width:100%; margin-top:18px; padding-top:18px;
+    flex-basis:100%; width:100%; margin-top:14px; padding-top:14px;
     border-top:1px dashed var(--line);
   }
   .reschedule-panel[hidden]{display:none;}
-  .reschedule-panel .field{margin-bottom:14px;}
+  .reschedule-panel .field{margin-bottom:10px;}
   .reschedule-actions{display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-top:4px;}
   .reschedule-locked{color:var(--gold); opacity:0.75; margin-top:8px;}
 </style>
@@ -258,7 +258,12 @@
     const card = document.createElement('div');
     card.className = `booking-card status-${b.status}`;
     const room = b.rooms?.name || 'Room';
-    const services = (b.booking_services || []).map(bs => bs.services?.name).filter(Boolean).join(', ');
+    const services = (b.booking_services || [])
+      .filter(bs => bs.services?.name)
+      .map(bs => bs.services.price_type === 'unit'
+        ? `${bs.services.name} (${bs.quantity} ${bs.services.unit_label || 'unit'})`
+        : bs.services.name)
+      .join(', ');
     const startsAt = new Date(b.start_at);
     const isOpen = ['pending','confirmed'].includes(b.status);
     // Same rule the server enforces, and the same rule for both actions:
@@ -413,7 +418,7 @@
     const [{ data: bookings, error }, { data: cutoffRows }] = await Promise.all([
       supabase
         .from('bookings')
-        .select('*, rooms(name), booking_services(services(name)), payments(id, method, type, status, amount, rejection_reason)')
+        .select('*, rooms(name), booking_services(quantity, services(name, price_type, unit_label)), payments(id, method, type, status, amount, rejection_reason)')
         .eq('customer_id', session.user.id)
         .order('start_at', { ascending: false }),
       supabase.from('app_settings').select('value').eq('key', 'reschedule_cutoff_hours'),
