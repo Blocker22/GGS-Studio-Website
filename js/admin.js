@@ -1118,34 +1118,57 @@ Delete anyway and write off the unrefunded amount?`,
 
   // ---------- Customers ----------
   let customersCache = [];
+  let customerEmails = {};
+  let showCustomerEmails = false;
   async function loadCustomers() {
-    const { data } = await supabase.from('profiles').select('id, full_name, phone, created_at').eq('role', 'customer').order('full_name');
+    const { data } = await supabase.from('profiles').select('id, full_name, created_at').eq('role', 'customer').order('full_name');
     customersCache = data || [];
     renderCustomerList();
+  }
+  async function loadCustomerEmails() {
+    if (customersCache.length === 0) return;
+    try {
+      const { emails } = await callFunction('list-customer-emails', { ids: customersCache.map((c) => c.id) });
+      customerEmails = emails || {};
+    } catch {
+      customerEmails = {};
+    }
   }
   function renderCustomerList() {
     const search = document.getElementById('custSearch').value.toLowerCase();
     const list = document.getElementById('custList');
     list.innerHTML = '';
     customersCache
-      .filter((c) => (c.full_name || '').toLowerCase().includes(search))
+      .filter((c) => (c.full_name || '').toLowerCase().includes(search) || (customerEmails[c.id] || '').toLowerCase().includes(search))
       .forEach((c) => {
         const item = el('div', { class: 'list-item', onclick: () => showCustomerDetail(c) }, [
           el('div', {}, c.full_name || 'Unnamed'),
-          el('div', { style: 'font-size:0.75rem;opacity:0.4;' }, c.phone || 'No phone'),
+          showCustomerEmails
+            ? el('div', { style: 'font-size:0.75rem;opacity:0.4;' }, customerEmails[c.id] || '—')
+            : null,
         ]);
         list.appendChild(item);
       });
     if (customersCache.length === 0) list.appendChild(el('p', { style: 'padding:16px;opacity:0.5;font-size:0.85rem;' }, 'No customers yet.'));
   }
   document.getElementById('custSearch').addEventListener('input', renderCustomerList);
+  const custShowEmailToggle = document.getElementById('custShowEmail');
+  if (custShowEmailToggle) {
+    custShowEmailToggle.addEventListener('change', async () => {
+      showCustomerEmails = custShowEmailToggle.checked;
+      if (showCustomerEmails && Object.keys(customerEmails).length === 0) await loadCustomerEmails();
+      renderCustomerList();
+    });
+  }
 
   async function showCustomerDetail(c) {
     const detail = document.getElementById('custDetail');
     detail.innerHTML = '';
     detail.appendChild(el('h2', { style: 'margin-bottom:4px;' }, c.full_name || 'Unnamed'));
+    if (showCustomerEmails && Object.keys(customerEmails).length === 0) await loadCustomerEmails();
     detail.appendChild(
-      el('p', { style: 'font-size:0.75rem;opacity:0.5;margin-bottom:20px;' }, `${c.phone || 'No phone'} · Customer since ${d(c.created_at)}`),
+      el('p', { style: 'font-size:0.75rem;opacity:0.5;margin-bottom:20px;' },
+        showCustomerEmails ? `${customerEmails[c.id] || 'No email on file'} · Customer since ${d(c.created_at)}` : `Customer since ${d(c.created_at)}`),
     );
     detail.appendChild(el('div', { class: 'a-label', style: 'margin-bottom:10px;' }, 'Booking history'));
     const { data: history } = await supabase
