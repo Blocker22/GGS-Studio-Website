@@ -13,12 +13,20 @@
 //                     send to, so set this to a verified domain before relying
 //                     on customer mail arriving.
 //   EMAIL_BCC       — optional; a studio address copied on every customer mail.
+//   LOGO_URL        — optional; overrides the masthead image if the logo moves.
 //
 // This file is deployed verbatim alongside each function that calls it, the
 // same way audit.ts and guest.ts are — Edge Functions have no shared runtime.
 
 const RESEND_ENDPOINT = "https://api.resend.com/emails";
 const DEFAULT_FROM = "GGS Studio <onboarding@resend.dev>";
+
+// The masthead logo. Email clients can't read anything local, so this has to be
+// an absolute URL on a host that's public and stays up — the live site, served
+// from the same domain the mail is sent from. LOGO_URL overrides it if the
+// asset ever moves. Clients that block images fall back to the alt text, which
+// is why the alt is the studio's name rather than "logo".
+const LOGO_URL = "https://www.ggsstudio.site/assets/Logo_NoBG.png";
 
 const BRAND = {
   ink: "#0d1214",
@@ -97,8 +105,9 @@ function layout(title: string, bodyHtml: string): string {
   return `<!doctype html><html><body style="margin:0;padding:24px 12px;background:${BRAND.ink};font-family:Helvetica,Arial,sans-serif;">
     <table role="presentation" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto;background:${BRAND.panel};border:1px solid ${BRAND.line};border-radius:6px;">
       <tr><td style="padding:22px 26px;">
-        <div style="font-size:11px;letter-spacing:2px;text-transform:uppercase;color:${BRAND.gold};">GGS Studio</div>
-        <h1 style="margin:10px 0 0;font-size:20px;color:${BRAND.cream};font-weight:600;">${escapeHtml(title)}</h1>
+        <img src="${Deno.env.get("LOGO_URL")?.trim() || LOGO_URL}" alt="GGS Studio" width="132"
+          style="display:block;width:132px;max-width:60%;height:auto;border:0;outline:none;text-decoration:none;">
+        <h1 style="margin:14px 0 0;font-size:20px;color:${BRAND.cream};font-weight:600;">${escapeHtml(title)}</h1>
         <div style="margin-top:14px;color:${BRAND.cream};font-size:14px;line-height:1.6;">${bodyHtml}</div>
         <p style="margin:22px 0 0;padding-top:16px;border-top:1px solid ${BRAND.line};color:${BRAND.muted};font-size:12px;line-height:1.6;">
           Questions? Just reply to this email and we'll pick it up.
@@ -111,6 +120,9 @@ function layout(title: string, bodyHtml: string): string {
 /** Plain-text fallback: tags stripped, blocks turned into line breaks. */
 function toText(html: string): string {
   return html
+    // The masthead is an image; keep its alt so the text part still says who
+    // this is from.
+    .replace(/<img[^>]*alt="([^"]*)"[^>]*>/gi, "$1\n")
     .replace(/<\/(p|div|tr|h1|h2)>/gi, "\n")
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<td[^>]*>/gi, " ")

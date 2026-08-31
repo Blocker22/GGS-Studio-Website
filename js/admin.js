@@ -519,7 +519,7 @@ async function main() {
     if (error) {
       const body = document.getElementById('bookingsBody');
       body.innerHTML = '';
-      body.appendChild(el('tr', {}, el('td', { colspan: '7' }, `Error: ${error.message}`)));
+      body.appendChild(el('tr', {}, el('td', { colspan: '10' }, `Error: ${error.message}`)));
       return;
     }
     allBookings = data || [];
@@ -547,7 +547,7 @@ async function main() {
       if (status && b.status !== status) return false;
       // Guest bookings are found by the email as readily as by the name — often
       // the email is the only thing staff have to go on from a phone call.
-      const haystack = [b.profiles?.full_name, b.guest_name, b.guest_email].filter(Boolean).join(' ').toLowerCase();
+      const haystack = [b.profiles?.full_name, b.guest_name, b.guest_email, bookingRef(b.id)].filter(Boolean).join(' ').toLowerCase();
       if (search && !haystack.includes(search)) return false;
       if (from && new Date(b.start_at) < new Date(from)) return false;
       if (to && new Date(b.start_at) > new Date(to + 'T23:59:59')) return false;
@@ -557,7 +557,7 @@ async function main() {
     const body = document.getElementById('bookingsBody');
     body.innerHTML = '';
     if (filtered.length === 0) {
-      body.appendChild(el('tr', {}, el('td', { colspan: '8', style: 'text-align:center;opacity:0.5;padding:24px;' }, 'No bookings match these filters.')));
+      body.appendChild(el('tr', {}, el('td', { colspan: '10', style: 'text-align:center;opacity:0.5;padding:24px;' }, 'No bookings match these filters.')));
       return;
     }
 
@@ -583,6 +583,7 @@ async function main() {
       actions.append(el('button', { class: 'a-btn-danger', onclick: () => deleteBooking(b.id) }, 'Delete'));
       body.appendChild(
         el('tr', {}, [
+          el('td', {}, refCell(b.id)),
           el('td', {}, dt(b.start_at)),
           el('td', {}, b.rooms?.name || ''),
           el('td', {}, customerCell(b)),
@@ -610,6 +611,29 @@ async function main() {
       nodes.push(el('span', { style: 'display:block;font-size:0.78em;opacity:0.6;' }, b.guest_email));
     }
     return nodes;
+  }
+
+  // The customer-facing reference: the first block of the booking's UUID, which
+  // is exactly what the confirmation emails print. Staff can paste one straight
+  // from a customer's email into the search box above.
+  function bookingRef(id) {
+    return String(id || '').slice(0, 8).toUpperCase();
+  }
+
+  // Click to copy — a reference read off a phone call is usually being pasted
+  // somewhere else a moment later.
+  function refCell(id) {
+    const ref = bookingRef(id);
+    const btn = el('button', { class: 'ref-copy', title: 'Copy reference' }, ref);
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      try {
+        await navigator.clipboard.writeText(ref);
+        btn.classList.add('copied');
+        setTimeout(() => btn.classList.remove('copied'), 900);
+      } catch { /* clipboard blocked — the text is on screen to read anyway */ }
+    });
+    return btn;
   }
 
   const PAY_OPTION_LABEL = { cash: 'Cash', deposit: 'Downpayment (online)', full: 'Full (online)' };
@@ -773,6 +797,18 @@ async function main() {
   function openEditModal(booking) {
     editingBookingId = booking.id;
     document.getElementById('ebMsg').style.display = 'none';
+
+    const refBtn = document.getElementById('ebRef');
+    if (refBtn) {
+      refBtn.textContent = bookingRef(booking.id);
+      refBtn.onclick = async () => {
+        try {
+          await navigator.clipboard.writeText(bookingRef(booking.id));
+          refBtn.classList.add('copied');
+          setTimeout(() => refBtn.classList.remove('copied'), 900);
+        } catch { /* clipboard blocked — the reference is readable on screen */ }
+      };
+    }
 
     // Preselect whoever the booking actually belongs to, so saving without
     // touching this field can't quietly move it to someone else.
@@ -1446,7 +1482,7 @@ Delete anyway and write off the unrefunded amount?`,
         el('tr', {}, [
           el('td', {}, d(p.created_at)),
           el('td', {}, p.bookings?.rooms?.name || ''),
-          el('td', {}, payerName(p)),
+          el('td', {}, payerCell(p)),
           el('td', {}, el('span', { class: 'pill', style: METHOD_PILL_STYLE[p.method] || '' }, PAY_METHOD_LABEL[p.method] || p.method)),
           el('td', {}, p.type),
           el('td', {}, peso(p.amount)),
@@ -1466,6 +1502,16 @@ Delete anyway and write off the unrefunded amount?`,
     if (b.profiles?.full_name) return b.profiles.full_name;
     if (b.guest_name) return `${b.guest_name} (guest)`;
     return '—';
+  }
+
+  // Name over the booking's own reference, so a payment can be tied back to the
+  // session the customer is quoting.
+  function payerCell(p) {
+    const nodes = [el('span', {}, payerName(p))];
+    if (p.booking_id) {
+      nodes.push(el('span', { style: 'display:block;font-size:0.72em;opacity:0.55;letter-spacing:0.06em;' }, bookingRef(p.booking_id)));
+    }
+    return nodes;
   }
 
   const PAY_METHOD_LABEL = { manual: 'QR transfer', cash: 'cash', paymongo: 'paymongo' };

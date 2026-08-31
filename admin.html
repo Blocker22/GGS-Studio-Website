@@ -76,6 +76,19 @@
   .a-table th{text-align:left; padding:10px 12px; border-bottom:1px solid var(--line); font-size:0.68rem; letter-spacing:0.06em; opacity:0.5;}
   .a-table td{padding:10px 12px; border-bottom:1px solid rgba(244,248,248,0.06); vertical-align:middle;}
   .pill{display:inline-block; font-size:0.65rem; letter-spacing:0.05em; text-transform:capitalize; padding:3px 9px; border-radius:20px; border:1px solid var(--line);}
+  /* The customer-facing booking reference — the same short code the
+     confirmation emails print. Click copies it. */
+  .ref-copy{
+    font-family:ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size:0.75rem; letter-spacing:0.08em;
+    background:rgba(255,213,88,0.06); border:1px solid var(--line); color:var(--gold);
+    padding:3px 8px; border-radius:3px; cursor:pointer; white-space:nowrap;
+    transition:border-color 0.15s, background 0.15s, color 0.15s;
+  }
+  .ref-copy:hover{border-color:var(--gold-dim); background:rgba(255,213,88,0.12);}
+  .ref-copy.copied{background:var(--gold); color:var(--ink); border-color:var(--gold);}
+  .ref-copy.copied::after{content:' ✓';}
+
   .pill-pending{color:var(--gold); border-color:var(--gold-dim);}
   .pill-confirmed{color:var(--teal); border-color:var(--teal);}
   .pill-cancelled{color:#e5876f; border-color:#7a4331;}
@@ -339,7 +352,7 @@
       <div class="a-card" id="bookingsListView" style="overflow-x:auto;">
         <table class="a-table">
           <thead><tr>
-            <th>When</th><th>Room</th><th>Customer</th><th>Pay</th><th>Add-ons</th><th>Total</th><th>Payment</th><th>Status</th><th>Actions</th>
+            <th>Ref</th><th>When</th><th>Room</th><th>Customer</th><th>Pay</th><th>Add-ons</th><th>Total</th><th>Payment</th><th>Status</th><th>Actions</th>
           </tr></thead>
           <tbody id="bookingsBody"></tbody>
         </table>
@@ -624,6 +637,12 @@
       <div>
         <label class="a-label">Notes</label>
         <input class="a-input" id="ebNotes">
+      </div>
+      <div style="display:flex; align-items:center; justify-content:space-between; border-top:1px solid var(--line); padding-top:16px;">
+        <div>
+          <label class="a-label" style="margin-bottom:2px;">Reference no.</label>
+          <button type="button" id="ebRef" class="ref-copy" title="Copy reference">&mdash;</button>
+        </div>
       </div>
       <div style="display:flex; align-items:center; justify-content:space-between; border-top:1px solid var(--line); padding-top:16px;">
         <div>
