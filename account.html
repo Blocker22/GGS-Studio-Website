@@ -226,6 +226,7 @@
   import { initBookingCalendar } from './js/availability.js';
   import { openPaymentModal } from './js/payment-qr.js';
   import { initChatbot } from './js/chatbot.js';
+  import { showFieldErrors, clearFieldError } from './js/form-validate.js';
 
   initBookingCalendar();
   initChatbot();
@@ -233,6 +234,13 @@
   const FUNCTIONS_URL = `${SUPABASE_URL}/functions/v1`;
 
   function formatPeso(amount){ return '₱' + Math.round(amount).toLocaleString('en-PH'); }
+
+  // renderBooking() below builds each card as an innerHTML template for speed
+  // and readability, so any free-text value that lands inside it — a staff
+  // member's typed reason for rejecting a receipt, an error message — has to
+  // be escaped by hand rather than relying on the DOM to keep it as plain text.
+  const ESCAPE_MAP = { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' };
+  function escapeHtml(s){ return String(s ?? '').replace(/[&<>"']/g, (c) => ESCAPE_MAP[c]); }
   function fmtRange(start, end){
     const s = new Date(start), e = new Date(end);
     const dateStr = s.toLocaleDateString('en-PH', { month:'short', day:'numeric', year:'numeric' });
@@ -294,12 +302,6 @@
     });
   }
 
-  function showMsg(el, text, isError){
-    el.textContent = text;
-    el.classList.toggle('error', !!isError);
-    el.style.display = 'block';
-  }
-
   function renderBooking(b, session, supabase, onChange, cutoffHours){
     const card = document.createElement('div');
     card.className = `booking-card status-${b.status}`;
@@ -328,7 +330,7 @@
     const payState = manualPay && b.status !== 'cancelled' ? {
       pending:   { line:`Unpaid — send ${formatPeso(manualPay.amount)} to one of our QRs and upload the receipt.`, btn:'Pay now' },
       submitted: { line:`Receipt for ${formatPeso(manualPay.amount)} received — the studio is verifying it.`, btn:'Replace receipt' },
-      rejected:  { line:`Receipt turned down: ${manualPay.rejection_reason || 'it could not be verified.'} Please send a corrected one.`, btn:'Send new receipt' },
+      rejected:  { line:`Receipt turned down: ${escapeHtml(manualPay.rejection_reason) || 'it could not be verified.'} Please send a corrected one.`, btn:'Send new receipt' },
       succeeded: { line:`${manualPay.type === 'deposit' ? 'Downpayment' : 'Payment'} of ${formatPeso(manualPay.amount)} verified.`, btn:null },
     }[manualPay.status] : null;
 
@@ -366,7 +368,6 @@
           <button type="submit" class="btn-outline" data-rs-save>Save new time</button>
           <button type="button" class="btn-ghost" data-rs-cancel>Never mind</button>
         </div>
-        <div class="confirm-msg" data-rs-msg></div>
       </form>` : ''}
     `;
 
@@ -405,7 +406,6 @@
     if (panel){
       const dateEl = panel.querySelector('[data-rs-date]');
       const timeEl = panel.querySelector('[data-rs-start]');
-      const msg = panel.querySelector('[data-rs-msg]');
       const saveBtn = panel.querySelector('[data-rs-save]');
 
       // Nothing earlier than the cutoff is selectable in the first place.
@@ -417,20 +417,32 @@
       card.querySelector('[data-action="reschedule"]').addEventListener('click', () => {
         panel.hidden = !panel.hidden;
       });
-      panel.querySelector('[data-rs-cancel]').addEventListener('click', () => { panel.hidden = true; });
+      panel.querySelector('[data-rs-cancel]').addEventListener('click', () => {
+        panel.hidden = true;
+        clearFieldError(dateEl);
+        clearFieldError(timeEl);
+      });
 
       panel.addEventListener('submit', async (e) => {
         e.preventDefault();
-        msg.style.display = 'none';
-        msg.classList.remove('error');
+        clearFieldError(dateEl);
+        clearFieldError(timeEl);
+
+        // Each problem is painted onto the field it belongs to and scrolled
+        // into view, the same way the booking form does it, rather than one
+        // generic line easy to miss below a form that's already open.
+        const errors = [];
+        if (!dateEl.value) errors.push([dateEl, 'Please pick a date.']);
+        if (!timeEl.value) errors.push([timeEl, 'Please pick a start time.']);
+        if (errors.length) { showFieldErrors(errors); return; }
 
         const newStart = new Date(`${dateEl.value}T${timeEl.value}:00`);
-        if (isNaN(newStart.getTime())){
-          showMsg(msg, '⚠ Please pick a valid date and time.', true);
+        if (isNaN(newStart.getTime())) {
+          showFieldErrors([[timeEl, 'That date and time combination is not valid.']]);
           return;
         }
-        if (newStart.getTime() - Date.now() < cutoffHours * 3600000){
-          showMsg(msg, `⚠ New time must be at least ${cutoffHours} hours from now.`, true);
+        if (newStart.getTime() - Date.now() < cutoffHours * 3600000) {
+          showFieldErrors([[timeEl, `New time must be at least ${cutoffHours} hours from now.`]]);
           return;
         }
         const newEnd = new Date(newStart.getTime() + durationMs);
@@ -444,7 +456,10 @@
           });
           onChange();
         }catch(err){
-          showMsg(msg, `⚠ ${err.message}`, true);
+          // Server-side rejections here are always about the date/time picked
+          // (cutoff, conflict, closed slot) — attach the reason there too
+          // instead of a message the field it's about could scroll out of view.
+          showFieldErrors([[timeEl, err.message]]);
           saveBtn.disabled = false;
         }
       });
@@ -470,7 +485,7 @@
         bookings = guest.bookings;
         cutoffHours = guest.cutoffHours;
       } catch (err) {
-        upcomingList.innerHTML = `<p class="muted">Could not load bookings: ${err.message}</p>`;
+        upcomingList.innerHTML = `<p class="muted">Could not load bookings: ${escapeHtml(err.message)}</p>`;
         return;
       }
     } else {
@@ -486,7 +501,7 @@
         supabase.from('app_settings').select('value').eq('key', 'reschedule_cutoff_hours'),
       ]);
       if (error){
-        upcomingList.innerHTML = `<p class="muted">Could not load bookings: ${error.message}</p>`;
+        upcomingList.innerHTML = `<p class="muted">Could not load bookings: ${escapeHtml(error.message)}</p>`;
         return;
       }
       bookings = rows || [];

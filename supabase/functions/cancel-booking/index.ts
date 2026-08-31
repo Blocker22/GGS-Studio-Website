@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { adminClient, corsHeaders, json, ownsBooking, resolveCaller } from "./guest.ts";
+import { logAudit } from "./audit.ts";
 
 // Cancels a booking for whoever owns it — a signed-in customer, studio staff,
 // or the anonymous browser that placed it, proven by the device handshake in
@@ -68,6 +69,21 @@ Deno.serve(async (req: Request) => {
     .select()
     .single();
   if (updateErr) return json({ error: "Could not cancel booking.", detail: updateErr.message }, 400);
+
+  await logAudit(
+    admin,
+    {
+      id: caller.userId,
+      role: caller.isStaff ? "staff" : caller.userId ? "customer" : "guest",
+      label: existing.guest_name
+        ? `${existing.guest_name} <${existing.guest_email ?? "no email"}>`
+        : (caller.email ?? existing.guest_email ?? caller.userId ?? "unknown"),
+    },
+    "booking.cancel",
+    "booking",
+    booking_id,
+    { reason: typeof reason === "string" ? reason : null, was_within_cutoff: withinCutoff },
+  );
 
   const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
   let refundResult: unknown = null;

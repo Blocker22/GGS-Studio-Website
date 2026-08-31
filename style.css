@@ -1431,6 +1431,8 @@ nav.scrolled{
 }
 .ggs-wizard-row input:focus{border-color:var(--gold);}
 .ggs-wizard-row input:disabled{opacity:0.55;}
+.ggs-wizard-row input.invalid{border-color:#7a4331; background:rgba(229,135,111,0.08);}
+.ggs-wizard-row input.invalid:focus{border-color:#e5876f;}
 .ggs-wizard-check, .ggs-wizard-radio{
   display:flex; align-items:center; gap:7px; cursor:pointer;
   font-size:0.73rem; color:rgba(246,241,230,0.9);

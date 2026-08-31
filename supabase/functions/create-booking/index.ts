@@ -8,6 +8,7 @@ import {
   normalizeEmail,
   resolveCaller,
 } from "./guest.ts";
+import { logAudit } from "./audit.ts";
 
 // Booking does not require an account. A visitor gives a name and an email and
 // the slot is theirs; their browser keeps a device secret (see guest.ts) that
@@ -262,6 +263,26 @@ Deno.serve(async (req: Request) => {
   // Remember which address this browser books under, so the fraud check can
   // tell "my own laptop" from a stranger's the next time round.
   await linkDeviceEmail(admin, deviceId, guestEmail, caller.userId);
+
+  await logAudit(
+    admin,
+    {
+      id: caller.userId,
+      role: isStaff ? "staff" : isGuest ? "guest" : "customer",
+      label: guestName ? `${guestName} <${guestEmail ?? "no email"}>` : (guestEmail ?? caller.userId ?? "unknown"),
+    },
+    "booking.create",
+    "booking",
+    booking.id,
+    {
+      room_id,
+      start_at,
+      end_at,
+      total_price: totalPrice,
+      payment_option: paymentOption,
+      guest: isGuest,
+    },
+  );
 
   if (services.length > 0) {
     const rows = services.map((s) => {

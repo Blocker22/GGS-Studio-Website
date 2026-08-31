@@ -9,7 +9,6 @@ function el(tag, attrs = {}, children = []) {
   const node = document.createElement(tag);
   Object.entries(attrs).forEach(([k, v]) => {
     if (k === 'class') node.className = v;
-    else if (k === 'html') node.innerHTML = v;
     else if (k.startsWith('on')) node.addEventListener(k.slice(2), v);
     else node.setAttribute(k, v);
   });
@@ -179,7 +178,7 @@ async function main() {
   });
 
   // ---------- Tabs ----------
-  const tabs = ['dashboard', 'bookings', 'customers', 'rooms', 'availability', 'payments', 'staff', 'settings'];
+  const tabs = ['dashboard', 'bookings', 'customers', 'rooms', 'availability', 'payments', 'staff', 'audit', 'settings'];
   let activeTab = 'dashboard';
 
   document.getElementById('adminNav').addEventListener('click', (e) => {
@@ -203,7 +202,7 @@ async function main() {
     const loaders = {
       dashboard: loadDashboard, bookings: loadBookings, customers: loadCustomers,
       rooms: loadRooms, availability: loadAvailability, payments: loadPayments,
-      staff: loadStaff, settings: loadSettings,
+      staff: loadStaff, audit: loadAuditLog, settings: loadSettings,
     };
     const loader = loaders[activeTab];
     if (!loader || tabLoadInFlight[activeTab]) return;
@@ -518,7 +517,9 @@ async function main() {
       .select('*, rooms(id,name), profiles!bookings_customer_id_fkey(id,full_name), booking_services(service_id, quantity, services(name, price_type, unit_label)), payments(amount, status, method, type, rejection_reason)')
       .order('start_at', { ascending: false });
     if (error) {
-      document.getElementById('bookingsBody').innerHTML = `<tr><td colspan="7">Error: ${error.message}</td></tr>`;
+      const body = document.getElementById('bookingsBody');
+      body.innerHTML = '';
+      body.appendChild(el('tr', {}, el('td', { colspan: '7' }, `Error: ${error.message}`)));
       return;
     }
     allBookings = data || [];
@@ -788,7 +789,8 @@ async function main() {
     });
 
     const roomSel = document.getElementById('ebRoom');
-    roomSel.innerHTML = roomsCache.map((r) => `<option value="${r.id}">${r.name}</option>`).join('');
+    roomSel.innerHTML = '';
+    roomsCache.forEach((r) => roomSel.appendChild(el('option', { value: r.id }, r.name)));
     roomSel.value = booking.room_id;
 
     const start = new Date(booking.start_at);
@@ -989,10 +991,17 @@ Delete anyway and write off the unrefunded amount?`,
         .select('id, full_name, role')
         .order('full_name')
         .then(({ data }) => {
-          custSel.innerHTML = '<option value="">Select customer…</option>' + (data || []).map((c) => {
+          // Built as real <option> elements (textContent), not an innerHTML
+          // string — full_name is set by the customer themselves on their own
+          // profile page, so a raw template string here would let anyone with
+          // an account plant markup that runs in a staff member's browser the
+          // next time they open this dropdown.
+          custSel.innerHTML = '';
+          custSel.appendChild(el('option', { value: '' }, 'Select customer…'));
+          (data || []).forEach((c) => {
             const suffix = c.role === 'customer' ? '' : ` (${c.role})`;
-            return `<option value="${c.id}">${c.full_name || c.id}${suffix}</option>`;
-          }).join('');
+            custSel.appendChild(el('option', { value: c.id }, `${c.full_name || c.id}${suffix}`));
+          });
         });
     }
     return customerOptionsLoad[prefix];
@@ -1011,7 +1020,8 @@ Delete anyway and write off the unrefunded amount?`,
     const roomSel = document.getElementById('nbRoom');
     const svcWrap = document.getElementById('nbServices');
     wireCustomerPicker('nb');
-    roomSel.innerHTML = roomsCache.filter((r) => r.is_active).map((r) => `<option value="${r.id}">${r.name}</option>`).join('');
+    roomSel.innerHTML = '';
+    roomsCache.filter((r) => r.is_active).forEach((r) => roomSel.appendChild(el('option', { value: r.id }, r.name)));
     svcWrap.innerHTML = '';
     sortedServices().filter((s) => s.is_active).forEach((s) => {
       const cb = el('input', { type: 'checkbox', value: s.id });
@@ -1306,7 +1316,8 @@ Delete anyway and write off the unrefunded amount?`,
     const roomSel = document.getElementById('availRoom');
     if (roomsCache.length === 0) await loadRoomsServicesCache();
     if (!roomSel.dataset.loaded) {
-      roomSel.innerHTML = roomsCache.map((r) => `<option value="${r.id}">${r.name}</option>`).join('');
+      roomSel.innerHTML = '';
+      roomsCache.forEach((r) => roomSel.appendChild(el('option', { value: r.id }, r.name)));
       roomSel.dataset.loaded = '1';
       roomSel.addEventListener('change', renderAvailability);
     }
@@ -1557,6 +1568,153 @@ Delete anyway and write off the unrefunded amount?`,
       msg.textContent = err.message;
       msg.classList.add('error');
       msg.style.display = 'block';
+    }
+  });
+
+  // ---------- Audit Log ----------
+  // Read-only by construction: RLS grants SELECT here to staff/admin and
+  // nothing else — no INSERT/UPDATE/DELETE policy exists for any client role,
+  // so nothing in this tab (or any other API caller) can alter or erase a row.
+  // Rows come from two places: database triggers on directly-edited tables
+  // (services, rooms, hours, blocked slots, settings, and role changes), and
+  // explicit entries the booking/payment Edge Functions write for themselves.
+  const AUDIT_PAGE_SIZE = 100;
+  let auditLogCache = [];
+  let auditLogOffset = 0;
+
+  function auditActionLabel(action) {
+    return action.replace(/[._]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  // One compact line per row rather than raw JSON — each action's detail
+  // shape is known (set by the trigger or the Edge Function that logged it),
+  // so this picks out the couple of fields actually worth a glance and falls
+  // back to the raw object for anything it doesn't recognise.
+  function renderAuditDetail(row) {
+    const d = row.detail || {};
+    const p = (n) => peso(Number(n) || 0);
+    switch (row.action) {
+      case 'booking.create':
+        return `${p(d.total_price)} · ${d.payment_option || 'cash'}${d.guest ? ' · guest' : ''}`;
+      case 'booking.cancel':
+        return d.reason ? `Reason: ${d.reason}` : '(no reason given)';
+      case 'booking.reschedule':
+      case 'booking.update':
+        return d.to?.start_at ? `Moved to ${dt(d.to.start_at)}` : '—';
+      case 'booking.delete':
+        return `${d.guest_name || d.customer_id || 'Unknown'} · ${p(d.total_price)}`;
+      case 'payment.verify':
+        return `${p(d.amount)}${d.booking_confirmed ? ' · booking confirmed' : ''}`;
+      case 'payment.reject':
+        return `Reason: ${d.reason || '—'}`;
+      case 'payment.refund':
+        return `${p(d.amount)} refunded (${d.new_status || '—'})`;
+      case 'payment.mark_paid':
+        return `${p(d.amount)} recorded as ${d.type || 'payment'}`;
+      case 'profiles.role_change':
+        return `${d.subject_name || d.subject_id || 'Unknown'}: ${d.from || '?'} → ${d.to || '?'}`;
+      case 'staff.invite':
+        return `${d.email || '?'} invited as ${d.role || 'staff'}`;
+      case 'account.delete':
+        return `${d.subject_name || 'Unknown'}${d.self ? ' (self)' : ''}`;
+      default:
+        if (d.changed) return Object.keys(d.changed).map((k) => `${k} changed`).join(', ');
+        if (d.created) return 'Created';
+        if (d.deleted) return 'Deleted';
+        return JSON.stringify(d);
+    }
+  }
+
+  async function fetchAuditPage(offset) {
+    const { data, error } = await supabase
+      .from('audit_log')
+      .select('id, created_at, actor_label, actor_role, action, entity_type, entity_id, detail')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + AUDIT_PAGE_SIZE - 1);
+    if (error) throw error;
+    return data || [];
+  }
+
+  function renderAuditRows() {
+    const search = document.getElementById('auditSearch').value.trim().toLowerCase();
+    const from = document.getElementById('auditFrom').value;
+    const to = document.getElementById('auditTo').value;
+    const body = document.getElementById('auditBody');
+    body.innerHTML = '';
+
+    const filtered = auditLogCache.filter((row) => {
+      if (search) {
+        const haystack = `${row.actor_label} ${row.actor_role} ${row.action} ${row.entity_type || ''}`.toLowerCase();
+        if (!haystack.includes(search)) return false;
+      }
+      if (from && row.created_at < from) return false;
+      if (to && row.created_at > `${to}T23:59:59`) return false;
+      return true;
+    });
+
+    if (filtered.length === 0) {
+      body.appendChild(el('tr', {}, el('td', { colspan: '5', style: 'text-align:center;opacity:0.5;padding:24px;' }, 'No matching entries.')));
+      return;
+    }
+
+    filtered.forEach((row) => {
+      body.appendChild(el('tr', {}, [
+        el('td', { style: 'white-space:nowrap;' }, dt(row.created_at)),
+        el('td', {}, [
+          el('span', {}, row.actor_label),
+          el('span', { style: 'display:block;font-size:0.68rem;opacity:0.55;text-transform:capitalize;' }, row.actor_role),
+        ]),
+        el('td', {}, el('span', { style: 'font-size:0.75rem;color:var(--gold);' }, auditActionLabel(row.action))),
+        el('td', { style: 'font-size:0.75rem;opacity:0.7;text-transform:capitalize;' }, row.entity_type || '—'),
+        el('td', { style: 'font-size:0.78rem;max-width:340px;' }, renderAuditDetail(row)),
+      ]));
+    });
+  }
+
+  async function loadAuditLog() {
+    auditLogCache = [];
+    auditLogOffset = 0;
+    const body = document.getElementById('auditBody');
+    body.innerHTML = '';
+    body.appendChild(el('tr', {}, el('td', { colspan: '5', style: 'text-align:center;opacity:0.5;padding:24px;' }, 'Loading…')));
+    const loadMoreBtn = document.getElementById('auditLoadMore');
+    try {
+      const page = await fetchAuditPage(0);
+      auditLogCache = page;
+      auditLogOffset = page.length;
+      loadMoreBtn.style.display = page.length < AUDIT_PAGE_SIZE ? 'none' : 'block';
+      renderAuditRows();
+    } catch (err) {
+      body.innerHTML = '';
+      body.appendChild(el('tr', {}, el('td', { colspan: '5', style: 'text-align:center;opacity:0.6;padding:24px;' }, `Could not load audit log: ${err.message}`)));
+    }
+  }
+
+  document.getElementById('auditSearch').addEventListener('input', renderAuditRows);
+  document.getElementById('auditFrom').addEventListener('change', renderAuditRows);
+  document.getElementById('auditTo').addEventListener('change', renderAuditRows);
+  document.getElementById('auditReset').addEventListener('click', () => {
+    document.getElementById('auditSearch').value = '';
+    document.getElementById('auditFrom').value = '';
+    document.getElementById('auditTo').value = '';
+    renderAuditRows();
+  });
+  document.getElementById('auditRefresh').addEventListener('click', loadAuditLog);
+  document.getElementById('auditLoadMore').addEventListener('click', async () => {
+    const btn = document.getElementById('auditLoadMore');
+    btn.disabled = true;
+    btn.textContent = 'Loading…';
+    try {
+      const page = await fetchAuditPage(auditLogOffset);
+      auditLogCache = auditLogCache.concat(page);
+      auditLogOffset += page.length;
+      btn.style.display = page.length < AUDIT_PAGE_SIZE ? 'none' : 'block';
+      renderAuditRows();
+    } catch (err) {
+      alert(`Could not load more entries: ${err.message}`);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Load older entries';
     }
   });
 

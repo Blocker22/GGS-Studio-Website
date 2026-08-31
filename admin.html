@@ -261,6 +261,7 @@
       <button data-tab="availability">Availability</button>
       <button data-tab="payments">Payments</button>
       <button data-tab="staff">Staff</button>
+      <button data-tab="audit">Audit Log</button>
       <button data-tab="settings">Settings</button>
     </nav>
     <div class="admin-user">
@@ -487,6 +488,39 @@
         </div>
         <div class="msg" id="inviteMsg"></div>
       </div>
+    </section>
+
+    <section class="tab-section" id="tab-audit">
+      <h1>Audit Log</h1>
+      <p class="a-hint" style="margin-bottom:18px; max-width:70ch;">
+        Every booking, payment decision, role change, and studio-settings edit, in one
+        append-only trail. Staff can read this; nobody — not even an admin — can edit or
+        delete a row through the site. Direct database edits are caught automatically;
+        actions taken through the booking/payment tools log themselves with fuller detail.
+      </p>
+      <div class="a-card filter-row">
+        <div>
+          <label class="a-label">Actor / action</label>
+          <input class="a-input" id="auditSearch" placeholder="Name, email, or action…">
+        </div>
+        <div>
+          <label class="a-label">From</label>
+          <input type="date" class="a-input" id="auditFrom">
+        </div>
+        <div>
+          <label class="a-label">To</label>
+          <input type="date" class="a-input" id="auditTo">
+        </div>
+        <button class="a-btn-ghost" id="auditReset">Reset</button>
+        <button class="a-btn-ghost" id="auditRefresh">Refresh</button>
+      </div>
+      <div class="a-card" style="overflow-x:auto;">
+        <table class="a-table">
+          <thead><tr><th>When</th><th>Actor</th><th>Action</th><th>Entity</th><th>Detail</th></tr></thead>
+          <tbody id="auditBody"></tbody>
+        </table>
+      </div>
+      <button class="a-btn-ghost" id="auditLoadMore" style="margin-top:14px; display:none;">Load older entries</button>
     </section>
 
     <section class="tab-section" id="tab-settings">

@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { adminClient, corsHeaders, json, ownsBooking, resolveCaller } from "./guest.ts";
+import { logAudit } from "./audit.ts";
 
 // Reschedules a booking for whoever owns it — a signed-in customer, studio
 // staff, or the anonymous browser that placed it (device handshake in guest.ts).
@@ -175,6 +176,24 @@ Deno.serve(async (req: Request) => {
       await admin.from("booking_services").insert(rows);
     }
   }
+
+  await logAudit(
+    admin,
+    {
+      id: caller.userId,
+      role: isStaff ? "staff" : caller.userId ? "customer" : "guest",
+      label: existing.guest_name
+        ? `${existing.guest_name} <${existing.guest_email ?? "no email"}>`
+        : (caller.email ?? existing.guest_email ?? caller.userId ?? "unknown"),
+    },
+    isStaff ? "booking.update" : "booking.reschedule",
+    "booking",
+    booking_id,
+    {
+      from: { start_at: existing.start_at, end_at: existing.end_at, room_id: existing.room_id, status: existing.status },
+      to: { start_at: newStart, end_at: newEnd, room_id: newRoomId, status: updatePayload.status ?? existing.status },
+    },
+  );
 
   return json({ booking: updated });
 });

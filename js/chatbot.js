@@ -614,9 +614,25 @@ export async function initChatbot() {
     box.classList.add('done');
   }
 
-  function showWizardError(box, message) {
+  // `field` is optional — when given, that specific input turns red (matching
+  // the booking form's own field-error styling) and is scrolled into view and
+  // focused, rather than leaving the reason to a caption that can be off-screen
+  // if the wizard box has scrolled up in a long conversation.
+  function showWizardError(box, message, field) {
     const err = box.querySelector('[data-w-err]');
     if (err) { err.textContent = message; err.hidden = false; }
+
+    box.querySelectorAll('input.invalid').forEach((el) => el.classList.remove('invalid'));
+    if (!field) return false;
+
+    field.classList.add('invalid');
+    field.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'center' });
+    field.focus({ preventScroll: true });
+    if (!field.dataset.wErrWatch) {
+      field.dataset.wErrWatch = '1';
+      field.addEventListener('input', () => field.classList.remove('invalid'), { once: false });
+    }
+    return false;
   }
 
   // Checks a candidate [startAt, endAt) against opening hours and existing
@@ -625,26 +641,30 @@ export async function initChatbot() {
   // closed or already-booked slot at the very last one. Uses the same
   // public_busy_ranges RPC the landing-page calendar uses, so a signed-out
   // visitor can still get a real answer.
-  async function validateSlot(startAt, endAt, box) {
+  // `fields` (optional) is whichever of { dateI, startI, endI } this step
+  // actually has, so each failure can redden the input it's actually about
+  // instead of only the caption underneath.
+  async function validateSlot(startAt, endAt, box, fields = {}) {
+    const { dateI, startI } = fields;
     const f = await loadFacts();
     if (!f.room) { showWizardError(box, 'Could not verify availability just now — please try again.'); return false; }
 
     if (startAt.getTime() < Date.now()) {
-      showWizardError(box, 'That start time has already passed — please pick a later time.');
+      showWizardError(box, 'That start time has already passed — please pick a later time.', startI);
       return false;
     }
 
     const dayKey = startAt.toLocaleDateString('en-CA');
     const hours = f.hours.find((h) => h.day_of_week === startAt.getDay());
     if (!hours || hours.is_closed) {
-      showWizardError(box, "We're closed that day — please pick another date.");
+      showWizardError(box, "We're closed that day — please pick another date.", dateI);
       return false;
     }
     const openAt = new Date(`${dayKey}T${hours.open_time}`);
     let closeAt = new Date(`${dayKey}T${hours.close_time}`);
     if (closeAt <= openAt) closeAt = new Date(closeAt.getTime() + 24 * 3600000);
     if (startAt < openAt || endAt > closeAt) {
-      showWizardError(box, `We're open ${to12Hour(hours.open_time)}–${to12Hour(hours.close_time)} that day — please pick a time in that window.`);
+      showWizardError(box, `We're open ${to12Hour(hours.open_time)}–${to12Hour(hours.close_time)} that day — please pick a time in that window.`, startI);
       return false;
     }
 
@@ -657,7 +677,7 @@ export async function initChatbot() {
     });
     if (error) { showWizardError(box, 'Could not verify availability just now — please try again.'); return false; }
     const conflict = (busy || []).some((r) => new Date(r.start_at).getTime() < endAt.getTime() && new Date(r.end_at).getTime() > startAt.getTime());
-    if (conflict) { showWizardError(box, 'That time is already booked — please pick another slot.'); return false; }
+    if (conflict) { showWizardError(box, 'That time is already booked — please pick another slot.', startI); return false; }
     return true;
   }
 
@@ -681,11 +701,13 @@ export async function initChatbot() {
           const dateI = box.querySelector('[data-w-date]');
           const startI = box.querySelector('[data-w-start]');
           const endI = box.querySelector('[data-w-end]');
-          if (!dateI.value || !startI.value || !endI.value) return showWizardError(box, 'Please fill in the date, start, and end time.');
-          if (dateI.value < todayIso) return showWizardError(box, 'That date has already passed — please pick today or later.');
+          if (!dateI.value) return showWizardError(box, 'Please pick a date.', dateI);
+          if (!startI.value) return showWizardError(box, 'Please pick a start time.', startI);
+          if (!endI.value) return showWizardError(box, 'Please pick an end time.', endI);
+          if (dateI.value < todayIso) return showWizardError(box, 'That date has already passed — please pick today or later.', dateI);
           const [sh, sm] = startI.value.split(':').map(Number);
           const [eh, em] = endI.value.split(':').map(Number);
-          if (eh * 60 + em <= sh * 60 + sm) return showWizardError(box, 'End time must be after the start time.');
+          if (eh * 60 + em <= sh * 60 + sm) return showWizardError(box, 'End time must be after the start time.', endI);
 
           const startAt = new Date(`${dateI.value}T${startI.value}:00`);
           const endAt = new Date(`${dateI.value}T${endI.value}:00`);
@@ -694,7 +716,7 @@ export async function initChatbot() {
           nextBtn.textContent = 'Checking availability…';
           let ok = false;
           try {
-            ok = await validateSlot(startAt, endAt, box);
+            ok = await validateSlot(startAt, endAt, box, { dateI, startI, endI });
           } catch (err) {
             console.error('[chatbot] slot check failed:', err);
             showWizardError(box, 'Could not verify availability just now — please try again.');
@@ -815,10 +837,12 @@ export async function initChatbot() {
         <button type="button" class="ggs-wizard-btn" data-w-next>Continue</button>`;
       mountWizardBox(html, (box) => {
         box.querySelector('[data-w-next]').addEventListener('click', () => {
-          const name = box.querySelector('[data-w-name]').value.trim();
-          const email = box.querySelector('[data-w-email]').value.trim();
-          if (!name) return showWizardError(box, 'Please enter a name.');
-          if (!emailLocked && (!email || !email.includes('@'))) return showWizardError(box, 'Please enter a valid email.');
+          const nameI = box.querySelector('[data-w-name]');
+          const emailI = box.querySelector('[data-w-email]');
+          const name = nameI.value.trim();
+          const email = emailI.value.trim();
+          if (!name) return showWizardError(box, 'Please enter a name.', nameI);
+          if (!emailLocked && (!email || !email.includes('@'))) return showWizardError(box, 'Please enter a valid email.', emailI);
 
           refs.nameEl.value = name; fireEvent(refs.nameEl, 'input');
           if (!emailLocked) { refs.emailEl.value = email; fireEvent(refs.emailEl, 'input'); }
@@ -880,8 +904,9 @@ export async function initChatbot() {
       mountWizardBox(html, (box) => {
         box.querySelector('[data-w-submit]').addEventListener('click', () => {
           if (needsId) {
-            const file = box.querySelector('[data-w-id]').files?.[0];
-            if (!file) return showWizardError(box, 'Please attach a photo of your ID.');
+            const idI = box.querySelector('[data-w-id]');
+            const file = idI.files?.[0];
+            if (!file) return showWizardError(box, 'Please attach a photo of your ID.', idI);
             const dt = new DataTransfer();
             dt.items.add(file);
             refs.idImageEl.files = dt.files;
@@ -1040,11 +1065,12 @@ export async function initChatbot() {
           try {
             const dateI = box.querySelector('[data-w-date]');
             const startI = box.querySelector('[data-w-start]');
-            if (!dateI.value || !startI.value) return showWizardError(box, 'Please pick a date and time.');
+            if (!dateI.value) return showWizardError(box, 'Please pick a date.', dateI);
+            if (!startI.value) return showWizardError(box, 'Please pick a start time.', startI);
             const newStart = new Date(`${dateI.value}T${startI.value}:00`);
-            if (Number.isNaN(newStart.getTime())) return showWizardError(box, 'That date/time is not valid.');
+            if (Number.isNaN(newStart.getTime())) return showWizardError(box, 'That date/time is not valid.', startI);
             if (newStart.getTime() - Date.now() < cutoffHours * 3600000) {
-              return showWizardError(box, `New time must be at least ${cutoffHours} hours from now.`);
+              return showWizardError(box, `New time must be at least ${cutoffHours} hours from now.`, startI);
             }
             const newEnd = new Date(newStart.getTime() + durationMs);
 
@@ -1052,7 +1078,7 @@ export async function initChatbot() {
             nextBtn.textContent = 'Checking availability…';
             let ok = false;
             try {
-              ok = await validateSlot(newStart, newEnd, box);
+              ok = await validateSlot(newStart, newEnd, box, { dateI, startI });
             } catch (err) {
               console.error('[chatbot] slot check failed:', err);
               showWizardError(box, 'Could not verify availability just now — please try again.');

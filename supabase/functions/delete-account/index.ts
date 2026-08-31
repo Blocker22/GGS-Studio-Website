@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { logAudit } from "./audit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -76,7 +77,7 @@ Deno.serve(async (req: Request) => {
 
   const { data: callerProfile } = await admin
     .from("profiles")
-    .select("role")
+    .select("role, full_name")
     .eq("id", caller.id)
     .single();
   const isStaff = ["staff", "admin"].includes(callerProfile?.role ?? "");
@@ -187,6 +188,29 @@ Deno.serve(async (req: Request) => {
   // Any browser that had signed into this account stops being a "recognised
   // device" for its email — there is no account left for it to vouch for.
   await admin.from("guest_device_emails").delete().eq("user_id", targetId);
+
+  // Logged before the deletion, not after: audit_log.actor_id references
+  // auth.users, so once targetId (possibly the actor themselves, on a
+  // self-delete) stops existing, an insert naming it as the actor would
+  // violate that foreign key. The row this describes is the deletion itself,
+  // so recording it right before it happens is correct either way.
+  await logAudit(
+    admin,
+    {
+      id: caller.id,
+      role: isStaff ? (callerProfile?.role ?? "staff") : "customer",
+      label: callerProfile?.full_name || caller.email || caller.id,
+    },
+    "account.delete",
+    "profile",
+    targetId,
+    {
+      subject_name: target.full_name,
+      self: targetId === caller.id,
+      bookings_anonymised: all.length,
+      forced: Boolean(force) && (upcoming.length > 0 || unrefunded > 0),
+    },
+  );
 
   // Cascades to public.profiles via profiles_id_fkey.
   const { error: delErr } = await admin.auth.admin.deleteUser(targetId);
