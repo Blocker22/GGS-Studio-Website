@@ -47,15 +47,22 @@ Deno.serve(async (req: Request) => {
   const ids: string[] = Array.isArray(body?.ids) ? body.ids.filter((x: unknown) => typeof x === "string") : [];
   if (ids.length === 0) return json({ emails: {} });
 
+  const wanted = new Set(ids);
   const emails: Record<string, string> = {};
-  await Promise.all(
-    ids.map(async (id) => {
-      const { data, error } = await admin.auth.admin.getUserById(id);
-      if (error) console.error("getUserById failed", id, error.message);
-      if (data?.user?.email) emails[id] = data.user.email;
-    }),
-  );
-  console.log("list-customer-emails", { requested: ids.length, resolved: Object.keys(emails).length });
+  // One paginated sweep of every auth user beats one Admin API round-trip
+  // per customer — with a few dozen customers the per-id version was taking
+  // seconds; listUsers resolves the whole batch in one or two requests.
+  for (let page = 1; wanted.size > 0; page++) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error || !data?.users?.length) break;
+    for (const u of data.users) {
+      if (wanted.has(u.id) && u.email) {
+        emails[u.id] = u.email;
+        wanted.delete(u.id);
+      }
+    }
+    if (data.users.length < 1000) break;
+  }
 
   return json({ emails });
 });

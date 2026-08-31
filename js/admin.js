@@ -218,11 +218,18 @@ async function main() {
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
     const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
 
-    const [{ data: bookings }, { data: monthPayments }, { data: today }] = await Promise.all([
-      supabase.from('bookings').select('id, status, total_price'),
-      supabase.from('payments').select('amount').eq('status', 'succeeded').gte('created_at', startOfMonth),
-      supabase.from('bookings').select('id, start_at, status, rooms(name)').gte('start_at', startOfDay).lt('start_at', endOfDay).neq('status', 'cancelled').order('start_at'),
-    ]);
+    let bookings, monthPayments, today;
+    try {
+      [{ data: bookings }, { data: monthPayments }, { data: today }] = await Promise.all([
+        supabase.from('bookings').select('id, status, total_price'),
+        supabase.from('payments').select('amount').eq('status', 'succeeded').gte('created_at', startOfMonth),
+        supabase.from('bookings').select('id, start_at, status, rooms(name)').gte('start_at', startOfDay).lt('start_at', endOfDay).neq('status', 'cancelled').order('start_at'),
+      ]);
+    } catch (err) {
+      console.error('Failed to load dashboard stats:', err);
+      document.getElementById('dashStats').innerHTML = `<p style="opacity:0.6;font-size:0.85rem;">Could not load stats: ${err.message}</p>`;
+      return;
+    }
 
     const pending = (bookings || []).filter((b) => b.status === 'pending').length;
     const revenue = (monthPayments || []).reduce((s, p) => s + Number(p.amount), 0);
