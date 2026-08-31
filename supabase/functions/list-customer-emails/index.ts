@@ -50,10 +50,12 @@ Deno.serve(async (req: Request) => {
   const emails: Record<string, string> = {};
   await Promise.all(
     ids.map(async (id) => {
-      const { data } = await admin.auth.admin.getUserById(id);
+      const { data, error } = await admin.auth.admin.getUserById(id);
+      if (error) console.error("getUserById failed", id, error.message);
       if (data?.user?.email) emails[id] = data.user.email;
     }),
   );
+  console.log("list-customer-emails", { requested: ids.length, resolved: Object.keys(emails).length });
 
   return json({ emails });
 });
