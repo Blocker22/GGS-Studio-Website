@@ -222,7 +222,7 @@ async function main() {
     try {
       [{ data: bookings }, { data: monthPayments }, { data: today }] = await Promise.all([
         supabase.from('bookings').select('id, status, total_price'),
-        supabase.from('payments').select('amount').eq('status', 'succeeded').gte('created_at', startOfMonth),
+        supabase.from('payments').select('amount, refunded_amount, status, type').in('status', COLLECTED_STATUSES).gte('created_at', startOfMonth),
         supabase.from('bookings').select('id, start_at, status, rooms(name)').gte('start_at', startOfDay).lt('start_at', endOfDay).neq('status', 'cancelled').order('start_at'),
       ]);
     } catch (err) {
@@ -232,7 +232,7 @@ async function main() {
     }
 
     const pending = (bookings || []).filter((b) => b.status === 'pending').length;
-    const revenue = (monthPayments || []).reduce((s, p) => s + Number(p.amount), 0);
+    const revenue = collectedPayments(monthPayments).reduce((s, p) => s + netAmount(p), 0);
 
     const stat = (label, value, cls = '') =>
       el('div', { class: 'stat-box' }, [el('div', { class: 'a-label' }, label), el('div', { class: `val ${cls}` }, String(value))]);
@@ -255,16 +255,237 @@ async function main() {
     );
     statsEl.querySelectorAll('.text-gold-stat').forEach((n) => (n.style.color = 'var(--gold)'));
 
+    await loadRevenueAnalytics();
     await loadDashboardCalendarData();
     renderDashCalendar();
     renderWeekSchedule();
   }
+
+  // ---------- Dashboard: revenue analytics ----------
+  // Revenue is netted against refunds: a ₱700 payment with ₱350 given back is
+  // ₱350 of real money, and a fully refunded one is zero. The other statuses
+  // (pending/submitted/failed/rejected) are money that never actually arrived,
+  // and type 'refund' rows would double-count what refunded_amount already
+  // subtracts.
+  const COLLECTED_STATUSES = ['succeeded', 'partially_refunded', 'refunded'];
+  const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const SVG_NS = 'http://www.w3.org/2000/svg';
+  let revPaymentsCache = [];
+  let revMonths = 12;
+
+  function collectedPayments(rows) {
+    return (rows || []).filter((p) => COLLECTED_STATUSES.includes(p.status) && p.type !== 'refund');
+  }
+  function netAmount(p) {
+    return Number(p.amount || 0) - Number(p.refunded_amount || 0);
+  }
+  // ₱12,400 is too wide for an axis tick at this size; ₱12.4k reads fine.
+  function pesoShort(n) {
+    const v = Math.round(Number(n) || 0);
+    if (Math.abs(v) >= 1000) {
+      const k = v / 1000;
+      return '₱' + (Math.abs(k) >= 10 ? Math.round(k) : k.toFixed(1).replace(/\.0$/, '')) + 'k';
+    }
+    return '₱' + v;
+  }
+  function monthKey(dateObj) {
+    return `${dateObj.getFullYear()}-${dateObj.getMonth()}`;
+  }
+
+  // Same contract as el(), but in the SVG namespace — createElement() makes
+  // HTML elements that render as nothing inside an <svg>.
+  function svgEl(tag, attrs = {}, children = []) {
+    const node = document.createElementNS(SVG_NS, tag);
+    Object.entries(attrs).forEach(([k, v]) => node.setAttribute(k, String(v)));
+    (Array.isArray(children) ? children : [children]).forEach((c) => {
+      if (c == null) return;
+      node.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+    });
+    return node;
+  }
+
+  async function loadRevenueAnalytics() {
+    const chart = document.getElementById('revChart');
+    if (!chart) return;
+    const now = new Date();
+    // 12 months back including the current one, whatever the toggle shows —
+    // switching 6M/12M then re-renders from this cache instead of refetching.
+    const from = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+    const { data, error } = await supabase
+      .from('payments')
+      .select('amount, refunded_amount, status, type, method, created_at, bookings(rooms(name))')
+      .in('status', COLLECTED_STATUSES)
+      .gte('created_at', from.toISOString())
+      .order('created_at');
+    if (error) {
+      console.error('Failed to load revenue analytics:', error);
+      chart.textContent = `Could not load revenue: ${error.message}`;
+      return;
+    }
+    revPaymentsCache = collectedPayments(data);
+    renderRevenueAnalytics();
+  }
+
+  function renderRevenueAnalytics() {
+    const now = new Date();
+    const buckets = [];
+    for (let i = revMonths - 1; i >= 0; i--) {
+      const m = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      buckets.push({ date: m, key: monthKey(m), total: 0 });
+    }
+    const byKey = new Map(buckets.map((b) => [b.key, b]));
+    const byRoom = new Map();
+    const byMethod = new Map();
+    let refunded = 0;
+
+    revPaymentsCache.forEach((p) => {
+      const when = new Date(p.created_at);
+      const bucket = byKey.get(monthKey(when));
+      const net = netAmount(p);
+      if (bucket) {
+        bucket.total += net;
+        refunded += Number(p.refunded_amount || 0);
+        const room = p.bookings?.rooms?.name || 'Unassigned';
+        byRoom.set(room, (byRoom.get(room) || 0) + net);
+        byMethod.set(p.method || 'other', (byMethod.get(p.method || 'other') || 0) + net);
+      }
+    });
+
+    renderRevenueChart(buckets);
+    renderRevenueKpis(buckets, refunded);
+    renderBreakdown('revByRoom', byRoom, 'No revenue in this period.');
+    renderBreakdown('revByMethod', byMethod, 'No payments in this period.');
+
+    const sub = document.getElementById('revSubtitle');
+    if (sub) {
+      sub.textContent = `Net of refunds · ${buckets[0].date.toLocaleDateString('en-PH', { month: 'short', year: 'numeric' })} – ${buckets[buckets.length - 1].date.toLocaleDateString('en-PH', { month: 'short', year: 'numeric' })}`;
+    }
+  }
+
+  function renderRevenueChart(buckets) {
+    const wrap = document.getElementById('revChart');
+    wrap.innerHTML = '';
+
+    const W = 760, H = 210, padL = 46, padR = 8, padT = 12, padB = 26;
+    const plotW = W - padL - padR;
+    const plotH = H - padT - padB;
+    const max = Math.max(...buckets.map((b) => b.total), 0);
+    // A flat-zero month still needs a sane axis, and a rounded ceiling gives
+    // gridlines at readable numbers instead of ₱7,350-shaped ones.
+    const ceiling = max <= 0 ? 1000 : Math.ceil(max / 500) * 500;
+    const y = (v) => padT + plotH - (v / ceiling) * plotH;
+
+    const svg = svgEl('svg', {
+      viewBox: `0 0 ${W} ${H}`, class: 'rev-svg', role: 'img',
+      'aria-label': `Net revenue for the last ${buckets.length} months`,
+    });
+
+    [0, 0.5, 1].forEach((f) => {
+      const v = ceiling * f;
+      svg.appendChild(svgEl('line', {
+        x1: padL, x2: W - padR, y1: y(v), y2: y(v),
+        stroke: 'rgba(244,248,248,0.12)', 'stroke-width': 1,
+      }));
+      svg.appendChild(svgEl('text', {
+        x: padL - 8, y: y(v) + 3.5, 'text-anchor': 'end', class: 'rev-axis',
+      }, pesoShort(v)));
+    });
+
+    const slot = plotW / buckets.length;
+    const barW = Math.min(38, slot * 0.62);
+    const thisKey = monthKey(new Date());
+    buckets.forEach((b, i) => {
+      const cx = padL + slot * i + slot / 2;
+      const h = b.total > 0 ? Math.max(2, plotH - (y(b.total) - padT)) : 0;
+      const current = b.key === thisKey;
+      if (h > 0) {
+        svg.appendChild(svgEl('rect', {
+          x: cx - barW / 2, y: y(b.total), width: barW, height: h, rx: 2,
+          class: current ? 'rev-bar rev-bar-now' : 'rev-bar',
+        }, svgEl('title', {}, `${b.date.toLocaleDateString('en-PH', { month: 'long', year: 'numeric' })}: ${peso(b.total)}`)));
+      }
+      svg.appendChild(svgEl('text', {
+        x: cx, y: H - 8, 'text-anchor': 'middle',
+        class: current ? 'rev-axis rev-axis-now' : 'rev-axis',
+      }, MONTH_SHORT[b.date.getMonth()]));
+    });
+
+    wrap.appendChild(svg);
+  }
+
+  function renderRevenueKpis(buckets, refunded) {
+    const box = document.getElementById('revKpis');
+    if (!box) return;
+    const thisMonth = buckets[buckets.length - 1]?.total || 0;
+    const lastMonth = buckets.length > 1 ? buckets[buckets.length - 2].total : 0;
+    const total = buckets.reduce((s, b) => s + b.total, 0);
+    const best = buckets.reduce((a, b) => (b.total > a.total ? b : a), buckets[0]);
+
+    let delta = '—';
+    let deltaCls = '';
+    if (lastMonth > 0) {
+      const pct = Math.round(((thisMonth - lastMonth) / lastMonth) * 100);
+      delta = `${pct >= 0 ? '+' : ''}${pct}%`;
+      deltaCls = pct >= 0 ? 'up' : 'down';
+    } else if (thisMonth > 0) {
+      delta = 'new';
+      deltaCls = 'up';
+    }
+
+    const kpi = (label, value, extra) =>
+      el('div', { class: 'rev-kpi' }, [
+        el('div', { class: 'rev-kpi-label' }, label),
+        el('div', { class: 'rev-kpi-val' }, value),
+        extra || null,
+      ]);
+
+    box.innerHTML = '';
+    box.append(
+      kpi('This month', peso(thisMonth), el('div', { class: `rev-kpi-delta ${deltaCls}` }, `${delta} vs last month`)),
+      kpi(`Last ${buckets.length} months`, peso(total)),
+      kpi('Best month', peso(best?.total || 0),
+        el('div', { class: 'rev-kpi-delta' }, best && best.total > 0 ? `${MONTH_SHORT[best.date.getMonth()]} ${best.date.getFullYear()}` : '—')),
+      kpi('Refunded', peso(refunded)),
+    );
+  }
+
+  function renderBreakdown(targetId, map, emptyText) {
+    const box = document.getElementById(targetId);
+    if (!box) return;
+    box.innerHTML = '';
+    const rows = [...map.entries()].filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+    if (rows.length === 0) {
+      box.appendChild(el('p', { class: 'rev-empty' }, emptyText));
+      return;
+    }
+    const max = rows[0][1];
+    rows.forEach(([name, value]) => {
+      box.appendChild(
+        el('div', { class: 'rev-bar-row' }, [
+          el('div', { class: 'rev-bar-name' }, name),
+          el('div', { class: 'rev-bar-track' }, el('div', { class: 'rev-bar-fill', style: `width:${Math.max(2, (value / max) * 100)}%;` })),
+          el('div', { class: 'rev-bar-val' }, peso(value)),
+        ]),
+      );
+    });
+  }
+
+  document.getElementById('revRangeToggle')?.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-months]');
+    if (!btn) return;
+    revMonths = Number(btn.dataset.months);
+    document.querySelectorAll('#revRangeToggle button').forEach((b) => b.classList.toggle('active', b === btn));
+    renderRevenueAnalytics();
+  });
 
   // ---------- Dashboard: clickable calendar + weekly class-schedule ----------
   const DOW_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const WEEK_DAY_START = 8; // 8am
   const WEEK_DAY_END = 22; // 10pm
   const WEEK_ROWS = (WEEK_DAY_END - WEEK_DAY_START) * 2; // 30-min rows
+  // Height of one 30-min row. The hour separator lines below are drawn from
+  // this, so the two stay in step if the grid is ever resized again.
+  const WEEK_ROW_PX = 17;
 
   let dashCalDate = new Date();
   let dashSelectedDate = new Date();
@@ -371,7 +592,7 @@ async function main() {
   function renderWeekSchedule() {
     const grid = document.getElementById('weekGrid');
     if (!grid) return;
-    grid.setAttribute('style', `grid-template-rows: auto repeat(${WEEK_ROWS}, 26px);`);
+    grid.setAttribute('style', `grid-template-rows: auto repeat(${WEEK_ROWS}, ${WEEK_ROW_PX}px);`);
     grid.innerHTML = '';
 
     const weekDates = Array.from({ length: 7 }, (_, i) => new Date(weekStartDate.getFullYear(), weekStartDate.getMonth(), weekStartDate.getDate() + i));
@@ -398,7 +619,7 @@ async function main() {
       grid.appendChild(
         el('div', {
           class: 'wk-cell',
-          style: `grid-column:${col + 2}; grid-row:2 / span ${WEEK_ROWS}; background-image:repeating-linear-gradient(to bottom, transparent 0, transparent 51px, rgba(244,248,248,0.08) 51px, rgba(244,248,248,0.08) 52px);`,
+          style: `grid-column:${col + 2}; grid-row:2 / span ${WEEK_ROWS}; background-image:repeating-linear-gradient(to bottom, transparent 0, transparent ${WEEK_ROW_PX * 2 - 1}px, rgba(244,248,248,0.08) ${WEEK_ROW_PX * 2 - 1}px, rgba(244,248,248,0.08) ${WEEK_ROW_PX * 2}px);`,
         }),
       );
     }

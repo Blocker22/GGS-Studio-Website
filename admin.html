@@ -124,6 +124,40 @@
   .view-toggle button{background:none; border:none; color:rgba(244,248,248,0.7); font-family:var(--sans); font-size:0.78rem; padding:7px 14px; border-radius:2px; cursor:pointer;}
   .view-toggle button.active{background:var(--gold); color:var(--ink); font-weight:600;}
 
+  /* Revenue analytics */
+  .rev-card{padding:20px 22px; margin-bottom:20px;}
+  .rev-head{display:flex; align-items:flex-start; justify-content:space-between; gap:14px; flex-wrap:wrap;}
+  .rev-sub{font-size:0.72rem; opacity:0.5; margin-top:3px;}
+  .rev-kpis{
+    display:grid; grid-template-columns:repeat(4, 1fr); gap:1px;
+    background:var(--line); border:1px solid var(--line); border-radius:3px;
+    overflow:hidden; margin:16px 0 18px;
+  }
+  .rev-kpi{background:var(--panel); padding:12px 14px;}
+  .rev-kpi-label{font-size:0.65rem; letter-spacing:0.06em; opacity:0.5; text-transform:uppercase;}
+  .rev-kpi-val{font-size:1.15rem; font-weight:700; margin-top:3px;}
+  .rev-kpi-delta{font-size:0.68rem; opacity:0.55; margin-top:2px;}
+  .rev-kpi-delta.up{color:var(--teal); opacity:0.9;}
+  .rev-kpi-delta.down{color:#e5876f; opacity:0.9;}
+  .rev-chart{width:100%;}
+  .rev-svg{width:100%; height:auto; display:block; overflow:visible;}
+  .rev-axis{fill:rgba(244,248,248,0.45); font-size:10px; font-family:var(--sans);}
+  .rev-axis-now{fill:var(--gold);}
+  .rev-bar{fill:var(--gold-dim); transition:opacity 0.12s ease;}
+  .rev-bar-now{fill:var(--gold);}
+  .rev-bar:hover{opacity:0.75;}
+  .rev-split{display:grid; grid-template-columns:1fr 1fr; gap:26px; margin-top:20px;}
+  .rev-bar-row{display:grid; grid-template-columns:minmax(70px,1fr) 2fr auto; gap:10px; align-items:center; margin-bottom:7px;}
+  .rev-bar-name{font-size:0.76rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .rev-bar-track{height:6px; background:rgba(244,248,248,0.08); border-radius:3px; overflow:hidden;}
+  .rev-bar-fill{height:100%; background:var(--gold-dim); border-radius:3px;}
+  .rev-bar-val{font-size:0.74rem; opacity:0.75; white-space:nowrap;}
+  .rev-empty{font-size:0.78rem; opacity:0.45;}
+  @media (max-width:900px){
+    .rev-kpis{grid-template-columns:1fr 1fr;}
+    .rev-split{grid-template-columns:1fr; gap:20px;}
+  }
+
   .cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:3px; overflow:hidden;}
   .cal-dow{background:var(--panel-2); padding:8px; text-align:center; font-size:0.68rem; letter-spacing:0.06em; opacity:0.5;}
   .cal-day{background:var(--panel); min-height:100px; padding:6px; display:flex; flex-direction:column; gap:3px;}
@@ -148,36 +182,40 @@
      schedule for horizontal room, so the month grid actually reads at a
      glance instead of being squeezed into a 300px sidebar. */
   .dash-cal-layout{display:flex; flex-direction:column; gap:20px; margin-bottom:10px;}
-  /* Full width now that it's not sharing a row — wider day cells instead of
-     the cramped 300px sidebar it used to be squeezed into. */
-  .dash-cal-layout .cal-day{min-height:84px;}
+  /* Compact rows: the month grid is a "which days are busy" glance, not a
+     place to read booking detail, so it only needs room for the date and the
+     dot. Keeping cells short means the calendar and the week below it both
+     fit on screen instead of pushing each other out of view. */
+  .dash-cal-layout .cal-day{min-height:44px; padding:4px;}
+  .dash-cal-layout .cal-dow{padding:5px;}
+  .dash-cal-layout .cal-daynum{margin-bottom:0;}
 
   .cal-day.selected{outline:1px solid var(--gold); outline-offset:-1px;}
   .cal-day{cursor:pointer;}
   .cal-dot{width:5px; height:5px; border-radius:50%; background:var(--gold); margin-top:auto;}
 
   .week-grid{
-    display:grid; grid-template-columns:56px repeat(7, minmax(80px, 1fr));
+    display:grid; grid-template-columns:44px repeat(7, minmax(70px, 1fr));
     border:1px solid var(--line); border-radius:3px; overflow:hidden;
     background:var(--panel);
   }
   .wk-head{
-    background:var(--panel-2); padding:8px 4px; text-align:center; border-left:1px solid var(--line);
-    border-bottom:1px solid var(--line); font-size:0.72rem;
+    background:var(--panel-2); padding:5px 4px; text-align:center; border-left:1px solid var(--line);
+    border-bottom:1px solid var(--line); font-size:0.68rem;
   }
   .wk-head.corner{border-left:none; background:var(--panel);}
   .wk-head .d{opacity:0.5; font-size:0.6rem; letter-spacing:0.05em;}
   .wk-head.today{color:var(--gold);}
   .wk-timelabel{
     grid-column:1; border-top:1px solid var(--line); border-right:1px solid var(--line);
-    font-size:0.65rem; opacity:0.5; padding:2px 6px; text-align:right;
+    font-size:0.6rem; opacity:0.5; padding:1px 5px; text-align:right;
   }
   .wk-cell{border-top:1px solid rgba(244,248,248,0.05); border-left:1px solid var(--line); position:relative;}
   .wk-cell.hour-line{border-top:1px solid var(--line);}
   .wk-block{
-    margin:1px 2px; padding:3px 6px; border-radius:2px; font-size:0.68rem; overflow:hidden;
+    margin:1px 2px; padding:1px 5px; border-radius:2px; font-size:0.62rem; overflow:hidden;
     border-left:2px solid var(--gold-dim); background:rgba(255,213,88,0.12); color:var(--cream);
-    cursor:pointer; line-height:1.3;
+    cursor:pointer; line-height:1.25;
   }
   .wk-block.status-confirmed{border-color:var(--teal); background:rgba(77,255,219,0.12);}
   .wk-block.status-cancelled{border-color:#7a4331; background:rgba(229,135,111,0.1); opacity:0.55;}
@@ -287,6 +325,31 @@
     <section class="tab-section active" id="tab-dashboard">
       <h1>Dashboard</h1>
       <div class="stat-grid" id="dashStats"></div>
+
+      <div class="a-card rev-card">
+        <div class="rev-head">
+          <div>
+            <span class="a-label" style="margin:0;">Revenue analytics</span>
+            <div class="rev-sub" id="revSubtitle"></div>
+          </div>
+          <div class="view-toggle" id="revRangeToggle">
+            <button type="button" data-months="6">6M</button>
+            <button type="button" data-months="12" class="active">12M</button>
+          </div>
+        </div>
+        <div class="rev-kpis" id="revKpis"></div>
+        <div id="revChart" class="rev-chart"></div>
+        <div class="rev-split">
+          <div>
+            <span class="a-label">Revenue by room</span>
+            <div id="revByRoom"></div>
+          </div>
+          <div>
+            <span class="a-label">Payment method</span>
+            <div id="revByMethod"></div>
+          </div>
+        </div>
+      </div>
 
       <div class="dash-cal-layout">
         <div class="a-card" style="padding:18px;">
