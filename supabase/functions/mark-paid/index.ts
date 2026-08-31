@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { loadBookingEmail, paymentReceiptEmail, sendEmail } from "./email.ts";
 import { logAudit } from "./audit.ts";
 
 const corsHeaders = {
@@ -90,6 +91,17 @@ Deno.serve(async (req: Request) => {
     amount: payAmount,
     type: payment.type,
   });
+
+  const mail = await loadBookingEmail(admin, booking_id);
+  if (mail) {
+    const { subject, html } = paymentReceiptEmail(mail.to, mail.booking, {
+      amount: payAmount,
+      method: "cash",
+      type: payment.type,
+      balance: Math.max(0, remaining - payAmount),
+    });
+    await sendEmail(mail.to, subject, html);
+  }
 
   return json({ payment });
 });

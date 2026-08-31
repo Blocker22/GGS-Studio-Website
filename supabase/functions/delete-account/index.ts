@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { accountDeletedEmail, sendEmail } from "./email.ts";
 import { logAudit } from "./audit.ts";
 
 const corsHeaders = {
@@ -212,9 +213,24 @@ Deno.serve(async (req: Request) => {
     },
   );
 
+  // The address has to be read while the auth user still exists — after the
+  // deletion below there is nothing left to look it up from.
+  let farewell: { email: string | null; name: string | null } | null = null;
+  try {
+    const { data: targetUser } = await admin.auth.admin.getUserById(targetId);
+    if (targetUser?.user?.email) farewell = { email: targetUser.user.email, name: target.full_name ?? null };
+  } catch (err) {
+    console.error("[email] could not resolve the deleted account's address:", err);
+  }
+
   // Cascades to public.profiles via profiles_id_fkey.
   const { error: delErr } = await admin.auth.admin.deleteUser(targetId);
   if (delErr) return json({ error: "Could not delete the account.", detail: delErr.message }, 400);
+
+  if (farewell) {
+    const { subject, html } = accountDeletedEmail(farewell);
+    await sendEmail(farewell, subject, html);
+  }
 
   return json({
     deleted: true,

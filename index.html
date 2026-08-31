@@ -112,11 +112,11 @@
         <div class="field-row">
           <div class="field">
             <label>Start time</label>
-            <input type="time" id="fStart" step="1800" required>
+            <input type="time" id="fStart" required>
           </div>
           <div class="field">
             <label>End time</label>
-            <input type="time" id="fEnd" step="1800" required>
+            <input type="time" id="fEnd" required>
           </div>
         </div>
         <div class="booking-summary" id="bookingSummary">
@@ -403,10 +403,12 @@
   import { initBooking } from './js/booking.js';
   import { initAuthNav } from './js/auth.js';
   import { initBookingCalendar } from './js/availability.js';
+  import { initDateTimePickers } from './js/datetime-picker.js';
   import { initServicesSection } from './js/services-section.js';
   import { initChatbot } from './js/chatbot.js';
   initAuthNav();
   initBooking();
+  initDateTimePickers();
   initBookingCalendar();
   initServicesSection();
   initChatbot();

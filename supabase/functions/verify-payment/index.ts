@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { loadBookingEmail, paymentRejectedEmail, paymentReceiptEmail, sendEmail } from "./email.ts";
 import { logAudit } from "./audit.ts";
 
 // Staff decision on a manual QR transfer: approve it (the money really landed
@@ -98,6 +99,12 @@ Deno.serve(async (req: Request) => {
       reason: rejected.rejection_reason,
     });
 
+    const rejectMail = await loadBookingEmail(admin, payment.booking_id);
+    if (rejectMail) {
+      const { subject, html } = paymentRejectedEmail(rejectMail.to, rejectMail.booking, rejected.rejection_reason);
+      await sendEmail(rejectMail.to, subject, html);
+    }
+
     return json({ payment: rejected });
   }
 
@@ -136,6 +143,24 @@ Deno.serve(async (req: Request) => {
     amount: settledAmount,
     booking_confirmed: wasPending,
   });
+
+  const mail = await loadBookingEmail(admin, payment.booking_id);
+  if (mail) {
+    // What's left after this transfer, so a downpayment says so plainly.
+    const { data: settled } = await admin
+      .from("payments")
+      .select("amount")
+      .eq("booking_id", payment.booking_id)
+      .in("status", ["succeeded", "partially_refunded"]);
+    const paid = (settled ?? []).reduce((s: number, p: { amount: number }) => s + Number(p.amount), 0);
+    const { subject, html } = paymentReceiptEmail(mail.to, mail.booking, {
+      amount: settledAmount,
+      method: "manual",
+      type: approved.type,
+      balance: Math.max(0, Number(mail.booking.totalPrice ?? 0) - paid),
+    });
+    await sendEmail(mail.to, subject, html);
+  }
 
   return json({ payment: approved, booking_confirmed: wasPending });
 });

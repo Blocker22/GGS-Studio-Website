@@ -1491,3 +1491,133 @@ nav.scrolled{
   .ggs-typing span{animation:none; opacity:0.5;}
   .ggs-bubble.typing::after{animation:none; opacity:0.6;}
 }
+
+/* ---------- Custom date / time pickers (js/datetime-picker.js) ----------
+   The native inputs stay in the DOM as the value carriers, so validation and
+   the availability calendar keep working; only their chrome is replaced. Both
+   pickers open as modals on <body>, so nothing clips them and a phone gets the
+   same layout as a desktop. */
+.dtp-native{display:none !important;}
+.dtp-trigger{
+  width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px;
+  background:var(--ink); border:1px solid var(--line); color:var(--cream);
+  padding:8px 12px; font-family:var(--sans); font-size:0.9rem; border-radius:3px;
+  text-align:left; cursor:pointer; transition:border-color 0.2s;
+}
+.dtp-trigger:hover{border-color:rgba(238,244,244,0.25);}
+.dtp-trigger::after{content:''; width:6px; height:6px; flex:none; border-right:1.5px solid var(--gold); border-bottom:1.5px solid var(--gold); transform:translateY(-2px) rotate(45deg); opacity:0.8;}
+.dtp-value{overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.dtp-value.is-empty{color:rgba(238,244,244,0.35);}
+.field.invalid .dtp-trigger{border-color:#e5876f; background:rgba(229,135,111,0.06);}
+
+body.dtp-locked{overflow:hidden;}
+.dtp-backdrop{
+  position:fixed; inset:0; z-index:200; display:none;
+  align-items:center; justify-content:center; padding:20px;
+  background:rgba(6,10,12,0.72); backdrop-filter:blur(3px);
+}
+.dtp-backdrop.open{display:flex;}
+.dtp-modal{
+  width:100%; max-width:318px; max-height:calc(100vh - 40px); overflow-y:auto;
+  background:var(--panel); border:1px solid var(--line); border-radius:6px;
+  box-shadow:0 26px 60px rgba(0,0,0,0.55);
+  animation:dtpIn 0.18s ease both;
+}
+@keyframes dtpIn{from{opacity:0; transform:translateY(10px) scale(0.98);} to{opacity:1; transform:none;}}
+@media (prefers-reduced-motion: reduce){.dtp-modal{animation:none;}}
+.dtp-modal-head{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  padding:12px 14px; border-bottom:1px solid var(--line);
+}
+.dtp-modal-title{
+  font-family:var(--sans); font-size:0.7rem; letter-spacing:0.1em;
+  text-transform:uppercase; color:var(--gold);
+}
+.dtp-close{
+  background:none; border:none; color:rgba(238,244,244,0.5);
+  font-size:1.2rem; line-height:1; cursor:pointer; padding:0 2px;
+}
+.dtp-close:hover{color:var(--cream);}
+.dtp-modal-body{padding:14px;}
+
+/* Date */
+.dtp-cal-head{display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px;}
+.dtp-cal-month{font-size:0.85rem; font-weight:600;}
+.dtp-nav{
+  width:26px; height:26px; background:var(--ink); border:1px solid var(--line);
+  color:var(--cream); border-radius:3px; cursor:pointer; line-height:1; font-size:0.9rem;
+}
+.dtp-nav:hover{border-color:var(--gold-dim); color:var(--gold);}
+.dtp-cal-dows, .dtp-cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:3px;}
+.dtp-cal-dows{
+  font-size:0.58rem; letter-spacing:0.06em; text-transform:uppercase;
+  color:rgba(238,244,244,0.38); text-align:center; margin-bottom:5px;
+}
+.dtp-cal-day{
+  height:34px; background:var(--ink); border:1px solid var(--line);
+  color:var(--cream); border-radius:3px; font-size:0.76rem; cursor:pointer;
+  transition:border-color 0.15s, background 0.15s, color 0.15s;
+}
+.dtp-cal-day:not(:disabled):hover{border-color:var(--gold-dim); background:rgba(255,213,88,0.07);}
+.dtp-cal-day:disabled{opacity:0.22; cursor:not-allowed;}
+.dtp-cal-day.today{border-color:var(--gold-dim); color:var(--gold);}
+.dtp-cal-day.selected{background:var(--gold); border-color:var(--gold); color:var(--ink); font-weight:700;}
+
+/* Time — three snapping scroll wheels under a fixed highlight band.
+   --dtp-item must match the row height the wheel code measures. */
+.dtp-readout{
+  text-align:center; font-family:var(--sans); font-size:1.7rem; font-weight:600;
+  letter-spacing:0.02em; color:var(--gold); line-height:1.1;
+}
+.dtp-hint{text-align:center; font-size:0.68rem; color:rgba(246,241,230,0.5); margin:6px 0 14px;}
+
+.dtp-wheels{
+  --dtp-item:38px;
+  --dtp-pad:76px; /* (wheel height - row height) / 2 */
+  display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px;
+  padding:0 2px;
+}
+.dtp-wheel-col{display:flex; flex-direction:column; align-items:stretch; gap:4px;}
+.dtp-step{
+  height:22px; background:var(--ink); border:1px solid var(--line); color:rgba(238,244,244,0.55);
+  border-radius:3px; font-size:0.6rem; line-height:1; cursor:pointer;
+  transition:border-color 0.15s, color 0.15s, background 0.15s;
+}
+.dtp-step:hover{border-color:var(--gold-dim); color:var(--gold); background:rgba(255,213,88,0.07);}
+.dtp-step:active{transform:scale(0.94);}
+.dtp-wheel-view{
+  position:relative; height:calc(var(--dtp-item) * 5);
+  -webkit-mask-image:linear-gradient(180deg, transparent, #000 24%, #000 76%, transparent);
+  mask-image:linear-gradient(180deg, transparent, #000 24%, #000 76%, transparent);
+}
+/* The band marks the row that counts — it never moves; the wheels do. */
+.dtp-wheel-band{
+  position:absolute; left:0; right:0; top:var(--dtp-pad); height:var(--dtp-item);
+  border-top:1px solid var(--gold-dim); border-bottom:1px solid var(--gold-dim);
+  background:rgba(255,213,88,0.07); border-radius:3px; pointer-events:none;
+}
+.dtp-wheel{
+  height:100%; overflow-y:auto; overscroll-behavior:contain;
+  scroll-snap-type:y mandatory; padding:var(--dtp-pad) 0;
+  scrollbar-width:none; outline:none;
+}
+.dtp-wheel::-webkit-scrollbar{display:none;}
+.dtp-wheel:focus-visible{box-shadow:inset 0 0 0 1px var(--gold-dim); border-radius:3px;}
+.dtp-wheel-item{
+  height:var(--dtp-item); line-height:var(--dtp-item);
+  scroll-snap-align:center; text-align:center; cursor:pointer;
+  font-family:var(--sans); font-size:1rem; color:rgba(238,244,244,0.35);
+  transition:color 0.15s ease, transform 0.15s ease;
+}
+.dtp-wheel-item.active{color:var(--gold); font-weight:700; transform:scale(1.12);}
+
+.dtp-actions{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:18px;}
+.dtp-btn{
+  padding:9px 0; border-radius:3px; cursor:pointer;
+  font-family:var(--sans); font-size:0.78rem; letter-spacing:0.04em;
+  background:var(--ink); border:1px solid var(--line); color:var(--cream);
+  transition:border-color 0.15s, background 0.15s, opacity 0.15s;
+}
+.dtp-btn:hover{border-color:var(--gold-dim);}
+.dtp-btn-gold{background:var(--gold); border-color:var(--gold); color:var(--ink); font-weight:700;}
+.dtp-btn-gold:disabled{opacity:0.35; cursor:not-allowed;}

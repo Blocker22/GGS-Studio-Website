@@ -824,7 +824,9 @@ async function main() {
     if (paid >= total) {
       statusEl.textContent = `Paid in full (${peso(paid)})`;
       statusEl.style.color = 'var(--teal)';
-      btn.style.display = 'none';
+      // Still editable: a cash total gets corrected, an extra hour gets added
+      // after the fact, and hiding the button meant redoing the whole booking.
+      btn.style.display = '';
     } else if (paid > 0) {
       statusEl.textContent = `Partially paid — ${peso(paid)} of ${peso(total)}`;
       statusEl.style.color = 'var(--gold)';
@@ -841,11 +843,18 @@ async function main() {
       statusEl.textContent += ' · QR receipt awaiting review on the Payments tab';
       statusEl.style.color = '#e5a03f';
     }
+    btn.textContent = paid > 0 ? 'Record another payment' : 'Mark paid';
     btn.onclick = async () => {
       const remaining = total - paid;
-      const input = await promptDialog(`Amount received in cash (₱), leave blank for full remaining balance ₱${Math.round(remaining)}:`);
+      const input = remaining > 0
+        ? await promptDialog(`Amount received in cash (₱), leave blank for full remaining balance ₱${Math.round(remaining)}:`)
+        : await promptDialog(`This booking is already paid in full (${peso(paid)}). Enter the extra amount received in cash (₱):`);
       if (input === null) return;
       const amount = input.trim() ? Number(input) : undefined;
+      if (remaining <= 0 && !(amount > 0)) {
+        alert('Enter an amount — there is no remaining balance to fill in.');
+        return;
+      }
       try {
         const result = await callFunction('mark-paid', { booking_id: booking.id, amount });
         booking.payments = [...(booking.payments || []), { amount: result.payment.amount, status: result.payment.status }];
@@ -1398,7 +1407,7 @@ Delete anyway and write off the unrefunded amount?`,
   async function loadPayments() {
     const { data } = await supabase
       .from('payments')
-      .select('*, bookings(id, start_at, rooms(name), profiles!bookings_customer_id_fkey(full_name))')
+      .select('*, bookings(id, start_at, guest_name, rooms(name), profiles!bookings_customer_id_fkey(full_name))')
       .order('created_at', { ascending: false });
     const body = document.getElementById('paymentsBody');
     body.innerHTML = '';
@@ -1437,7 +1446,7 @@ Delete anyway and write off the unrefunded amount?`,
         el('tr', {}, [
           el('td', {}, d(p.created_at)),
           el('td', {}, p.bookings?.rooms?.name || ''),
-          el('td', {}, p.bookings?.profiles?.full_name || p.bookings?.guest_name || '—'),
+          el('td', {}, payerName(p)),
           el('td', {}, el('span', { class: 'pill', style: METHOD_PILL_STYLE[p.method] || '' }, PAY_METHOD_LABEL[p.method] || p.method)),
           el('td', {}, p.type),
           el('td', {}, peso(p.amount)),
@@ -1448,6 +1457,15 @@ Delete anyway and write off the unrefunded amount?`,
         ]),
       );
     });
+  }
+
+  // Guest bookings have no profile row — their name lives on the booking
+  // itself, and is marked as a guest the same way the Bookings tab does.
+  function payerName(p) {
+    const b = p.bookings || {};
+    if (b.profiles?.full_name) return b.profiles.full_name;
+    if (b.guest_name) return `${b.guest_name} (guest)`;
+    return '—';
   }
 
   const PAY_METHOD_LABEL = { manual: 'QR transfer', cash: 'cash', paymongo: 'paymongo' };

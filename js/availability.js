@@ -252,11 +252,9 @@ export async function initBookingCalendar() {
     if (!slot || !startEl || !endEl) return;
     const s = new Date(Number(slot.dataset.slotStart));
     const e2 = new Date(Number(slot.dataset.slotEnd));
-    // Round the start up to the next half hour — the time inputs step in 30s.
-    if (s.getMinutes() % 30 || s.getSeconds()) {
-      s.setSeconds(0, 0);
-      s.setMinutes(Math.ceil(s.getMinutes() / 30) * 30);
-    }
+    // Whole minutes only; the time picker accepts any minute, so there's no
+    // half-hour grid left to round up to.
+    s.setSeconds(0, 0);
     const end = new Date(Math.min(s.getTime() + MS_HOUR, e2.getTime()));
     startEl.value = hhmm(s);
     endEl.value = hhmm(end);

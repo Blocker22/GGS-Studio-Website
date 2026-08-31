@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { bookingCancelledEmail, loadBookingEmail, sendEmail } from "./email.ts";
 import { logAudit } from "./audit.ts";
 
 const corsHeaders = {
@@ -87,6 +88,9 @@ Deno.serve(async (req: Request) => {
     }, 409);
   }
 
+  // Gathered before the delete — afterwards there is no row left to describe.
+  const mail = await loadBookingEmail(admin, booking_id);
+
   const { error: deleteErr } = await admin.from("bookings").delete().eq("id", booking_id);
   if (deleteErr) return json({ error: "Could not delete booking.", detail: deleteErr.message }, 400);
 
@@ -99,6 +103,12 @@ Deno.serve(async (req: Request) => {
     unrefunded_amount: unrefunded,
     forced: Boolean(force) && unrefunded > 0,
   });
+
+  // From the customer's side a deleted booking is a cancelled one.
+  if (mail) {
+    const { subject, html } = bookingCancelledEmail(mail.to, mail.booking, { byStudio: true });
+    await sendEmail(mail.to, subject, html);
+  }
 
   return json({ deleted: true, booking_id });
 });

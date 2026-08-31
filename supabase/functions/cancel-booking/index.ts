@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { adminClient, corsHeaders, json, ownsBooking, resolveCaller } from "./guest.ts";
 import { logAudit } from "./audit.ts";
+import { bookingCancelledEmail, loadBookingEmail, sendEmail } from "./email.ts";
 
 // Cancels a booking for whoever owns it — a signed-in customer, studio staff,
 // or the anonymous browser that placed it, proven by the device handshake in
@@ -84,6 +85,16 @@ Deno.serve(async (req: Request) => {
     booking_id,
     { reason: typeof reason === "string" ? reason : null, was_within_cutoff: withinCutoff },
   );
+
+  // Read back after the update so the mail describes the cancelled booking.
+  const mail = await loadBookingEmail(admin, booking_id);
+  if (mail) {
+    const { subject, html } = bookingCancelledEmail(mail.to, mail.booking, {
+      byStudio: caller.isStaff,
+      reason: typeof reason === "string" && reason.trim() ? reason.trim() : null,
+    });
+    await sendEmail(mail.to, subject, html);
+  }
 
   const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
   let refundResult: unknown = null;

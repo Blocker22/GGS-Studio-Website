@@ -1,5 +1,12 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { adminClient, corsHeaders, json, ownsBooking, resolveCaller } from "./guest.ts";
+import {
+  bookingCancelledEmail,
+  bookingConfirmedEmail,
+  bookingUpdatedEmail,
+  loadBookingEmail,
+  sendEmail,
+} from "./email.ts";
 import { logAudit } from "./audit.ts";
 
 // Reschedules a booking for whoever owns it — a signed-in customer, studio
@@ -194,6 +201,23 @@ Deno.serve(async (req: Request) => {
       to: { start_at: newStart, end_at: newEnd, room_id: newRoomId, status: updatePayload.status ?? existing.status },
     },
   );
+
+  // Which mail this is depends on what actually changed: a status flip to
+  // confirmed or cancelled says that, anything else reads as a reschedule.
+  const newStatus = (updatePayload.status as string | undefined) ?? existing.status;
+  const mail = await loadBookingEmail(admin, booking_id);
+  if (mail) {
+    const moved = newStart !== existing.start_at || newEnd !== existing.end_at;
+    const { subject, html } = newStatus === "cancelled" && existing.status !== "cancelled"
+      ? bookingCancelledEmail(mail.to, mail.booking, { byStudio: isStaff })
+      : newStatus === "confirmed" && existing.status !== "confirmed"
+      ? bookingConfirmedEmail(mail.to, mail.booking)
+      : bookingUpdatedEmail(mail.to, mail.booking, { startAt: existing.start_at, endAt: existing.end_at });
+    // A staff edit that changed nothing the customer can see isn't worth a mail.
+    if (moved || newStatus !== existing.status || !isStaff) {
+      await sendEmail(mail.to, subject, html);
+    }
+  }
 
   return json({ booking: updated });
 });

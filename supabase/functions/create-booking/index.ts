@@ -9,6 +9,7 @@ import {
   resolveCaller,
 } from "./guest.ts";
 import { logAudit } from "./audit.ts";
+import { bookingCreatedEmail, loadBookingEmail, sendEmail } from "./email.ts";
 
 // Booking does not require an account. A visitor gives a name and an email and
 // the slot is theirs; their browser keeps a device secret (see guest.ts) that
@@ -300,6 +301,15 @@ Deno.serve(async (req: Request) => {
       };
     });
     await admin.from("booking_services").insert(rows);
+  }
+
+  // The confirmation mail goes out for every route, before the payment branch
+  // below splits them — the booking itself exists either way, and a send that
+  // fails is logged inside sendEmail rather than failing the booking.
+  const mail = await loadBookingEmail(admin, booking.id);
+  if (mail) {
+    const { subject, html } = bookingCreatedEmail(mail.to, mail.booking, { confirmed: isStaff });
+    await sendEmail(mail.to, subject, html);
   }
 
   // Cash: nothing to charge now. Staff verify the ID and take the money on the day.
