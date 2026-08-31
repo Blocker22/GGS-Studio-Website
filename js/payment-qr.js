@@ -90,10 +90,10 @@ function buildModal() {
           <button type="submit" class="btn-primary" data-pay-submit>Submit receipt</button>
         </form>
         <!-- Deliberately a sibling of the form, not a child: on success the
-             form itself gets `hidden`, and a [hidden] element hides every
-             descendant regardless of that descendant's own inline style — so
-             the success text has to live outside it or it vanishes with the
-             form that was hidden specifically to make room for it. -->
+             form itself is hidden, and a hidden element hides every descendant
+             regardless of that descendant's own inline style, so the success
+             text has to live outside it or it vanishes along with the form
+             that was hidden specifically to make room for it. -->
         <div class="confirm-msg" data-pay-msg></div>
       </div>
     </div>
