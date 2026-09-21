@@ -203,6 +203,11 @@ export async function guestEmailBlocked(
   email: string,
   deviceId: string,
 ): Promise<{ error: string; code: string } | null> {
+  // Confirmed logins only: the RPC ignores unconfirmed rows on purpose. A
+  // half-finished signup is nobody's proven identity, and counting it shut the
+  // real owner out of both doors at once — they can't sign in, because the
+  // address was never confirmed, and they couldn't book as a guest either,
+  // because this said the address was taken.
   const { data: accountId } = await admin.rpc("account_id_for_email", { p_email: email });
   if (!accountId) return null;
 
