@@ -815,7 +815,7 @@ export async function initBooking() {
             // Email confirmation is switched on: the account exists but can't
             // claim anything until the address is confirmed.
             msg.textContent =
-              'Almost there — check your email to confirm your account. Your booking is safe either way, ' +
+              'Almost there — check your email (and spam/junk folder) to confirm your account. Your booking is safe either way, ' +
               'and it will appear under My Bookings once you confirm.';
             msg.style.display = 'block';
             goBtn.disabled = true;
@@ -956,7 +956,7 @@ export async function initBooking() {
     // say so instead of letting them think they've paid.
     confirmMsg.textContent = result.notice
       ? `${base} ${result.notice}`
-      : `${base} Bring your ID and pay at the studio — GGS Studio will confirm by email shortly.`;
+      : `${base} Bring your ID and pay at the studio — GGS Studio will confirm by email shortly (check your spam/junk folder if you don't see it).`;
     confirmMsg.classList.remove('error');
     confirmMsg.style.display = 'block';
     submitBtn.textContent = 'Request sent ✓';
