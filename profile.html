@@ -3,20 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Your Profile — GGS Studio</title>
+<title>Your Profile · GGS Studio</title>
 <meta name="description" content="Manage your GGS Studio account details.">
-<link rel="canonical" href="https://woogi999.github.io/GGS-Studio-Website/profile">
+<link rel="canonical" href="https://www.ggsstudio.site/profile">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="GGS Studio">
-<meta property="og:title" content="Your Profile — GGS Studio">
+<meta property="og:title" content="Your Profile · GGS Studio">
 <meta property="og:description" content="Manage your GGS Studio account details.">
-<meta property="og:url" content="https://woogi999.github.io/GGS-Studio-Website/profile">
-<meta property="og:image" content="https://woogi999.github.io/GGS-Studio-Website/assets/Logo_NoBG.png">
+<meta property="og:url" content="https://www.ggsstudio.site/profile">
+<meta property="og:image" content="https://www.ggsstudio.site/assets/Logo_NoBG.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Your Profile — GGS Studio">
+<meta name="twitter:title" content="Your Profile · GGS Studio">
 <meta name="twitter:description" content="Manage your GGS Studio account details.">
-<meta name="twitter:image" content="https://woogi999.github.io/GGS-Studio-Website/assets/Logo_NoBG.png">
-<link rel="icon" type="image/png" href="assets/Logo_NoBG.png">
+<meta name="twitter:image" content="https://www.ggsstudio.site/assets/Logo_NoBG.png">
+<link rel="icon" type="image/png" href="assets/logo-nav.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&display=swap">
 <link rel="stylesheet" href="style.css">
 <style>
   /* Deleting an account is irreversible, so it gets a visually separate block
@@ -27,7 +30,7 @@
   .danger-row .field-hint{margin-bottom:14px;}
   .btn-danger{
     background:none; border:1px solid #7a4331; color:#e5876f;
-    padding:11px 22px; border-radius:3px; font:inherit; font-size:0.8rem;
+    padding:11px 22px; border-radius:var(--r); font:inherit; font-size:0.8rem;
     letter-spacing:0.06em; text-transform:uppercase; cursor:pointer;
     transition:background 0.2s, color 0.2s;
   }
@@ -225,7 +228,7 @@
     }
   });
 
-  // The button stays disabled until "DELETE" is typed exactly — a misclick on
+  // The button stays disabled until "DELETE" is typed exactly: a misclick on
   // an irreversible action shouldn't be one click away.
   const deleteBtn = document.getElementById('deleteBtn');
   const deleteConfirm = document.getElementById('deleteConfirm');
@@ -238,7 +241,7 @@
     const msg = document.getElementById('deleteMsg');
     msg.style.display = 'none';
     if (deleteConfirm.value.trim() !== 'DELETE') return;
-    if (!(await confirmDialog('Last check — permanently delete your GGS Studio account?\n\nThis erases your details and uploaded files for good. It cannot be undone.'))) return;
+    if (!(await confirmDialog('Last check. Permanently delete your GGS Studio account?\n\nThis erases your details and uploaded files for good. It cannot be undone.'))) return;
 
     const { data } = await supabase.auth.getSession();
     if (!data.session) return;
@@ -254,7 +257,7 @@
       const json = await res.json();
       if (!res.ok){
         // The server refuses while a session is still on the calendar or money
-        // is unrefunded — say which, and point at the page that resolves it.
+        // is unrefunded: say which, and point at the page that resolves it.
         const extra = json.upcoming_count > 0 ? ' Cancel it from My bookings, then come back here.' : ' Please contact the studio so we can settle it first.';
         throw new Error((json.error || 'Could not delete your account.') + extra);
       }

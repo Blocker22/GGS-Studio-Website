@@ -1,7 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { loadBookingEmail, paymentRejectedEmail, paymentReceiptEmail, sendEmail } from "./email.ts";
-import { logAudit } from "./audit.ts";
+import { peso, sendBookingEmail } from "../_shared/email.ts";
+import { logAudit } from "../_shared/audit.ts";
+import { background } from "../_shared/booking-core.ts";
 
 // Staff decision on a manual QR transfer: approve it (the money really landed
 // in the studio's account) or reject it with a reason so the customer can send
@@ -99,11 +100,10 @@ Deno.serve(async (req: Request) => {
       reason: rejected.rejection_reason,
     });
 
-    const rejectMail = await loadBookingEmail(admin, payment.booking_id);
-    if (rejectMail) {
-      const { subject, html } = paymentRejectedEmail(rejectMail.to, rejectMail.booking, rejected.rejection_reason);
-      await sendEmail(rejectMail.to, subject, html);
-    }
+    background(sendBookingEmail(admin, payment.booking_id, "payment_rejected", {
+      by: { id: actor.id, name: actor.label },
+      extra: { reason_note: rejected.rejection_reason ? `What we found: ${rejected.rejection_reason}` : "" },
+    }));
 
     return json({ payment: rejected });
   }
@@ -144,23 +144,22 @@ Deno.serve(async (req: Request) => {
     booking_confirmed: wasPending,
   });
 
-  const mail = await loadBookingEmail(admin, payment.booking_id);
-  if (mail) {
-    // What's left after this transfer, so a downpayment says so plainly.
-    const { data: settled } = await admin
-      .from("payments")
-      .select("amount")
-      .eq("booking_id", payment.booking_id)
-      .in("status", ["succeeded", "partially_refunded"]);
-    const paid = (settled ?? []).reduce((s: number, p: { amount: number }) => s + Number(p.amount), 0);
-    const { subject, html } = paymentReceiptEmail(mail.to, mail.booking, {
-      amount: settledAmount,
-      method: "manual",
-      type: approved.type,
-      balance: Math.max(0, Number(mail.booking.totalPrice ?? 0) - paid),
-    });
-    await sendEmail(mail.to, subject, html);
-  }
+  // What's left after this transfer, so a downpayment says so plainly.
+  const { data: settled } = await admin
+    .from("payments")
+    .select("amount")
+    .eq("booking_id", payment.booking_id)
+    .in("status", ["succeeded", "partially_refunded"]);
+  const paid = (settled ?? []).reduce((s: number, p: { amount: number }) => s + Number(p.amount), 0);
+  const { data: totalRow } = await admin.from("bookings").select("total_price").eq("id", payment.booking_id).single();
+  const balance = Math.max(0, Number(totalRow?.total_price ?? 0) - paid);
+  background(sendBookingEmail(admin, payment.booking_id, wasPending ? "confirmed" : "payment_receipt", {
+    by: { id: actor.id, name: actor.label },
+    extra: {
+      amount: peso(settledAmount),
+      balance_note: balance > 0 ? `Remaining balance: ${peso(balance)}, due at the studio.` : "Nothing left to pay.",
+    },
+  }));
 
   return json({ payment: approved, booking_confirmed: wasPending });
 });

@@ -3,245 +3,140 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GGS Studio — Recording, Mixing & Mastering</title>
-<meta name="description" content="Cebu's independent recording studio. Book the room, an engineer, and same-day rough mixes — no middleman.">
-<link rel="canonical" href="https://woogi999.github.io/GGS-Studio-Website/">
+<title>GGS Studio · Recording, Mixing & Mastering in Cebu</title>
+<meta name="description" content="Cebu's independent recording studio. Book the room and an engineer online, and leave with a rough mix the same day.">
+<link rel="canonical" href="https://www.ggsstudio.site/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="GGS Studio">
-<meta property="og:title" content="GGS Studio — Recording, Mixing & Mastering">
-<meta property="og:description" content="Cebu's independent recording studio. Book the room, an engineer, and same-day rough mixes — no middleman.">
-<meta property="og:url" content="https://woogi999.github.io/GGS-Studio-Website/">
-<meta property="og:image" content="https://woogi999.github.io/GGS-Studio-Website/assets/Logo_NoBG.png">
+<meta property="og:title" content="GGS Studio · Recording, Mixing & Mastering in Cebu">
+<meta property="og:description" content="Cebu's independent recording studio. Book the room and an engineer online, and leave with a rough mix the same day.">
+<meta property="og:url" content="https://www.ggsstudio.site/">
+<meta property="og:image" content="https://www.ggsstudio.site/assets/Logo_NoBG.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="GGS Studio — Recording, Mixing & Mastering">
-<meta name="twitter:description" content="Cebu's independent recording studio. Book the room, an engineer, and same-day rough mixes — no middleman.">
-<meta name="twitter:image" content="https://woogi999.github.io/GGS-Studio-Website/assets/Logo_NoBG.png">
-<link rel="icon" type="image/png" href="assets/Logo_NoBG.png">
+<meta name="twitter:title" content="GGS Studio · Recording, Mixing & Mastering in Cebu">
+<meta name="twitter:description" content="Cebu's independent recording studio. Book the room and an engineer online, and leave with a rough mix the same day.">
+<meta name="twitter:image" content="https://www.ggsstudio.site/assets/Logo_NoBG.png">
+<meta name="theme-color" content="#020304">
+<link rel="icon" type="image/png" href="assets/logo-nav.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://esm.sh" crossorigin>
+<link rel="preconnect" href="https://poxgdnisortpetxqirwg.supabase.co" crossorigin>
+<link rel="preload" as="image" href="assets/slideshow/web/1.webp" fetchpriority="high">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&display=swap">
 <link rel="stylesheet" href="style.css">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"RecordingStudio","name":"GGS Studio","url":"https://www.ggsstudio.site/","image":"https://www.ggsstudio.site/assets/Logo_NoBG.png","telephone":"+639763506301","email":"contact@ggsstudio.site","address":{"@type":"PostalAddress","streetAddress":"Manson Trading, Looc","addressLocality":"Lapu-Lapu City","addressRegion":"Cebu","addressCountry":"PH"}}
+</script>
 </head>
 <body>
-
+<a class="skip-link" href="#book">Skip to booking</a>
 <nav></nav>
 
-<section class="hero">
+<main id="main">
+<section class="hero" aria-labelledby="heroTitle">
   <div class="hero-grid">
     <div class="hero-content">
-      <div class="hero-eyebrow">Cebu's independent recording studio</div>
-      <h1>Track it.<br>Mix it.<br><span class="out">Ship it.</span></h1>
-      <p class="hero-sub">GGS Studio is a one-room recording space built for artists who'd rather be making the song than fighting the gear. Analog-warmed signal chain, a mixer who actually listens, and a calendar you can book yourself — right now.</p>
+      <p class="hero-where"><span class="rec" aria-hidden="true"></span>Cebu's independent recording studio</p>
+      <h1 id="heroTitle">
+        <span class="line" style="--l:0"><span>Track it.</span></span>
+        <span class="line" style="--l:1"><span>Mix it.</span></span>
+        <span class="line" style="--l:2"><span class="out">Ship it.</span></span>
+      </h1>
+      <p class="hero-sub">A one-room studio in Lapu-Lapu City. Book the room and an engineer online, and leave with a rough mix the same day.</p>
       <div class="hero-actions">
-        <a href="#book" class="btn-primary">Book a session
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-        </a>
-        <a href="#services" class="btn-ghost">See rates ↓</a>
+        <a href="#book" class="btn-primary">Book a session <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg></a>
+        <a href="#services" class="btn-ghost">See rates</a>
       </div>
     </div>
     <div class="hero-slideshow" id="heroSlideshow" aria-hidden="true"></div>
   </div>
+  <div class="transport" aria-hidden="true">
+    <div class="transport-time"><span class="rec"></span><span data-timecode>00:00 / 03:34</span></div>
+    <div class="transport-wave"><div class="playhead"></div></div>
+    <div class="transport-tracks"><span><i></i>Recording</span><span><i></i>Mixing</span><span><i></i>Mastering</span></div>
+  </div>
 </section>
 
-<div class="marquee">
-  <div class="marquee-track" id="marqueeTrack">
-    <span>Recording</span><span>Mixing</span><span>Mastering</span><span>Vocal production</span><span>Session musicians</span><span>Podcast tracking</span>
-  </div>
-</div>
-
-<section id="services">
+<section id="services" aria-labelledby="servicesTitle">
   <div class="section-head" data-reveal>
-    <div>
-      <div class="section-tag">What we do</div>
-      <h2>Services & rates</h2>
-    </div>
-    <p class="section-note">Hourly or by the project — every session includes an engineer, so you never touch a fader unless you want to.</p>
+    <h2 id="servicesTitle">Services and rates</h2>
+    <p class="section-note">Pay by the hour for the room, then add what the session needs. Every session includes an engineer, so you never touch a fader unless you want to.</p>
   </div>
-  <!-- Rendered from the `rooms` and `services` tables by js/services-section.js
-       — the same rows the booking form prices against, so the admin panel is
-       the only place rates are edited. -->
-  <div class="services" id="servicesGrid" data-reveal></div>
+  <!-- Rendered from the `rooms` and `services` tables by js/services-section.js,
+       the same rows the booking form prices against. -->
+  <div class="services" id="servicesGrid" data-stagger></div>
 </section>
 
-<section class="gear" id="room">
-  <div class="studio-head" data-reveal>
-    <div class="section-tag">Our studio</div>
-    <h2>Where our work happens</h2>
-  </div>
-  <div class="gear-visual" data-reveal>
-    <div class="studio-gallery" id="studioGallery" aria-label="Photos of the studio"></div>
-  </div>
-</section>
-
-<section class="booking" id="book">
+<section class="booking" id="book" aria-labelledby="bookTitle">
   <div class="section-head" data-reveal>
-    <div>
-      <div class="section-tag">Reserve your slot</div>
-      <h2>Book now</h2>
-    </div>
-    <p class="section-note">Pick a service, a date, and a time — no account needed, and we'll confirm by email within a few hours.</p>
+    <h2 id="bookTitle">Book a session</h2>
+    <p class="section-note">Pick a time, choose how to pay, and leave your details. No account needed; we confirm by email within a few hours.</p>
   </div>
-
   <div class="book-grid">
-    <div class="book-form" data-reveal>
-      <div id="authSignedIn" class="auth-signed-in" style="display:none;">
-        <span id="authWho"></span>
-      </div>
-
-      <!-- novalidate: every problem is reported inline in the form itself
-           (js/form-validate.js) rather than as a native browser bubble. -->
-      <form id="bookingForm" novalidate>
-        <div class="field">
-          <label>Name</label>
-          <input type="text" id="fName" placeholder="Your name" required>
-        </div>
-        <div class="field">
-          <label>Email</label>
-          <input type="email" id="fEmail" placeholder="you@email.com" required>
-        </div>
-        <!-- Add-ons are rendered from the `services` table by js/booking.js, so
-             anything the studio adds in the admin panel shows up here without a
-             code change. The room rate is always charged and isn't listed. -->
-        <div class="field" id="fServicesField">
-          <label>Add-ons <span class="label-note">optional — the room rate is always included</span></label>
-          <div class="service-checks" id="fServices" role="group" aria-label="Session add-ons">
-            <p class="muted">Loading add-ons…</p>
-          </div>
-        </div>
-        <div class="field">
-          <label>Date</label>
-          <input type="date" id="fDate" required>
-        </div>
-        <div class="field-row">
-          <div class="field">
-            <label>Start time</label>
-            <input type="time" id="fStart" required>
-          </div>
-          <div class="field">
-            <label>End time</label>
-            <input type="time" id="fEnd" required>
-          </div>
-        </div>
-        <div class="booking-summary" id="bookingSummary">
-          <div><span>Duration</span><strong id="sumDuration">—</strong></div>
-          <div><span>Total price</span><strong id="sumPrice">—</strong></div>
-        </div>
-
-        <div class="pay-options" id="payOptions">
-          <span class="pay-heading">How would you like to pay?</span>
-
-          <label class="pay-option">
-            <input type="radio" name="payOption" value="cash" checked>
-            <span class="pay-body">
-              <span class="pay-title">Pay in cash at the studio</span>
-              <span class="pay-note">Nothing to pay now — just attach a photo of a valid ID to hold the slot. A school or student ID works.</span>
-            </span>
-            <span class="pay-amount" data-pay-amount="cash">&mdash;</span>
-          </label>
-
-          <div class="pay-id-upload" id="payIdUpload">
-            <label>Photo of a valid ID</label>
-            <input type="file" id="fIdImage" accept="image/png, image/jpeg, image/webp, image/heic">
-            <p class="field-hint">School, student, or any other valid ID.</p>
-          </div>
-
-          <label class="pay-option">
-            <input type="radio" name="payOption" value="deposit">
-            <span class="pay-body">
-              <span class="pay-title">Pay a <span id="payDepositPct">20</span>% downpayment online</span>
-              <span class="pay-note">Scan our GCash, GoTyme or BPI QR, send the downpayment, then upload the receipt. Balance settled at the studio.</span>
-            </span>
-            <span class="pay-amount" data-pay-amount="deposit">&mdash;</span>
-          </label>
-
-          <label class="pay-option">
-            <input type="radio" name="payOption" value="full">
-            <span class="pay-body">
-              <span class="pay-title">Pay in full online</span>
-              <span class="pay-note">Same QR transfer, for the whole session — nothing left to pay on the day. Your slot is confirmed once we've checked the receipt.</span>
-            </span>
-            <span class="pay-amount" data-pay-amount="full">&mdash;</span>
-          </label>
-        </div>
-
-        <div id="authStep" class="auth-step" style="display:none;">
-          <p class="auth-step-note" id="authStepNote">That email already has a GGS Studio account. Enter its password to confirm this booking, or use a different email address.</p>
-          <div class="field">
-            <label>Password</label>
-            <div class="pw-wrap">
-              <input type="password" id="authPassword" placeholder="••••••••" minlength="6">
-              <button type="button" class="pw-toggle" data-pw-toggle="authPassword" aria-label="Show password">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-              </button>
-            </div>
-          </div>
-          <div class="confirm-msg" id="authMsg"></div>
-        </div>
-
-        <div class="terms-block">
-          <label class="terms-check">
-            <input type="checkbox" id="fTerms">
-            <span>I agree to the <button type="button" class="terms-link" data-terms-toggle>Terms &amp; Conditions</button>, including the cancellation and no-refund policies.</span>
-          </label>
-        </div>
-
-        <div class="submit-row">
-          <button type="submit" id="bookSubmitBtn" class="book-submit">Confirm booking request</button>
-        </div>
-        <div id="authToggleRow" class="auth-toggle-row" style="display:none;">
-          <button type="button" id="authToggleBtn" class="btn-ghost">Already have an account? Log in instead</button>
-        </div>
-        <div class="confirm-msg" id="confirmMsg"></div>
-      </form>
-    </div>
-
-    <div class="book-side" data-reveal>
-      <div class="section-tag">Live availability</div>
-      <h2>Pick your day</h2>
-      <p class="section-note book-side-note">Booked hours are greyed out as they fill. Tap a day, then a free window, and it drops straight into the form.</p>
+    <div class="book-form" id="bookingFormMount"></div>
+    <aside class="book-side" aria-labelledby="calTitle">
+      <h3 id="calTitle">Live availability</h3>
+      <p class="section-note book-side-note">Tap a day, then a free window, and it drops into the form.</p>
       <div class="cal" id="bookCalendar"><p class="muted">Loading the calendar…</p></div>
-    </div>
+    </aside>
   </div>
 </section>
+
+<section class="reviews" id="reviews" aria-labelledby="reviewsTitle" hidden>
+  <div class="section-head" data-reveal>
+    <h2 id="reviewsTitle">What artists say</h2>
+    <div class="review-summary" id="reviewSummary"></div>
+  </div>
+  <div class="review-grid" id="reviewGrid" data-stagger></div>
+</section>
+
+<section class="gear" id="room" aria-labelledby="roomTitle">
+  <div class="studio-head" data-reveal>
+    <h2 id="roomTitle">Where the work happens</h2>
+    <p class="section-note">A look inside the room you'll be booking. Tap any photo to see it larger.</p>
+  </div>
+  <div class="gear-visual">
+    <div class="studio-gallery" id="studioGallery" aria-label="Photos of the studio" data-stagger></div>
+  </div>
+</section>
+</main>
 
 <footer>
   <div class="footer-top">
     <div class="footer-cta" data-reveal>
-      <div class="section-tag">Ready when you are</div>
-      <h2>Let's make<br>something.</h2>
-      <a href="#book" class="btn-primary">Book Now
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-      </a>
+      <h2>Let's make something.</h2>
+      <a href="#book" class="btn-primary">Book a session <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg></a>
+      <div class="subscribe">
+        <p>Studio news and the occasional offer. No spam, one-click unsubscribe.</p>
+        <form id="subscribeForm" novalidate>
+          <label class="sr-only" for="subEmail">Email</label>
+          <input type="email" id="subEmail" placeholder="you@email.com" autocomplete="email" required>
+          <input type="text" name="website" class="hp" tabindex="-1" autocomplete="off" aria-hidden="true">
+          <button type="submit" class="btn-primary">Subscribe</button>
+        </form>
+        <p class="subscribe-msg" id="subscribeMsg" role="status"></p>
+      </div>
     </div>
     <div class="footer-cols">
       <div class="footer-col">
-        <h5>Studio</h5>
-        <a href="#services">Services</a>
-        <a href="#room">Our studio</a>
+        <h3>Studio</h3>
+        <a href="#services">Rates</a>
+        <a href="#book">Book a session</a>
+        <a href="#room">The room</a>
+        <a href="account">My bookings</a>
       </div>
-      <div class="footer-col">
-        <h5>Contact</h5>
-        <a href="mailto:ggs.studio2026@gmail.com" class="footer-link-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 5h16v14H4z"/><path d="M4 6l8 7 8-7"/></svg>
-          ggs.studio2026@gmail.com
-        </a>
-        <a href="tel:+639763506301" class="footer-link-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.68 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.32 1.85.55 2.81.68A2 2 0 0 1 22 16.92z"/></svg>
-          +63 976 350 6301
-        </a>
-        <a href="https://maps.google.com/?q=Manson+Trading,+Looc,+Lapu-Lapu+City,+Cebu" target="_blank" rel="noopener" class="footer-link-icon">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-          Manson Trading, Looc, Lapu-Lapu City, Cebu
-        </a>
-      </div>
-      <div class="footer-col">
-        <h5>Follow</h5>
-        <a href="https://www.facebook.com/profile.php?id=61589919255165" target="_blank" rel="noopener" class="footer-link-icon">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12a10 10 0 1 0-11.56 9.88v-6.99H7.9V12h2.54V9.8c0-2.5 1.49-3.89 3.77-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.78l-.44 2.89h-2.34v6.99A10 10 0 0 0 22 12z"/></svg>
-          Facebook
-        </a>
+      <div class="footer-col" id="footerContact">
+        <h3>Contact</h3>
+        <a href="mailto:contact@ggsstudio.site" class="footer-link-icon" data-contact="email"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 5.5h18v13H3z"/><path d="m3 6 9 7 9-7"/></svg><span>contact@ggsstudio.site</span></a>
+        <a href="tel:+639763506301" class="footer-link-icon" data-contact="phone"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M5 3.5h4l1.6 4.5-2.3 1.4a11 11 0 0 0 6.3 6.3l1.4-2.3 4.5 1.6v4a2 2 0 0 1-2 2A16.5 16.5 0 0 1 3 5.5a2 2 0 0 1 2-2Z"/></svg><span>+63 976 350 6301</span></a>
+        <a href="https://maps.google.com/?q=Manson+Trading,+Looc,+Lapu-Lapu+City,+Cebu" target="_blank" rel="noopener" class="footer-link-icon" data-contact="address"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span>Manson Trading, Looc, Lapu-Lapu City, Cebu</span></a>
+        <a href="https://www.facebook.com/profile.php?id=61589919255165" target="_blank" rel="noopener" class="footer-link-icon" data-contact="facebook"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3.5 3.5h17v17h-17z"/><path d="M15.5 8h-2a2 2 0 0 0-2 2v10.5M9 13h6"/></svg><span>Facebook</span></a>
       </div>
     </div>
   </div>
   <div class="footer-bottom">
-    <span>© 2026 GGS Studio. All rights reserved.</span>
+    <span>© 2026 GGS Studio</span>
     <span class="footer-legal">
       <a href="privacy">Privacy Policy</a>
       <button type="button" class="footer-legal-link" data-terms-toggle>Terms &amp; Conditions</button>
@@ -249,170 +144,37 @@
   </div>
 </footer>
 
-<script>
-  // marquee duplicate for seamless loop
-  const track = document.getElementById('marqueeTrack');
-  track.innerHTML += track.innerHTML;
-
-  // reveal on scroll
-  const revealEls = document.querySelectorAll('[data-reveal]');
-  const io = new IntersectionObserver((entries)=>{
-    entries.forEach(en=>{ if(en.isIntersecting){ en.target.classList.add('in'); io.unobserve(en.target);} });
-  }, {threshold:0.15});
-  revealEls.forEach(el=>io.observe(el));
-
-  // hero slideshow — reads whatever images exist in assets/slideshow/ at load time,
-  // so dropping new files in that folder is enough; nothing here needs editing.
-  (function initHeroSlideshow(){
-    // Slideshow images are always pre-optimized .webp (assets/slideshow/1.webp,
-    // 2.webp, …) — no other formats to probe for, and GitHub Pages doesn't
-    // serve directory listings, so we go straight to a numbered-filename
-    // probe. All candidates are requested in parallel (the browser handles
-    // connection pooling) rather than one-at-a-time, and slides render as
-    // soon as they arrive instead of waiting for the whole set.
-    const SLIDESHOW_DIR = 'assets/slideshow/';
-    const MAX_PROBE = 40;
-    const el = document.getElementById('heroSlideshow');
-    if (!el) return;
-
-    function loadImage(src){
-      return new Promise((resolve)=>{
-        const img = new Image();
-        img.decoding = 'async';
-        img.onload = () => resolve(src);
-        img.onerror = () => resolve(null);
-        img.src = src;
-      });
-    }
-
-    async function buildSlides(){
-      const probes = Array.from({ length: MAX_PROBE }, (_, i) => loadImage(`${SLIDESHOW_DIR}${i + 1}.webp`));
-      const results = await Promise.all(probes);
-
-      // stop at the first gap so a missing middle file doesn't leave a hole
-      const sources = [];
-      for (const src of results){
-        if (!src) break;
-        sources.push(src);
-      }
-      if (sources.length === 0) { el.classList.add('empty'); return; }
-
-      sources.forEach((src, i) => {
-        const img = document.createElement('img');
-        img.src = src;
-        img.alt = '';
-        img.loading = i === 0 ? 'eager' : 'lazy';
-        img.decoding = i === 0 ? 'sync' : 'async';
-        if (i === 0) { img.fetchPriority = 'high'; img.classList.add('active'); }
-        el.appendChild(img);
-      });
-
-      if (sources.length > 1 && !window.matchMedia('(prefers-reduced-motion: reduce)').matches){
-        let current = 0;
-        setInterval(() => {
-          const slides = el.querySelectorAll('img');
-          slides[current].classList.remove('active');
-          current = (current + 1) % slides.length;
-          slides[current].classList.add('active');
-        }, 4200);
-      }
-    }
-
-    buildSlides();
-  })();
-
-  // Studio gallery — same numbered-probe trick as the hero slideshow: reads
-  // whatever assets/slideshow/ contains and lays it out as a masonry grid
-  // (equal column widths, natural image heights).
-  (function initStudioGallery(){
-    const SLIDESHOW_DIR = 'assets/slideshow/';
-    const MAX_PROBE = 40;
-    const el = document.getElementById('studioGallery');
-    if (!el) return;
-
-    function loadImage(src){
-      return new Promise((resolve)=>{
-        const img = new Image();
-        img.decoding = 'async';
-        img.onload = () => resolve(src);
-        img.onerror = () => resolve(null);
-        img.src = src;
-      });
-    }
-
-    async function buildGallery(){
-      const probes = Array.from({ length: MAX_PROBE }, (_, i) => loadImage(`${SLIDESHOW_DIR}${i + 1}.webp`));
-      const results = await Promise.all(probes);
-      const sources = [];
-      for (const src of results){ if (!src) break; sources.push(src); }
-      if (sources.length === 0) { el.classList.add('empty'); return; }
-
-      sources.forEach((src, i) => {
-        const img = document.createElement('img');
-        img.src = src;
-        img.alt = `Inside GGS Studio — photo ${i + 1}`;
-        img.loading = 'lazy';
-        img.decoding = 'async';
-        // Fade in only once decoded, so half-loaded images don't pop in
-        // mid-scroll and shift the masonry around.
-        if (img.complete) { img.classList.add('loaded'); }
-        else { img.addEventListener('load', () => img.classList.add('loaded')); }
-        el.appendChild(img);
-      });
-    }
-
-    buildGallery();
-
-    // Lightbox: clicking any photo pops the full-size image over everything.
-    const lightbox = document.createElement('div');
-    lightbox.className = 'lightbox-backdrop';
-    lightbox.innerHTML = `
-      <button type="button" class="lightbox-close" aria-label="Close">&times;</button>
-      <img alt="">`;
-    document.body.appendChild(lightbox);
-    const lightboxImg = lightbox.querySelector('img');
-
-    let lastFocus = null;
-    function openLightbox(src){
-      lastFocus = document.activeElement;
-      lightboxImg.src = src;
-      lightbox.classList.add('open');
-      document.body.style.overflow = 'hidden';
-      lightbox.querySelector('.lightbox-close').focus();
-    }
-    function closeLightbox(){
-      lightbox.classList.remove('open');
-      document.body.style.overflow = '';
-      lastFocus?.focus?.();
-    }
-
-    el.addEventListener('click', (e) => {
-      const img = e.target.closest('img');
-      if (img) openLightbox(img.src);
-    });
-    lightbox.addEventListener('click', (e) => {
-      if (e.target === lightbox || e.target.closest('.lightbox-close')) closeLightbox();
-    });
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && lightbox.classList.contains('open')) closeLightbox();
-    });
-  })();
-</script>
-
 <script type="module">
-  import { initBooking } from './js/booking.js';
+  import { initReveal, initHeroMotion } from './js/motion.js';
+  import { initSlideshow, initGallery, initLightbox, whenIdle } from './js/home.js';
   import { initAuthNav } from './js/auth.js';
-  import { initBookingCalendar } from './js/availability.js';
-  import { initDateTimePickers } from './js/datetime-picker.js';
+  import { initBooking } from './js/booking.js';
   import { initServicesSection } from './js/services-section.js';
-  import { initChatbot } from './js/chatbot.js';
+  import { initFooter, initReviews } from './js/site.js';
+
+  initHeroMotion();
+  initReveal();
+  initSlideshow();
   initAuthNav();
   initBooking();
-  initDateTimePickers();
-  initBookingCalendar();
+  import('./js/datetime-picker.js').then((m) => m.initDateTimePickers());
   initServicesSection();
-  initChatbot();
-</script>
+  initFooter();
+  initLightbox();
 
+  // Below the fold: start these when the section is near, not on load.
+  const near = (id, fn) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const io = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) { io.disconnect(); fn(); }
+    }, { rootMargin: '900px 0px' });
+    io.observe(el);
+  };
+  near('bookCalendar', () => import('./js/availability.js').then((m) => m.initBookingCalendar()));
+  near('room', initGallery);
+  near('book', initReviews);
+  whenIdle(() => import('./js/chatbot.js').then((m) => m.initChatbot()));
+</script>
 </body>
 </html>

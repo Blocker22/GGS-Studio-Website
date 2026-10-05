@@ -3,7 +3,7 @@
 // Almost everything it answers, it answers locally. The rates, the opening
 // hours, the booking and payment policy, and the signed-in customer's own
 // sessions are all already reachable from the browser, so a question about any
-// of them is a lookup, not a language problem — answering it here is instant,
+// of them is a lookup, not a language problem: answering it here is instant,
 // free, always correct, and works with the network flaking.
 //
 // Only a genuinely open-ended question ("can I bring my own drummer and split
@@ -11,13 +11,13 @@
 // chat-assist, which is where the AI provider and its key live. The key is
 // never in this file, and never reaches the browser.
 //
-// The "book for me" flow doesn't reimplement booking — it drives the real
+// The "book for me" flow doesn't reimplement booking: it drives the real
 // booking form (#bookingForm on index.html/account.html) by setting its
 // fields and dispatching the same events a person clicking through it would,
 // so every existing rule (add-on prerequisites, live pricing, the terms gate,
 // sign-in) keeps working exactly as it does today. The two things a chat
-// message genuinely cannot do — pick a file from disk, and give legally
-// meaningful consent to the terms — stay native browser interactions; the
+// message genuinely cannot do: pick a file from disk, and give legally
+// meaningful consent to the terms: stay native browser interactions; the
 // wizard hands the ID photo off through a real file input, and lets the
 // existing terms modal handle agreement.
 
@@ -113,7 +113,7 @@ export async function initChatbot() {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4 20-7z"/></svg>
         </button>
       </form>
-      <p class="ggs-chat-foot">Answers are for guidance — the booking form and <a href="privacy">Privacy Policy</a> are what count.</p>
+      <p class="ggs-chat-foot">Answers are for guidance: the booking form and <a href="privacy">Privacy Policy</a> are what count.</p>
     </div>`;
   document.body.appendChild(root);
 
@@ -164,7 +164,7 @@ export async function initChatbot() {
       };
       return facts;
     })().catch(() => {
-      // A failed lookup shouldn't take the whole widget down — the escalation
+      // A failed lookup shouldn't take the whole widget down: the escalation
       // path still works, and the answers that need facts say so politely.
       facts = { room: null, services: [], hours: [], depositPercent: 20, cutoffHours: 24 };
       return facts;
@@ -189,7 +189,7 @@ export async function initChatbot() {
         text: [
           'Booking takes about a minute:',
           '1. Pick your date, start and end time on the booking form.',
-          '2. Tick any add-ons you want — per-song services will ask how many.',
+          '2. Tick any add-ons you want: per-song services will ask how many.',
           '3. Choose how to pay: cash at the studio, a ' + f.depositPercent + '% downpayment online, or the full amount online.',
           '4. Confirm, and you will get an email once we have checked it.',
         ].join('\n'),
@@ -210,7 +210,7 @@ export async function initChatbot() {
             : s.price_type === 'unit'
             ? `${peso(s.price)} per ${s.unit_label || 'unit'}`
             : `${peso(s.price)} flat`;
-          lines.push(`• ${s.name} — ${rate}`);
+          lines.push(`• ${s.name}: ${rate}`);
         });
       }
       lines.push('The booking form totals it up for you as you pick.');
@@ -223,13 +223,13 @@ export async function initChatbot() {
 
     async hours() {
       const f = await loadFacts();
-      if (!f.hours.length) return { text: 'Our hours are set per day in the booking calendar — pick a date on the booking form and it shows the open windows for that day.' };
+      if (!f.hours.length) return { text: 'Our hours are set per day in the booking calendar. Pick a date on the booking form and it shows the open windows for that day.' };
       const lines = f.hours
         .slice()
         .sort((a, b) => (a.day_of_week ?? 0) - (b.day_of_week ?? 0))
         .map((h) => (h.is_closed
-          ? `• ${DAYS[h.day_of_week]} — closed`
-          : `• ${DAYS[h.day_of_week]} — ${to12Hour(h.open_time)} to ${to12Hour(h.close_time)}`));
+          ? `• ${DAYS[h.day_of_week]}: closed`
+          : `• ${DAYS[h.day_of_week]}: ${to12Hour(h.open_time)} to ${to12Hour(h.close_time)}`));
       return {
         text: ['Here are our regular hours:', ...lines, 'The calendar on the booking form shows what is actually free on a given day.'].join('\n'),
         actions: [{ label: 'Check availability', href: bookHref() }],
@@ -242,9 +242,9 @@ export async function initChatbot() {
       return {
         text: [
           `Three ways to settle a session:`,
-          `• Cash at the studio — attach a photo of a valid ID to hold the slot, pay on the day.`,
-          `• ${f.depositPercent}% downpayment online — scan our GCash, GoTyme, or BPI QR, upload the receipt, pay the balance at the studio.`,
-          `• Full payment online — same QR transfer, nothing left to pay on the day.`,
+          `• Pay at the studio: add a photo of a valid ID to hold the slot, pay on the day.`,
+          `• ${f.depositPercent}% downpayment online: send it to one of our accounts, upload the receipt, pay the balance at the studio.`,
+          `• Full payment online: same transfer, nothing left to pay on the day.`,
           `Online bookings are confirmed once our staff have checked the receipt. Only ever pay to the QR codes shown on this site.`,
         ].join('\n'),
         actions: [{ label: 'My bookings', href: 'account' }],
@@ -252,7 +252,7 @@ export async function initChatbot() {
       };
     },
 
-    // 'cancel' isn't answered from here — runIntent() routes it straight to
+    // 'cancel' isn't answered from here: runIntent() routes it straight to
     // startManageBookings(), which lists the customer's own bookings with
     // working Cancel/Reschedule buttons instead of just describing the policy.
 
@@ -299,8 +299,8 @@ export async function initChatbot() {
         const s = new Date(b.start_at);
         const e = new Date(b.end_at);
         const when = s.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' });
-        const t = `${s.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}–${e.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}`;
-        return `• ${b.rooms?.name || 'Room'} on ${when}, ${t} — ${b.status}, ${peso(b.total_price)}`;
+        const t = `${s.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })} to ${e.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}`;
+        return `• ${b.rooms?.name || 'Room'} on ${when}, ${t}: ${b.status}, ${peso(b.total_price)}`;
       });
       return {
         text: [bookings.length === 1 ? 'Here is your next session:' : 'Here are your next sessions:', ...lines].join('\n'),
@@ -313,7 +313,7 @@ export async function initChatbot() {
       return {
         text: [
           'We are at Manson Trading, Looc, Lapu-Lapu City, Cebu.',
-          'Email ggs.studio2026@gmail.com or call +63 976 350 6301 — happy to help either way.',
+          'Email contact@ggsstudio.site or call +63 976 350 6301: happy to help either way.',
         ].join('\n'),
         actions: [
           { label: 'Open in Maps', href: 'https://maps.google.com/?q=Manson+Trading,+Looc,+Lapu-Lapu+City,+Cebu', external: true },
@@ -353,7 +353,7 @@ export async function initChatbot() {
 
   // A short message that lands squarely on one topic gets the local answer. A
   // long one, or one that mixes topics, almost always carries a condition the
-  // canned text doesn't cover — that is what the AI escalation is for.
+  // canned text doesn't cover: that is what the AI escalation is for.
   function routeLocally(text) {
     const words = text.trim().split(/\s+/).length;
     const matches = KEYWORDS.filter(([, re]) => re.test(text)).map(([id]) => id);
@@ -374,7 +374,7 @@ export async function initChatbot() {
   }
 
   // Reveals bot text a few words at a time rather than popping in whole, so
-  // every answer — canned or AI-written — visibly "types". Word-chunked
+  // every answer: canned or AI-written: visibly "types". Word-chunked
   // rather than character-by-character: just as readable as a stream, far
   // fewer DOM writes, and the total time is capped so a long AI answer
   // doesn't make someone wait to finish reading what's already on screen.
@@ -404,7 +404,7 @@ export async function initChatbot() {
     })();
   }
 
-  // Appends one message and resolves once it has finished "typing" — a plain
+  // Appends one message and resolves once it has finished "typing": a plain
   // user message resolves immediately, a bot message resolves after the
   // word-reveal (or instantly under reduced motion). Await it before adding
   // whatever comes next, so replies never race ahead of their own text.
@@ -468,7 +468,7 @@ export async function initChatbot() {
     return row;
   }
 
-  // Every bot message — canned, AI-written, or a wizard prompt — passes
+  // Every bot message: canned, AI-written, or a wizard prompt: passes
   // through here: a beat of "…" first (padded to a minimum so an instant
   // local lookup still reads as a reply being composed, not a blank flash),
   // then the message itself typing in.
@@ -508,8 +508,8 @@ export async function initChatbot() {
   }
 
   // A quick-reply button's own click handler never awaits this, so without a
-  // catch here any error thrown anywhere downstream — the wizard, the manage-
-  // bookings flow, anything runIntent reaches — became an unhandled promise
+  // catch here any error thrown anywhere downstream: the wizard, the manage-
+  // bookings flow, anything runIntent reaches: became an unhandled promise
   // rejection: invisible in the UI, the conversation just stops dead. Every
   // preset click is now guaranteed to end in either a normal reply or a
   // visible error message, never silence.
@@ -522,7 +522,7 @@ export async function initChatbot() {
     } catch (err) {
       console.error('[chatbot] preset failed:', id, err);
       await sendBotMessage(`Sorry, something went wrong on my end (${err?.message || 'unknown error'}). Please try again, or reach the studio directly.`, {
-        actions: [{ label: 'Email the studio', href: 'mailto:ggs.studio2026@gmail.com' }],
+        actions: [{ label: 'Email the studio', href: 'mailto:contact@ggsstudio.site' }],
       });
       renderQuick(DEFAULT_QUICK);
     }
@@ -566,8 +566,8 @@ export async function initChatbot() {
       history.push({ role: 'model', text: reply });
       renderQuick(DEFAULT_QUICK);
     } catch (err) {
-      await addMessage('bot', `${err.message} You can always reach the studio at ggs.studio2026@gmail.com or +63 976 350 6301.`, {
-        actions: [{ label: 'Email the studio', href: 'mailto:ggs.studio2026@gmail.com' }],
+      await addMessage('bot', `${err.message} You can always reach the studio at contact@ggsstudio.site or +63 976 350 6301.`, {
+        actions: [{ label: 'Email the studio', href: 'mailto:contact@ggsstudio.site' }],
       });
       renderQuick(DEFAULT_QUICK);
     } finally {
@@ -614,7 +614,7 @@ export async function initChatbot() {
     box.classList.add('done');
   }
 
-  // `field` is optional — when given, that specific input turns red (matching
+  // `field` is optional: when given, that specific input turns red (matching
   // the booking form's own field-error styling) and is scrolled into view and
   // focused, rather than leaving the reason to a caption that can be off-screen
   // if the wizard box has scrolled up in a long conversation.
@@ -636,7 +636,7 @@ export async function initChatbot() {
   }
 
   // Checks a candidate [startAt, endAt) against opening hours and existing
-  // bookings before the wizard accepts it — otherwise someone could sail
+  // bookings before the wizard accepts it: otherwise someone could sail
   // through every remaining step only to have the server reject an already-
   // closed or already-booked slot at the very last one. Uses the same
   // public_busy_ranges RPC the landing-page calendar uses, so a signed-out
@@ -647,24 +647,24 @@ export async function initChatbot() {
   async function validateSlot(startAt, endAt, box, fields = {}) {
     const { dateI, startI } = fields;
     const f = await loadFacts();
-    if (!f.room) { showWizardError(box, 'Could not verify availability just now — please try again.'); return false; }
+    if (!f.room) { showWizardError(box, 'Could not verify availability just now: please try again.'); return false; }
 
     if (startAt.getTime() < Date.now()) {
-      showWizardError(box, 'That start time has already passed — please pick a later time.', startI);
+      showWizardError(box, 'That start time has already passed: please pick a later time.', startI);
       return false;
     }
 
     const dayKey = startAt.toLocaleDateString('en-CA');
     const hours = f.hours.find((h) => h.day_of_week === startAt.getDay());
     if (!hours || hours.is_closed) {
-      showWizardError(box, "We're closed that day — please pick another date.", dateI);
+      showWizardError(box, "We're closed that day: please pick another date.", dateI);
       return false;
     }
     const openAt = new Date(`${dayKey}T${hours.open_time}`);
     let closeAt = new Date(`${dayKey}T${hours.close_time}`);
     if (closeAt <= openAt) closeAt = new Date(closeAt.getTime() + 24 * 3600000);
     if (startAt < openAt || endAt > closeAt) {
-      showWizardError(box, `We're open ${to12Hour(hours.open_time)}–${to12Hour(hours.close_time)} that day — please pick a time in that window.`, startI);
+      showWizardError(box, `We're open ${to12Hour(hours.open_time)} to ${to12Hour(hours.close_time)} that day: please pick a time in that window.`, startI);
       return false;
     }
 
@@ -675,14 +675,14 @@ export async function initChatbot() {
       p_from: startAt.toISOString(),
       p_to: endAt.toISOString(),
     });
-    if (error) { showWizardError(box, 'Could not verify availability just now — please try again.'); return false; }
+    if (error) { showWizardError(box, 'Could not verify availability just now: please try again.'); return false; }
     const conflict = (busy || []).some((r) => new Date(r.start_at).getTime() < endAt.getTime() && new Date(r.end_at).getTime() > startAt.getTime());
-    if (conflict) { showWizardError(box, 'That time is already booked — please pick another slot.', startI); return false; }
+    if (conflict) { showWizardError(box, 'That time is already booked: please pick another slot.', startI); return false; }
     return true;
   }
 
   async function wizardDateTime(refs) {
-    await sendBotMessage("First — what date and time works for you?");
+    await sendBotMessage("First: what date and time works for you?");
     await new Promise((resolve) => {
       const todayIso = new Date().toLocaleDateString('en-CA');
       const html = `
@@ -704,7 +704,7 @@ export async function initChatbot() {
           if (!dateI.value) return showWizardError(box, 'Please pick a date.', dateI);
           if (!startI.value) return showWizardError(box, 'Please pick a start time.', startI);
           if (!endI.value) return showWizardError(box, 'Please pick an end time.', endI);
-          if (dateI.value < todayIso) return showWizardError(box, 'That date has already passed — please pick today or later.', dateI);
+          if (dateI.value < todayIso) return showWizardError(box, 'That date has already passed: please pick today or later.', dateI);
           const [sh, sm] = startI.value.split(':').map(Number);
           const [eh, em] = endI.value.split(':').map(Number);
           if (eh * 60 + em <= sh * 60 + sm) return showWizardError(box, 'End time must be after the start time.', endI);
@@ -719,7 +719,7 @@ export async function initChatbot() {
             ok = await validateSlot(startAt, endAt, box, { dateI, startI, endI });
           } catch (err) {
             console.error('[chatbot] slot check failed:', err);
-            showWizardError(box, 'Could not verify availability just now — please try again.');
+            showWizardError(box, 'Could not verify availability just now: please try again.');
           } finally {
             nextBtn.disabled = false;
             nextBtn.textContent = 'Continue';
@@ -731,7 +731,7 @@ export async function initChatbot() {
           refs.endEl.value = endI.value; fireEvent(refs.endEl, 'input'); fireEvent(refs.endEl, 'change');
 
           lockWizardBox(box);
-          addMessage('user', `${fmtDateHuman(dateI.value)}, ${to12Hour(startI.value)}–${to12Hour(endI.value)}`);
+          addMessage('user', `${fmtDateHuman(dateI.value)}, ${to12Hour(startI.value)} to ${to12Hour(endI.value)}`);
           resolve();
         });
       });
@@ -739,7 +739,7 @@ export async function initChatbot() {
   }
 
   // Depth of a service in its own prerequisite chain (0 = no prerequisite),
-  // so dependencies can be checked into the real form parent-first — checking
+  // so dependencies can be checked into the real form parent-first: checking
   // a dependant before its prerequisite just gets it silently unchecked again
   // by the form's own syncServiceDeps.
   function dependencyDepth(id, svcById, seen = new Set()) {
@@ -756,7 +756,7 @@ export async function initChatbot() {
     const wanted = new Set(picked.map((p) => p.id));
     const qtyById = new Map(picked.map((p) => [p.id, p.qty]));
 
-    // A picked service drags its whole prerequisite chain along — the real
+    // A picked service drags its whole prerequisite chain along: the real
     // form enforces this anyway, so silently including it here beats the
     // wizard's pick getting rejected with no explanation.
     let changed = true;
@@ -826,13 +826,15 @@ export async function initChatbot() {
   }
 
   async function wizardContact(refs) {
-    if (refs.nameEl.value.trim() && refs.emailEl.value.trim()) return;
+        const phoneEl = document.getElementById('fPhone');
+    if (refs.nameEl.value.trim() && refs.emailEl.value.trim() && (!phoneEl || phoneEl.value.trim())) return;
     await sendBotMessage('Who should I put this booking under?');
     await new Promise((resolve) => {
       const emailLocked = refs.emailEl.readOnly;
       const html = `
         <div class="ggs-wizard-row"><label>Name<input type="text" data-w-name value="${escapeHtml(refs.nameEl.value)}"></label></div>
-        <div class="ggs-wizard-row"><label>Email<input type="email" data-w-email value="${escapeHtml(refs.emailEl.value)}" ${emailLocked ? 'disabled' : ''}></label></div>
+                <div class="ggs-wizard-row"><label>Email<input type="email" data-w-email value="${escapeHtml(refs.emailEl.value)}" ${emailLocked ? 'disabled' : ''}></label></div>
+        <div class="ggs-wizard-row"><label>Mobile number<input type="tel" data-w-phone value="${escapeHtml(phoneEl?.value || '')}"></label></div>
         <p class="ggs-wizard-error" data-w-err hidden></p>
         <button type="button" class="ggs-wizard-btn" data-w-next>Continue</button>`;
       mountWizardBox(html, (box) => {
@@ -842,7 +844,11 @@ export async function initChatbot() {
           const name = nameI.value.trim();
           const email = emailI.value.trim();
           if (!name) return showWizardError(box, 'Please enter a name.', nameI);
-          if (!emailLocked && (!email || !email.includes('@'))) return showWizardError(box, 'Please enter a valid email.', emailI);
+                    if (!emailLocked && (!email || !email.includes('@'))) return showWizardError(box, 'Please enter a valid email.', emailI);
+          const phoneI = box.querySelector('[data-w-phone]');
+          const phone = phoneI.value.trim();
+          if (phone.replace(/\D/g, '').length < 7) return showWizardError(box, 'Please enter a mobile number we can reach you on.', phoneI);
+          if (phoneEl) { phoneEl.value = phone; fireEvent(phoneEl, 'input'); }
 
           refs.nameEl.value = name; fireEvent(refs.nameEl, 'input');
           if (!emailLocked) { refs.emailEl.value = email; fireEvent(refs.emailEl, 'input'); }
@@ -858,9 +864,9 @@ export async function initChatbot() {
   async function wizardPayment() {
     await sendBotMessage('How would you like to pay?');
     await new Promise((resolve) => {
-      const cashAmt = document.querySelector('[data-pay-amount="cash"]')?.textContent || '—';
-      const depAmt = document.querySelector('[data-pay-amount="deposit"]')?.textContent || '—';
-      const fullAmt = document.querySelector('[data-pay-amount="full"]')?.textContent || '—';
+      const cashAmt = document.querySelector('[data-pay-amount="cash"]')?.textContent || '-';
+      const depAmt = document.querySelector('[data-pay-amount="deposit"]')?.textContent || '-';
+      const fullAmt = document.querySelector('[data-pay-amount="full"]')?.textContent || '-';
       const html = `
         <label class="ggs-wizard-radio"><input type="radio" name="w-pay" value="cash" checked><span>Cash at the studio<em>${cashAmt}</em></span></label>
         <label class="ggs-wizard-radio"><input type="radio" name="w-pay" value="deposit"><span>Downpayment online<em>${depAmt}</em></span></label>
@@ -886,48 +892,34 @@ export async function initChatbot() {
     const payOption = document.querySelector('input[name="payOption"]:checked')?.value || 'cash';
     const staffNotice = document.getElementById('payStaffNotice');
     const isStaff = Boolean(staffNotice && !staffNotice.hidden);
-    const needsId = payOption === 'cash' && !isStaff;
+    const needsId = payOption === 'cash' && !isStaff && document.getElementById('payIdUpload')?.classList.contains('show');
 
-    await sendBotMessage(
-      `Here's your session: ${duration}, total ${total}. `
-      + (needsId
-        ? 'Last thing — attach a photo of a valid ID to hold a cash slot, then I\'ll send it in.'
-        : "I'll send this in for you now."),
-    );
+    if (needsId) {
+      // An ID needs its type, number and a photo checked on the form itself,
+      // so the assistant hands over here instead of booking from the chat.
+      await sendBotMessage(`Here's your session: ${duration}, total ${total}. To pay at the studio we need your ID, so I've taken you to that part of the form. Add it there, then press Send booking request.`);
+      document.getElementById('payIdUpload')?.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'center' });
+      document.getElementById('fIdType')?.focus({ preventScroll: true });
+      renderQuick(['mine', 'book']);
+      return;
+    }
 
+    await sendBotMessage(`Here's your session: ${duration}, total ${total}. Ready when you are.`);
     await new Promise((resolve) => {
-      const html = `
-        ${needsId ? `
-          <div class="ggs-wizard-row"><label>ID photo<input type="file" accept="image/png, image/jpeg, image/webp, image/heic" data-w-id></label></div>
-          <p class="ggs-wizard-error" data-w-err hidden></p>` : ''}
-        <button type="button" class="ggs-wizard-btn ggs-wizard-btn-gold" data-w-submit>Submit booking</button>`;
-      mountWizardBox(html, (box) => {
-        box.querySelector('[data-w-submit]').addEventListener('click', () => {
-          if (needsId) {
-            const idI = box.querySelector('[data-w-id]');
-            const file = idI.files?.[0];
-            if (!file) return showWizardError(box, 'Please attach a photo of your ID.', idI);
-            const dt = new DataTransfer();
-            dt.items.add(file);
-            refs.idImageEl.files = dt.files;
-            fireEvent(refs.idImageEl, 'change');
-          }
-          lockWizardBox(box);
-          resolve();
-        });
+      mountWizardBox('<button type="button" class="ggs-wizard-btn ggs-wizard-btn-gold" data-w-submit>Send booking request</button>', (box) => {
+        box.querySelector('[data-w-submit]').addEventListener('click', () => { lockWizardBox(box); resolve(); });
       });
     });
-
     refs.form.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'center' });
     refs.form.requestSubmit();
-    await sendBotMessage("Sent! Check just above the chat for the confirmation — or to finish anything the form still needs from you, like agreeing to the terms or signing in.");
+    await sendBotMessage('Sent. The confirmation shows on the form. If it asks for anything else, like agreeing to the terms or signing in, finish it there.');
     renderQuick(['mine', 'pay', 'book']);
   }
 
   async function startBookingWizard() {
     const refs = getFormRefs();
     if (!refs) {
-      await sendBotMessage("I can walk you through booking on the home page — let's head there.", {
+      await sendBotMessage("I can walk you through booking on the home page: let's head there.", {
         actions: [{ label: 'Go to the booking form', href: 'index#book' }],
       });
       renderQuick(DEFAULT_QUICK);
@@ -939,7 +931,7 @@ export async function initChatbot() {
       // watching it fill itself in as you answer is the whole point of doing
       // this through chat instead of typing straight into it.
       refs.form.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' });
-      await sendBotMessage("Let's get you booked — I've scrolled you to the form so you can watch it fill in as we go.");
+      await sendBotMessage("Let's get you booked: I've scrolled you to the form so you can watch it fill in as we go.");
       await wizardDateTime(refs);
       await wizardAddons(refs);
       await wizardContact(refs);
@@ -947,11 +939,11 @@ export async function initChatbot() {
       await wizardReview(refs);
     } catch (err) {
       // Anything that goes wrong partway through used to just stop the
-      // conversation dead with no explanation — whatever got filled in stays
+      // conversation dead with no explanation: whatever got filled in stays
       // filled in, so pointing at the form itself is a real fallback, not a
       // dead end.
       console.error('[chatbot] booking wizard failed:', err);
-      await sendBotMessage(`Something went wrong while I was filling that out (${err?.message || 'unknown error'}). The form has whatever I'd already filled in — you can finish it there.`, {
+      await sendBotMessage(`Something went wrong while I was filling that out (${err?.message || 'unknown error'}). The form has whatever I'd already filled in: you can finish it there.`, {
         actions: [{ label: 'Go to the booking form', href: bookHref() }],
       });
       renderQuick(DEFAULT_QUICK);
@@ -963,10 +955,10 @@ export async function initChatbot() {
   // or a reschedule actually does. It calls the exact same cancel-booking and
   // update-booking Edge Functions the My Bookings page's own buttons call, so
   // the cutoff rule, the "no-shows aren't refunded" logic, and everything else
-  // the server enforces is enforced here too — the chat is just another door.
+  // the server enforces is enforced here too: the chat is just another door.
 
   // `session` is null when the booking was made on this browser without an
-  // account — the device credentials in the body are the authority then, and
+  // account: the device credentials in the body are the authority then, and
   // the server applies exactly the same rules either way.
   async function callBookingFunction(name, session, body) {
     const res = await fetch(`${FUNCTIONS_URL}/${name}`, {
@@ -1009,14 +1001,14 @@ export async function initChatbot() {
       await sendBotMessage('Cancelling is free right now, but it cannot be undone. Go ahead?');
       const ok = await wizardConfirm({ confirmLabel: 'Yes, cancel it' });
       if (!ok) {
-        await sendBotMessage("No problem — I've left it as it is.");
+        await sendBotMessage("No problem: I've left it as it is.");
         renderQuick(['mine', 'book']);
         return;
       }
       await sendBotMessage('Cancelling it now…');
       try {
         await callBookingFunction('cancel-booking', session, { booking_id: b.id, reason: 'Cancelled via chat assistant' });
-        await sendBotMessage('Done — that session is cancelled.');
+        await sendBotMessage('Done: that session is cancelled.');
       } catch (err) {
         await sendBotMessage(`I could not cancel it: ${err.message}`, { actions: [{ label: 'Try My Bookings', href: 'account' }] });
       }
@@ -1046,7 +1038,7 @@ export async function initChatbot() {
     addMessage('user', `Reschedule my ${describeBooking(b)}`);
     const durationMs = new Date(b.end_at).getTime() - new Date(b.start_at).getTime();
     const startsAt = new Date(b.start_at);
-    await sendBotMessage('Sure — pick a new date and start time. The session keeps its current length.');
+    await sendBotMessage('Sure: pick a new date and start time. The session keeps its current length.');
 
     await new Promise((resolve, reject) => {
       const earliest = new Date(Date.now() + cutoffHours * 3600000);
@@ -1081,7 +1073,7 @@ export async function initChatbot() {
               ok = await validateSlot(newStart, newEnd, box, { dateI, startI });
             } catch (err) {
               console.error('[chatbot] slot check failed:', err);
-              showWizardError(box, 'Could not verify availability just now — please try again.');
+              showWizardError(box, 'Could not verify availability just now: please try again.');
             }
             nextBtn.disabled = false;
             nextBtn.textContent = 'Save new time';
@@ -1096,7 +1088,7 @@ export async function initChatbot() {
                 start_at: newStart.toISOString(),
                 end_at: newEnd.toISOString(),
               });
-              await sendBotMessage("Done — your session has been moved.");
+              await sendBotMessage("Done: your session has been moved.");
             } catch (err) {
               await sendBotMessage(`I could not reschedule it: ${err.message}`, { actions: [{ label: 'Try My Bookings', href: 'account' }] });
             }
@@ -1117,13 +1109,13 @@ export async function initChatbot() {
       const hoursAway = (start.getTime() - Date.now()) / 3600000;
       const canChange = hoursAway >= cutoffHours;
       const when = `${start.toLocaleDateString('en-PH', { month: 'short', day: 'numeric', year: 'numeric' })}, `
-        + `${start.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}–${end.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}`;
+        + `${start.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })} to ${end.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' })}`;
       return `
         <div class="ggs-wizard-booking" data-w-booking="${b.id}">
           <div class="ggs-wizard-booking-info">
             <strong>${escapeHtml(b.rooms?.name || 'Room')}</strong>
             <span>${when} · ${peso(b.total_price)}</span>
-            ${!canChange ? '<em>Inside the cutoff window — call the studio</em>' : ''}
+            ${!canChange ? '<em>Inside the cutoff window: call the studio</em>' : ''}
           </div>
           ${canChange ? `
           <div class="ggs-wizard-booking-actions">
@@ -1158,7 +1150,7 @@ export async function initChatbot() {
       const session = sessionData?.session;
       const f = await loadFacts();
 
-      // Signed in or not, the bot can act — a booking made without an account is
+      // Signed in or not, the bot can act: a booking made without an account is
       // managed with this browser's device credentials instead of a session.
       let bookings = [];
       if (session) {
@@ -1184,7 +1176,7 @@ export async function initChatbot() {
           .slice(0, 5);
       }
 
-      // Nothing to act on — so answer the policy question that was actually
+      // Nothing to act on: so answer the policy question that was actually
       // asked, which needs no account to explain.
       if (!bookings.length) {
         await sendBotMessage(
@@ -1193,7 +1185,7 @@ export async function initChatbot() {
           + `No-shows aren't refunded, so it's always worth telling us if you're running late.`
           + (session
             ? " You have no upcoming sessions at the moment, though."
-            : " I can't see any sessions booked on this browser — if you booked on another device, sign in and I'll find them."),
+            : " I can't see any sessions booked on this browser: if you booked on another device, sign in and I'll find them."),
           {
             actions: session
               ? [{ label: 'Book a session', href: bookHref() }]
@@ -1204,7 +1196,7 @@ export async function initChatbot() {
         return;
       }
 
-      await sendBotMessage(`You can cancel or reschedule free of charge up to ${f.cutoffHours} hours before a session. Here's what's coming up — pick one:`);
+      await sendBotMessage(`You can cancel or reschedule free of charge up to ${f.cutoffHours} hours before a session. Here's what's coming up: pick one:`);
       mountBookingPicker(bookings, f.cutoffHours, session);
     } catch (err) {
       console.error('[chatbot] manage bookings failed:', err);

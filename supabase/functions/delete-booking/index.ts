@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { bookingCancelledEmail, loadBookingEmail, sendEmail } from "./email.ts";
-import { logAudit } from "./audit.ts";
+import { loadBookingEmail, sendBookingEmail } from "../_shared/email.ts";
+import { logAudit } from "../_shared/audit.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -60,12 +60,12 @@ Deno.serve(async (req: Request) => {
   } catch {
     return json({ error: "Invalid JSON body." }, 400);
   }
-  const { booking_id, force } = body ?? {};
+  const { booking_id, force, notify } = body ?? {};
   if (typeof booking_id !== "string") return json({ error: "booking_id is required." }, 400);
 
   const { data: booking, error: fetchErr } = await admin
     .from("bookings")
-    .select("id, guest_name, guest_email, customer_id, start_at, total_price")
+    .select("*, booking_services(quantity, price_at_booking, services(name)), payments(id, amount, status, method, receipt_path)")
     .eq("id", booking_id)
     .single();
   if (fetchErr || !booking) return json({ error: "Booking not found." }, 404);
@@ -88,27 +88,27 @@ Deno.serve(async (req: Request) => {
     }, 409);
   }
 
-  // Gathered before the delete — afterwards there is no row left to describe.
-  const mail = await loadBookingEmail(admin, booking_id);
+  // Gathered before the delete; afterwards there is no row left to describe.
+  const mail = notify === true ? await loadBookingEmail(admin, booking_id) : null;
+  if (mail) await sendBookingEmail(admin, booking_id, "cancelled_staff", { mail, by: { id: actor.id, name: actor.label } });
+
+  // The private files go with the booking: receipts and the ID photo.
+  const receipts = (booking.payments ?? []).map((p: { receipt_path: string | null }) => p.receipt_path).filter(Boolean) as string[];
+  if (receipts.length) await admin.storage.from("payment-receipts").remove(receipts);
+  if (booking.id_image_path) await admin.storage.from("customer-ids").remove([booking.id_image_path]);
+  await admin.from("payments").delete().eq("booking_id", booking_id);
+  await admin.from("booking_services").delete().eq("booking_id", booking_id);
 
   const { error: deleteErr } = await admin.from("bookings").delete().eq("id", booking_id);
   if (deleteErr) return json({ error: "Could not delete booking.", detail: deleteErr.message }, 400);
 
   await logAudit(admin, actor, "booking.delete", "booking", booking_id, {
-    guest_name: booking.guest_name,
-    guest_email: booking.guest_email,
-    customer_id: booking.customer_id,
-    start_at: booking.start_at,
-    total_price: booking.total_price,
+    summary: `Deleted the booking of ${booking.guest_name || booking.guest_email || "a customer"}`,
+    snapshot: booking,
     unrefunded_amount: unrefunded,
     forced: Boolean(force) && unrefunded > 0,
+    emailed: Boolean(mail),
   });
-
-  // From the customer's side a deleted booking is a cancelled one.
-  if (mail) {
-    const { subject, html } = bookingCancelledEmail(mail.to, mail.booking, { byStudio: true });
-    await sendEmail(mail.to, subject, html);
-  }
 
   return json({ deleted: true, booking_id });
 });

@@ -2,7 +2,7 @@
 //
 // Anonymous visitors can't read `bookings` (RLS scopes it to the owning
 // customer plus staff), so the busy ranges come from the `public_busy_ranges`
-// RPC — a security-definer function that returns start/end times only, with no
+// RPC - a security-definer function that returns start/end times only, with no
 // customer, price, or status attached. Opening hours and rooms are already
 // publicly readable.
 //
@@ -10,15 +10,17 @@
 // fills #fDate, picking a free window fills #fStart/#fEnd, and typing into
 // #fDate by hand moves the calendar. Nothing here submits anything.
 import { getSupabase } from './supabase-client.js';
+import { blockedRanges, hoursFor, openWindow } from '../supabase/functions/_shared/schedule.js';
 
 const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MS_HOUR = 3600000;
 
-// Local calendar date as YYYY-MM-DD — the same format <input type="date">
-// speaks, so the two stay in sync without any timezone round-tripping.
+// Calendar date as YYYY-MM-DD, the format <input type="date"> speaks.
 function dayKey(d) {
   return d.toLocaleDateString('en-CA');
 }
+
+const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 function fmtTime(d) {
   return d.toLocaleTimeString('en-PH', { hour: 'numeric', minute: '2-digit' });
@@ -78,7 +80,7 @@ export async function initBookingCalendar() {
     <div class="cal-legend">
       <span><i class="dot-open"></i>Open</span>
       <span><i class="dot-busy"></i>Partly booked</span>
-      <span><i class="dot-full"></i>Fully booked</span>
+      <span><i class="dot-full"></i>Full or closed</span>
     </div>
   `;
 
@@ -88,19 +90,15 @@ export async function initBookingCalendar() {
   const detailInner = root.querySelector('[data-cal-detail-inner]');
 
   const supabase = await getSupabase();
-  const [{ data: rooms }, { data: hoursRows }] = await Promise.all([
-    supabase.from('rooms').select('id, name').eq('is_active', true).order('created_at').limit(1),
-    supabase.from('operating_hours').select('*'),
-  ]);
-
+  const { data: rooms } = await supabase.from('rooms').select('id, name').eq('is_active', true).order('created_at').limit(1);
   const room = rooms?.[0];
   if (!room) {
-    root.innerHTML = '<p class="muted">Availability is unavailable right now — send the form and we\'ll confirm by email.</p>';
+    root.innerHTML = '<p class="muted">Availability is unavailable right now. Send the form and we\'ll confirm by email.</p>';
     return;
   }
-
-  const hoursByDow = {};
-  (hoursRows || []).filter((h) => h.room_id === room.id).forEach((h) => { hoursByDow[h.day_of_week] = h; });
+  // Weekly hours plus special dates, run through the same rule engine the
+  // server uses. Notes on dates shown as "booked" never reach the browser.
+  const { data: schedule } = await supabase.rpc('public_schedule', { p_room_id: room.id });
 
   // One RPC round-trip per visible month, kept so paging back and forth
   // doesn't re-fetch.
@@ -124,21 +122,23 @@ export async function initBookingCalendar() {
   // What a given day looks like: closed, already gone, or some mix of free
   // windows and booked time.
   function dayState(date, ranges) {
-    const key = dayKey(date);
-    const hours = hoursByDow[date.getDay()];
-    if (!hours || hours.is_closed) return { state: 'closed', free: [] };
-
-    const open = new Date(`${key}T${hours.open_time}`).getTime();
-    let close = new Date(`${key}T${hours.close_time}`).getTime();
-    if (close <= open) close += 24 * MS_HOUR; // room closes after midnight
-
-    // Today's already-elapsed hours are gone, not free.
-    const floor = Math.max(open, Date.now());
-    if (floor >= close) return { state: 'past', free: [] };
-
-    const { free, busyMs } = subtractRanges(floor, close, ranges);
-    if (free.length === 0) return { state: 'full', free: [] };
-    return { state: busyMs > 0 ? 'busy' : 'open', free };
+    const info = hoursFor(schedule || { weekly: [], overrides: [] }, dayKey(date));
+    const note = info.special && info.show !== 'booked' ? info.note : null;
+    if (info.closed) return { state: info.special && info.show === 'booked' ? 'full' : 'closed', free: [], note };
+    const win = openWindow(info);
+    if (!win) return { state: 'closed', free: [], note };
+    // Today's elapsed hours are gone, not free; hours off count as taken.
+    const floor = Math.max(win[0], Date.now());
+    if (floor >= win[1]) return { state: 'past', free: [] };
+    const { free, busyMs } = subtractRanges(floor, win[1], [...ranges, ...blockedRanges(info)]);
+    if (free.length === 0) return { state: 'full', free: [], note };
+    return {
+      state: busyMs > 0 ? 'busy' : info.special ? 'special' : 'open',
+      free,
+      note,
+      special: info.special,
+      hours: `${fmtTime(new Date(win[0]))} to ${fmtTime(new Date(win[1]))}`,
+    };
   }
 
   let view = new Date();
@@ -156,20 +156,20 @@ export async function initBookingCalendar() {
     const when = date.toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric' });
 
     if (info.free.length === 0) {
-      const why = info.state === 'closed' ? 'The studio is closed that day.'
+      const why = info.state === 'closed' ? `The studio is closed that day${info.note ? `: ${escapeHtml(info.note)}` : ''}.`
         : info.state === 'past' ? 'That day has already passed.'
-        : 'Every hour is taken — try the day either side.';
+        : 'Every hour is taken. Try the day either side.';
       detailInner.innerHTML = `<div class="cal-detail-day">${when}</div><p class="cal-detail-note">${why}</p>`;
     } else {
       const chips = info.free.map(([s, e]) => {
         const hrs = ((e - s) / MS_HOUR).toFixed(1).replace(/\.0$/, '');
         return `<button type="button" class="cal-slot" data-slot-start="${s}" data-slot-end="${e}">
-          ${fmtTime(new Date(s))} – ${fmtTime(new Date(e))}<em>${hrs} hr${hrs === '1' ? '' : 's'} free</em>
+          ${fmtTime(new Date(s))} to ${fmtTime(new Date(e))}<em>${hrs} hr${hrs === '1' ? '' : 's'} free</em>
         </button>`;
       }).join('');
       detailInner.innerHTML = `
         <div class="cal-detail-day">${when}</div>
-        <p class="cal-detail-note">Tap a window to drop it into the form.</p>
+        <p class="cal-detail-note">${info.special ? `Special hours: ${info.hours}${info.note ? ` (${escapeHtml(info.note)})` : ''}. ` : ''}Tap a window to drop it into the form.</p>
         <div class="cal-slots">${chips}</div>`;
     }
     detail.classList.add('open');
@@ -218,7 +218,7 @@ export async function initBookingCalendar() {
         <button type="button"
           class="cal-day state-${info.state}${outside ? ' outside' : ''}${key === todayKey ? ' today' : ''}${key === selectedKey ? ' selected' : ''}"
           style="--i:${i}" data-key="${key}"${disabled ? ' disabled' : ''}
-          aria-label="${date.toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric' })} — ${info.state}">
+          aria-label="${date.toLocaleDateString('en-PH', { weekday: 'long', month: 'long', day: 'numeric' })}, ${info.state === 'special' ? 'open, special hours' : info.state}">
           <span class="cal-daynum">${date.getDate()}</span>
           <span class="cal-mark"></span>
         </button>`);
@@ -245,7 +245,7 @@ export async function initBookingCalendar() {
     selectDay(cell.dataset.key);
   });
 
-  // A free window fills in start and end too — one hour by default, or the
+  // A free window fills in start and end too - one hour by default, or the
   // whole window when it's shorter than that.
   detail.addEventListener('click', (e) => {
     const slot = e.target.closest('.cal-slot');
@@ -276,7 +276,7 @@ export async function initBookingCalendar() {
     selectDay(dateEl.value, { syncForm: false });
   });
 
-  // A fresh booking frees up time — repull rather than serving the stale month.
+  // A fresh booking frees up time - repull rather than serving the stale month.
   window.addEventListener('ggs:booking-created', () => {
     busyCache.clear();
     render();

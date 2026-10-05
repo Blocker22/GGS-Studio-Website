@@ -9,6 +9,8 @@
 // no policies and no grants — only the service_role key used here can read it.
 // It is never sent to the browser.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { addDays, hoursFor, longDate, todayLocal } from "../_shared/schedule.js";
+import { loadSchedule } from "../_shared/booking-core.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -17,9 +19,11 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const GEMINI_MODEL = "gemini-3.6-flash";
-const GEMINI_URL =
-  `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+// The model is chosen in the dashboard (Setup > Chat assistant); this is the
+// fallback when nothing is saved.
+const DEFAULT_MODEL = "gemini-3.6-flash";
+const geminiUrl = (model: string) =>
+  `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
 
 // Caps: a support question is a paragraph, not an essay, and the widget only
 // ever replays the tail of the conversation. Anything past these is a misuse
@@ -154,12 +158,40 @@ Deno.serve(async (req: Request) => {
     admin.from("rooms").select("name, description, hourly_rate").eq("is_active", true),
     admin.from("services").select("name, description, price, price_type, unit_label").eq("is_active", true).order("sort_order"),
     admin.from("operating_hours").select("*"),
-    admin.from("app_settings").select("key, value").in("key", ["deposit_percent", "reschedule_cutoff_hours"]),
+    admin.from("app_settings").select("key, value").in("key", ["deposit_percent", "reschedule_cutoff_hours", "assistant", "contacts", "payment_methods"]),
   ]);
 
   const setting = (k: string) => settings?.find((s: any) => s.key === k)?.value;
   const depositPercent = Number(setting("deposit_percent") ?? 20);
   const cutoffHours = Number(setting("reschedule_cutoff_hours") ?? 24);
+  const assistant = setting("assistant") ?? {};
+  if (assistant.enabled === false) {
+    return json({ error: "The assistant is switched off right now. Please use the contact details on this page." }, 503);
+  }
+  const model = typeof assistant.model === "string" && assistant.model.trim() ? assistant.model.trim() : DEFAULT_MODEL;
+  const contacts = setting("contacts") ?? {};
+  const onlineNames = ((setting("payment_methods") ?? []) as any[]).filter((m) => m.kind === "online" && m.enabled !== false).map((m) => m.name);
+  const contactLines = [
+    contacts.email ? `- Email ${contacts.email}.` : null,
+    ...((contacts.people ?? []) as any[]).filter((p) => p?.phone).map((p) => `- ${p.name ? `${p.name}: ` : ""}${p.phone}.`),
+    contacts.address ? `- ${contacts.address}.` : null,
+  ].filter(Boolean) as string[];
+
+  // Special dates in the next three weeks, as the public sees them (private
+  // notes on "shown as booked" rules never reach the model).
+  const specialLines: string[] = [];
+  const firstRoom = (await admin.from("rooms").select("id").eq("is_active", true).order("created_at").limit(1)).data?.[0];
+  if (firstRoom) {
+    const schedule = await loadSchedule(admin, firstRoom.id);
+    for (let i = 0, d = todayLocal(); i < 21; i++, d = addDays(d, 1)) {
+      const info = hoursFor(schedule, d);
+      if (!info.special) continue;
+      const note = info.note && info.show !== "booked" ? ` (${info.note})` : "";
+      if (info.closed) specialLines.push(`- ${longDate(d)}: ${info.show === "booked" ? "fully booked" : "closed"}${note}.`);
+      else if (info.blocks.length) specialLines.push(`- ${longDate(d)}: open ${info.open} to ${info.close}, but ${info.blocks.map((b: any) => `${b.from} to ${b.to}`).join(", ")} is ${info.show === "booked" ? "already booked" : "unavailable"}${note}.`);
+      else specialLines.push(`- ${longDate(d)}: special hours ${info.open} to ${info.close}${note}.`);
+    }
+  }
 
   const roomLines = (rooms ?? []).map((r: any) =>
     `- ${r.name}: ${peso(r.hourly_rate)} per hour.${r.description ? " " + r.description : ""}`
@@ -210,13 +242,16 @@ Deno.serve(async (req: Request) => {
     "",
     "=== BOOKING AND PAYMENT POLICY ===",
     `- Pay in cash at the studio (a photo of a valid ID is required to hold the slot), pay a ${depositPercent}% downpayment online, or pay in full online.`,
-    "- Online payments are a manual transfer to the studio's GCash, GoTyme, or BPI QR, then uploading the receipt on the site. Staff verify it before the booking is confirmed.",
+    `- Online payments are a manual transfer to the studio's ${onlineNames.join(", ") || "GCash, GoTyme, or BPI"} account, then uploading the receipt on the site. Staff verify it before the booking is confirmed.`,
+    "- Booked time runs from the start time whether or not the customer is there. Arriving late does not extend the slot, and a no-show is charged for the full booking.",
     `- Bookings can be cancelled or rescheduled free of charge up to ${cutoffHours} hours before the start time, through My Bookings. Inside that window they must call the studio.`,
     "- No-shows are not refunded. Overtime is charged at the regular hourly rate and is subject to availability.",
     "",
+    "=== SPECIAL DATES (next 3 weeks) ===",
+    ...(specialLines.length ? specialLines : ["- None. Normal hours apply."]),
+    "",
     "=== CONTACT ===",
-    "- Email ggs.studio2026@gmail.com, phone +63 976 350 6301.",
-    "- Manson Trading, Looc, Lapu-Lapu City, Cebu.",
+    ...(contactLines.length ? contactLines : ["- Email contact@ggsstudio.site, phone +63 976 350 6301."]),
     "",
     "=== THIS CUSTOMER ===",
     customerName ? `They are signed in. First name: ${customerName}.` : "They are NOT signed in. To see or change bookings they need to sign in first.",
@@ -234,14 +269,14 @@ Deno.serve(async (req: Request) => {
 
   if (secretErr || !secret?.value) {
     return json({
-      error: "The assistant isn't available right now. Please email ggs.studio2026@gmail.com or call +63 976 350 6301.",
+      error: "The assistant isn't available right now. Please email contact@ggsstudio.site or call +63 976 350 6301.",
     }, 503);
   }
 
   let res: Response;
   let payload: any;
   try {
-    res = await fetch(GEMINI_URL, {
+    res = await fetch(geminiUrl(model), {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": secret.value },
       body: JSON.stringify({
@@ -269,7 +304,7 @@ Deno.serve(async (req: Request) => {
 
   if (!res.ok) {
     return json({
-      error: "The assistant is unavailable at the moment. Please try again shortly, or email ggs.studio2026@gmail.com.",
+      error: "The assistant is unavailable at the moment. Please try again shortly, or email contact@ggsstudio.site.",
       detail: payload?.error?.message ?? null,
     }, 502);
   }

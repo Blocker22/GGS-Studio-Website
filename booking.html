@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Your booking · GGS Studio</title>
+<link rel="icon" type="image/png" href="assets/logo-nav.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>
+  .manage-grid{display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr); gap:48px; align-items:start;}
+  .manage-when{font-size:clamp(1.5rem, 3.4vw, 2.1rem); font-weight:600; letter-spacing:-0.02em; line-height:1.2;}
+  .manage-actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:18px;}
+  .cancel-box{margin-top:18px; padding:4px 0 4px 16px; border-left:2px solid var(--danger);}
+  .cancel-box[hidden]{display:none;}
+  .sk{background:linear-gradient(90deg, var(--panel) 0%, var(--panel-2) 50%, var(--panel) 100%); background-size:200% 100%; animation:shimmer 1.3s linear infinite;}
+  @keyframes shimmer{from{background-position:200% 0;} to{background-position:-200% 0;}}
+  @media (max-width:860px){ .manage-grid{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+<nav></nav>
+<main class="page-wrap" id="main">
+  <div class="page-head">
+    <div><h2>Your booking</h2><p id="manageSub">Loading…</p></div>
+    <a href="./#book" class="btn-outline">Book another session</a>
+  </div>
+  <div id="manageRoot" aria-live="polite">
+    <div class="manage-grid"><div class="sk" style="height:260px"></div><div class="sk" style="height:200px"></div></div>
+  </div>
+</main>
+
+<script type="module">
+  import { getSupabase } from './js/supabase-client.js';
+  import { initAuthNav } from './js/auth.js';
+  import { openPaymentModal, formatPeso } from './js/payment-qr.js';
+  import { publicApi, loadContacts } from './js/site.js';
+
+  initAuthNav();
+  const root = document.getElementById('manageRoot');
+  const sub = document.getElementById('manageSub');
+  const token = new URLSearchParams(location.search).get('t') || '';
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const TZ = 'Asia/Manila';
+  const day = (d) => new Date(d).toLocaleDateString('en-PH', { timeZone: TZ, weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  const time = (d) => new Date(d).toLocaleTimeString('en-PH', { timeZone: TZ, hour: 'numeric', minute: '2-digit' });
+  const STATUS = { pending: ['Waiting for confirmation', 'gold'], confirmed: ['Confirmed', 'teal'], completed: ['Completed', ''], cancelled: ['Cancelled', 'danger'], no_show: ['Missed', 'danger'] };
+
+  async function load() {
+    if (!token) return showError('This page needs the link from one of our emails. Open the latest email from us and tap "View your booking".');
+    let data;
+    try { data = await publicApi('manage.get', { t: token }); } catch (err) { return showError(err.message); }
+    render(data);
+  }
+
+  function showError(text) {
+    sub.textContent = '';
+    root.innerHTML = `<div class="empty-state"><p>${esc(text)}</p><a href="./" class="btn-primary">Go to the home page</a></div>`;
+  }
+
+  async function render(data) {
+    const b = data.booking;
+    const [label, tone] = STATUS[b.status] || [b.status, ''];
+    sub.textContent = `Reference ${b.ref}`;
+    const pay = b.payment;
+    let payLine = '';
+    let payAction = '';
+    if (b.status === 'cancelled') payLine = pay.paid ? `You paid ${formatPeso(pay.paid)}. Anything paid is refunded to the account it came from.` : 'Nothing to pay.';
+    else if (pay.waived || b.total <= 0) payLine = 'Nothing to pay for this session.';
+    else if (pay.balance <= 0) payLine = `Paid in full (${formatPeso(pay.paid)}). Thank you.`;
+    else if (pay.open?.status === 'submitted') payLine = `We received your receipt for ${formatPeso(pay.open.amount)} and we're checking it.`;
+    else if (pay.open) {
+      payLine = pay.open.status === 'rejected'
+        ? `Your last receipt couldn't be verified${pay.open.rejection_reason ? `: ${esc(pay.open.rejection_reason)}` : ''}. Please send a new one.`
+        : `Send ${formatPeso(pay.open.amount)} online to hold your slot, then upload the receipt.`;
+      payAction = `<button type="button" class="btn-primary" id="payBtn">${pay.open.status === 'rejected' ? 'Send a new receipt' : 'Pay now'}</button>`;
+    } else payLine = pay.paid ? `${formatPeso(pay.paid)} paid. ${formatPeso(pay.balance)} is due at the studio.` : `${formatPeso(b.total)} is due at the studio, before your session starts.`;
+
+    const contacts = await loadContacts();
+    const phone = contacts?.people?.find((p) => p.phone)?.phone;
+
+    root.innerHTML = `
+      <div class="manage-grid">
+        <section class="panel-card" aria-labelledby="whenTitle">
+          <span class="badge ${tone}">${esc(label)}</span>
+          <h3 class="manage-when" id="whenTitle" style="margin-top:14px">${esc(day(b.start_at))}</h3>
+          <p style="font-size:1.15rem;color:var(--text-2);margin-top:4px">${esc(time(b.start_at))} to ${esc(time(b.end_at))}</p>
+          <dl class="kv" style="margin-top:20px">
+            ${b.first_name ? `<dt>Name</dt><dd>${esc(b.first_name)}</dd>` : ''}
+            <dt>Room</dt><dd>${esc(b.room || 'Studio')}</dd>
+            <dt>Add-ons</dt><dd>${b.addons.length ? esc(b.addons.join(', ')) : 'None'}</dd>
+            ${b.voucher ? `<dt>Voucher</dt><dd>${esc(b.voucher.code)} (−${formatPeso(b.voucher.discount)})</dd>` : ''}
+            <dt>Total</dt><dd><strong>${formatPeso(b.total)}</strong></dd>
+          </dl>
+          <p class="policy-note" style="margin-top:20px"><strong>Your time is your time.</strong> The session runs from your start time whether or not you are here. Arriving late doesn't extend it, and a no-show is charged in full.</p>
+        </section>
+        <aside class="stack" style="display:flex;flex-direction:column;gap:16px">
+          <section class="panel-card" aria-labelledby="payTitle">
+            <h3 id="payTitle" style="font-size:1.15rem;margin-bottom:8px">Payment</h3>
+            <p style="color:var(--text-2)">${payLine}</p>
+            ${payAction ? `<div class="manage-actions">${payAction}</div>` : ''}
+          </section>
+          <section class="panel-card" aria-labelledby="changeTitle">
+            <h3 id="changeTitle" style="font-size:1.15rem;margin-bottom:8px">Need to change it?</h3>
+            ${data.can_cancel
+              ? `<p style="color:var(--text-2)">You can cancel online until ${esc(day(data.cutoff_at))}, ${esc(time(data.cutoff_at))}. To move it to another time, call us${phone ? ` on <a href="tel:${esc(phone.replace(/[^\d+]/g, ''))}">${esc(phone)}</a>` : ''}.</p>
+                 <div class="manage-actions"><button type="button" class="btn-outline danger" id="cancelOpen">Cancel this booking</button></div>
+                 <form class="cancel-box" id="cancelBox" hidden novalidate>
+                   <div class="field">
+                     <label for="verify">${data.verify_with === 'phone' ? 'Last 4 digits of the phone number on this booking' : 'The email address on this booking'}</label>
+                     <input id="verify" ${data.verify_with === 'phone' ? 'inputmode="numeric" maxlength="4" autocomplete="off"' : 'type="email"'} required>
+                   </div>
+                   <div class="field"><label for="reason">Reason <span class="label-note">optional</span></label><input id="reason" maxlength="300"></div>
+                   <p class="field-error" id="cancelErr" hidden></p>
+                   <div class="manage-actions" style="margin-top:4px"><button type="submit" class="btn-primary" id="cancelGo">Yes, cancel it</button><button type="button" class="btn-ghost" id="cancelBack">Keep my booking</button></div>
+                 </form>`
+              : `<p style="color:var(--text-2)">${['pending', 'confirmed'].includes(b.status) ? `Online changes close ${data.cutoff_hours} hours before the session.` : 'This booking can no longer be changed online.'} Call or message us${phone ? ` on <a href="tel:${esc(phone.replace(/[^\d+]/g, ''))}">${esc(phone)}</a>` : ''}${contacts?.email ? ` or <a href="mailto:${esc(contacts.email)}">${esc(contacts.email)}</a>` : ''}.</p>`}
+          </section>
+        </aside>
+      </div>`;
+
+    document.getElementById('payBtn')?.addEventListener('click', async () => {
+      const supabase = await getSupabase();
+      openPaymentModal({
+        supabase,
+        session: null,
+        booking: { id: b.ref },
+        amountDue: pay.open.amount,
+        paymentOption: b.payment.option,
+        depositPercent: b.total ? Math.round((pay.open.amount / b.total) * 100) : null,
+        retryReason: pay.open.status === 'rejected' ? pay.open.rejection_reason : null,
+        onSubmitted: () => setTimeout(load, 1500),
+        submit: async ({ file, reference, channel }) => {
+          const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+          const slot = await publicApi('manage.receipt_url', { t: token, ext });
+          const { error } = await supabase.storage.from('payment-receipts').uploadToSignedUrl(slot.path, slot.token, file, { contentType: file.type || 'application/octet-stream' });
+          if (error) throw new Error(`Could not upload your receipt: ${error.message}`);
+          return publicApi('manage.receipt', { t: token, path: slot.path, reference_no: reference, channel });
+        },
+      });
+    });
+
+    const box = document.getElementById('cancelBox');
+    if (box) {
+      document.getElementById('cancelOpen').addEventListener('click', () => { box.hidden = false; document.getElementById('verify').focus(); });
+      document.getElementById('cancelBack').addEventListener('click', () => { box.hidden = true; });
+      box.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const err = document.getElementById('cancelErr');
+        const go = document.getElementById('cancelGo');
+        err.hidden = true;
+        go.disabled = true;
+        try {
+          await publicApi('manage.cancel', { t: token, verify: document.getElementById('verify').value, reason: document.getElementById('reason').value });
+          await load();
+        } catch (ex) {
+          err.textContent = ex.message;
+          err.hidden = false;
+          go.disabled = false;
+        }
+      });
+    }
+  }
+
+  load();
+</script>
+</body>
+</html>

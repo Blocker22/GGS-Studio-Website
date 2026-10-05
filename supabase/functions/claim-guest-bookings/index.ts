@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { adminClient, corsHeaders, json, linkDeviceEmail, verifyDevice } from "./guest.ts";
+import { adminClient, corsHeaders, json, linkDeviceEmail, verifyDevice } from "../_shared/guest.ts";
 
 // Pulls every booking made anonymously under this account's email address into
 // the account. Called right after a sign-in or a registration, so "register to

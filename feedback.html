@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Leave a review · GGS Studio</title>
+<link rel="icon" type="image/png" href="assets/logo-nav.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>
+  .photo-row{display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;}
+  .photo-row img{width:84px; height:84px; object-fit:cover;}
+</style>
+</head>
+<body>
+<nav></nav>
+<main class="page-wrap narrow" id="main">
+  <div class="page-head"><div><h2 id="fbTitle">How was your session?</h2><p id="fbSub">Loading…</p></div></div>
+  <div id="fbRoot" aria-live="polite"></div>
+</main>
+<script type="module">
+  import { initAuthNav } from './js/auth.js';
+  import { publicApi } from './js/site.js';
+  import { compressImageIfNeeded } from './js/image-compress.js';
+  import { hasProfanity } from './supabase/functions/_shared/profanity.js';
+
+  initAuthNav();
+  const root = document.getElementById('fbRoot');
+  const sub = document.getElementById('fbSub');
+  const token = new URLSearchParams(location.search).get('t') || '';
+  const done = (title, text) => {
+    document.getElementById('fbTitle').textContent = title;
+    sub.textContent = '';
+    root.innerHTML = `<div class="empty-state"><p>${text}</p><a href="./" class="btn-primary">Back to the studio</a></div>`;
+  };
+
+  async function start() {
+    if (!token) return done('Review link missing', 'Open the review link from our email to leave a review.');
+    let info;
+    try { info = await publicApi('feedback.get', { t: token }); } catch (err) { return done('This link no longer works', err.message); }
+    if (info.done) return done('Thanks, you already reviewed this one', 'We have your review for that session. Thank you for taking the time.');
+    const when = new Date(info.date).toLocaleDateString('en-PH', { timeZone: 'Asia/Manila', weekday: 'long', month: 'long', day: 'numeric' });
+    sub.textContent = `Hi ${info.name}. Tell us about your session on ${when}. It takes a minute.`;
+    root.innerHTML = `
+      <form class="panel-card" id="fbForm" novalidate>
+        <div class="field">
+          <label id="starsLabel">Your rating</label>
+          <div class="stars-input" role="radiogroup" aria-labelledby="starsLabel">
+            ${[1, 2, 3, 4, 5].map((n) => `<button type="button" role="radio" aria-checked="false" aria-label="${n} star${n === 1 ? '' : 's'}" data-star="${n}">★</button>`).join('')}
+          </div>
+        </div>
+        <div class="field">
+          <label for="fbComment">What stood out? <span class="label-note">optional</span></label>
+          <textarea id="fbComment" maxlength="1500" placeholder="The sound, the engineer, the room, anything we could do better…"></textarea>
+        </div>
+        <div class="field">
+          <label for="fbPhotos">Photos <span class="label-note">optional, up to 3</span></label>
+          <input type="file" id="fbPhotos" accept="image/png, image/jpeg, image/webp" multiple>
+          <div class="photo-row" id="fbPreview"></div>
+        </div>
+        <p class="field-hint">If we show your review on our website, it appears as your first name and last initial only.</p>
+        <p class="field-error" id="fbErr" hidden></p>
+        <div class="submit-row"><button type="submit" class="book-submit" id="fbSend">Send review</button></div>
+      </form>`;
+
+    let rating = 0;
+    const stars = [...root.querySelectorAll('[data-star]')];
+    const paint = () => stars.forEach((s) => { const on = Number(s.dataset.star) <= rating; s.classList.toggle('on', on); s.setAttribute('aria-checked', String(Number(s.dataset.star) === rating)); });
+    stars.forEach((s) => s.addEventListener('click', () => { rating = Number(s.dataset.star); paint(); }));
+    root.querySelector('.stars-input').addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowUp') { rating = Math.min(5, rating + 1); paint(); stars[rating - 1].focus(); e.preventDefault(); }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') { rating = Math.max(1, rating - 1); paint(); stars[rating - 1].focus(); e.preventDefault(); }
+    });
+
+    const files = document.getElementById('fbPhotos');
+    const preview = document.getElementById('fbPreview');
+    files.addEventListener('change', () => {
+      preview.innerHTML = '';
+      [...files.files].slice(0, 3).forEach((f) => { const img = document.createElement('img'); img.src = URL.createObjectURL(f); img.alt = ''; preview.appendChild(img); });
+    });
+
+    document.getElementById('fbForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const err = document.getElementById('fbErr');
+      const send = document.getElementById('fbSend');
+      const comment = document.getElementById('fbComment').value.trim();
+      err.hidden = true;
+      const fail = (t) => { err.textContent = t; err.hidden = false; };
+      if (!rating) return fail('Pick a rating from 1 to 5 stars.');
+      if (hasProfanity(comment)) return fail('Please reword your comment without strong language.');
+      if (files.files.length > 3) return fail('Up to 3 photos, please.');
+      send.disabled = true;
+      send.textContent = 'Sending…';
+      try {
+        const photos = [];
+        for (const f of [...files.files].slice(0, 3)) {
+          const small = await compressImageIfNeeded(f, 1024 * 1024);
+          const content = await new Promise((resolve, reject) => { const r = new FileReader(); r.onload = () => resolve(r.result); r.onerror = reject; r.readAsDataURL(small); });
+          photos.push({ content });
+        }
+        await publicApi('feedback.submit', { t: token, rating, comment, photos });
+        done('Thank you', 'Your review is in. It really helps other artists find us, and it helps us get better.');
+      } catch (ex) {
+        fail(ex.message);
+        send.disabled = false;
+        send.textContent = 'Send review';
+      }
+    });
+  }
+  start();
+</script>
+</body>
+</html>

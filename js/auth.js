@@ -7,7 +7,7 @@ import { claimGuestBookings } from './device.js';
 // Every page is a sibling static file with no .html in its URL (GitHub Pages
 // resolves /login to login.html natively; server.js does the same locally
 // via express.static's `extensions` option). "." always means "this
-// directory", i.e. the site root — so "./" is home and plain relative names
+// directory", i.e. the site root: so "./" is home and plain relative names
 // ("login", "account") work unmodified whether the site sits at a domain
 // root or, like this GitHub Pages project, under a subpath.
 function currentPage() {
@@ -16,7 +16,7 @@ function currentPage() {
 }
 
 // A stray "/page.html" link (an old bookmark, a search result, GitHub's own
-// default file listing) still resolves and works — this just tidies the
+// default file listing) still resolves and works: this just tidies the
 // visible address bar to match the clean links everywhere else on the site.
 function normalizeUrl() {
   const path = location.pathname;
@@ -26,12 +26,11 @@ function normalizeUrl() {
   history.replaceState(null, '', clean + location.search + location.hash);
 }
 
-// One nav markup, built here, used by every page — the header used to be
+// One nav markup, built here, used by every page: the header used to be
 // pasted into each HTML file by hand and drifted (different labels, different
 // hrefs, "Booking" vs "Book a session"). Now there is exactly one layout.
 const NAV_LINKS = [
   { label: 'Services', hash: '#services' },
-  { label: 'The Room', hash: '#room' },
 ];
 
 // Book a session and My Bookings are always both shown now, signed in or not —
@@ -49,8 +48,8 @@ function renderNav(navEl) {
   }).join('');
 
   navEl.innerHTML = `
-    <div class="logo"><a href="./"><img src="assets/Logo_NoBG.png" alt="GGS Studio"></a></div>
-    <div class="nav-links" id="navLinks">${links}<a href="${bookHref}" id="navBookLink">Book a session</a><a href="${accountHref}" id="navBookingsLink">My Bookings</a></div>
+    <div class="logo"><a href="./"><img src="assets/logo-nav.webp" alt="GGS Studio" width="48" height="34"></a></div>
+    <div class="nav-links" id="navLinks">${links}<a href="${bookHref}" id="navBookLink">Book a session</a><a href="${onIndex ? '#room' : './#room'}">The Room</a><a href="${accountHref}" id="navBookingsLink">My Bookings</a></div>
     <div class="nav-right">
       <a href="login" class="nav-cta" id="navAuth">Sign in</a>
       <button class="burger" id="burgerBtn" aria-label="Toggle menu" aria-expanded="false" aria-controls="navLinks">
@@ -118,7 +117,7 @@ export async function initAuthNav() {
   async function render(session) {
     el.textContent = session ? 'Sign out' : 'Sign in';
     // Omit the param entirely for the home page rather than sending
-    // "?next=" — an empty string is falsy, so login.html's `|| 'account'`
+    // "?next=": an empty string is falsy, so login.html's `|| 'account'`
     // fallback would otherwise silently redirect a home-page sign-in to
     // /account instead of back to /.
     const page = currentPage();
@@ -170,14 +169,14 @@ export async function signUpChecked(supabase, email, password, fullName) {
   });
   if (error) {
     if (/already registered|already exists/i.test(error.message)) {
-      throw new Error('That email is already registered — log in instead.');
+      throw new Error('That email is already registered. Sign in instead.');
     }
     throw error;
   }
   if (data.user && data.user.identities && data.user.identities.length === 0) {
-    throw new Error('That email is already registered — log in instead.');
+    throw new Error('That email is already registered. Sign in instead.');
   }
-  // Registering signs you straight in — nobody should have to type the
+  // Registering signs you straight in: nobody should have to type the
   // password they just chose a second time. signUp already returns a session
   // when email confirmation is off; when it doesn't, we try the password we
   // were handed. If confirmation really is required that sign-in fails, and

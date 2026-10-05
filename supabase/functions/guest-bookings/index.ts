@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { adminClient, corsHeaders, json, verifyDevice } from "./guest.ts";
+import { adminClient, corsHeaders, json, verifyDevice } from "../_shared/guest.ts";
 
 // Lists the bookings a browser made without an account.
 //

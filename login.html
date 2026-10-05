@@ -3,20 +3,23 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sign in — GGS Studio</title>
+<title>Sign in · GGS Studio</title>
 <meta name="description" content="Sign in or create an account to book a session at GGS Studio.">
-<link rel="canonical" href="https://woogi999.github.io/GGS-Studio-Website/login">
+<link rel="canonical" href="https://www.ggsstudio.site/login">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="GGS Studio">
-<meta property="og:title" content="Sign in — GGS Studio">
+<meta property="og:title" content="Sign in · GGS Studio">
 <meta property="og:description" content="Sign in or create an account to book a session at GGS Studio.">
-<meta property="og:url" content="https://woogi999.github.io/GGS-Studio-Website/login">
-<meta property="og:image" content="https://woogi999.github.io/GGS-Studio-Website/assets/Logo_NoBG.png">
+<meta property="og:url" content="https://www.ggsstudio.site/login">
+<meta property="og:image" content="https://www.ggsstudio.site/assets/Logo_NoBG.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Sign in — GGS Studio">
+<meta name="twitter:title" content="Sign in · GGS Studio">
 <meta name="twitter:description" content="Sign in or create an account to book a session at GGS Studio.">
-<meta name="twitter:image" content="https://woogi999.github.io/GGS-Studio-Website/assets/Logo_NoBG.png">
-<link rel="icon" type="image/png" href="assets/Logo_NoBG.png">
+<meta name="twitter:image" content="https://www.ggsstudio.site/assets/Logo_NoBG.png">
+<link rel="icon" type="image/png" href="assets/logo-nav.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&display=swap">
 <link rel="stylesheet" href="style.css">
 <style>
   .auth-wrap{min-height:100vh; display:flex; align-items:center; justify-content:center; padding:120px 24px 60px;}
@@ -33,7 +36,7 @@
 
 <div class="auth-wrap">
   <div class="book-form auth-card">
-    <div class="logo"><img src="assets/Logo_NoBG.png" alt="GGS Studio"></div>
+    <div class="logo"><img src="assets/logo-nav.webp" alt="GGS Studio" width="48" height="34"></div>
     <div class="copy-swap" id="authHead">
       <div class="section-tag" id="authTag">Welcome back</div>
       <h2 id="authTitle">Sign in</h2>
@@ -91,7 +94,7 @@
   let mode = new URLSearchParams(location.search).get('mode') === 'signup' ? 'signup' : 'login';
 
   // Accepts old-style '?next=account.html' links too (bookmarks, anything
-  // cached) — strip any .html suffix and land on the clean equivalent.
+  // cached): strip any .html suffix and land on the clean equivalent.
   // .has()/.get() distinguishes "?next=" (explicit: go home) from a bare
   // /login with no param at all (default: land on My Bookings).
   const nextParams = new URLSearchParams(location.search);
@@ -104,7 +107,7 @@
     document.getElementById('authTag').textContent = signup ? 'Join the studio' : 'Welcome back';
     document.getElementById('authTitle').textContent = signup ? 'Create account' : 'Sign in';
     document.getElementById('authNote').textContent = signup
-      ? "You don't need an account to book — this is for keeping your sessions in one place, on every device."
+      ? "You don't need an account to book. This is for keeping your sessions in one place, on every device."
       : 'Sign in to pick up every session booked with this email, from any device.';
     nameField.classList.toggle('open', signup);
     // Re-trigger the crossfade: the class has to come off for a reflow first.
@@ -138,7 +141,7 @@
     const errors = [];
     if (mode === 'signup' && !nameEl.value.trim()) errors.push([nameEl, 'Please enter your full name.']);
     if (!emailEl.value.trim()) errors.push([emailEl, 'Please enter your email.']);
-    else if (!isEmail(emailEl.value)) errors.push([emailEl, "That doesn't look like an email address — check for a typo."]);
+    else if (!isEmail(emailEl.value)) errors.push([emailEl, "That doesn't look like an email address. Check for a typo."]);
     if (!passwordEl.value) errors.push([passwordEl, 'Please enter your password.']);
     else if (passwordEl.value.length < 6) errors.push([passwordEl, 'Password must be at least 6 characters.']);
     return errors;
@@ -164,10 +167,10 @@
         // there's nothing else to do but go where they were headed.
         const { session } = await signUpChecked(supabase, email, password, nameEl.value.trim());
         if (!session) {
-          // Email confirmation is on — nothing to sign into yet.
+          // Email confirmation is on: nothing to sign into yet.
           mode = 'login';
           render();
-          showMsg('✓ Account created — check your email to confirm it, then sign in.', false);
+          showMsg('✓ Account created. Check your email to confirm it, then sign in.', false);
           submit.disabled = false;
           return;
         }

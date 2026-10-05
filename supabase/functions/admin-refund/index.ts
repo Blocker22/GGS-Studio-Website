@@ -1,7 +1,8 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { loadBookingEmail, refundEmail, sendEmail } from "./email.ts";
-import { logAudit } from "./audit.ts";
+import { peso, sendBookingEmail } from "../_shared/email.ts";
+import { logAudit } from "../_shared/audit.ts";
+import { background } from "../_shared/booking-core.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -122,11 +123,10 @@ Deno.serve(async (req: Request) => {
     reason: typeof reason === "string" ? reason : null,
   });
 
-  const mail = await loadBookingEmail(admin, payment.booking_id);
-  if (mail) {
-    const { subject, html } = refundEmail(mail.to, mail.booking, refundAmount);
-    await sendEmail(mail.to, subject, html);
-  }
+  background(sendBookingEmail(admin, payment.booking_id, "refund", {
+    by: { id: actor.id, name: actor.label },
+    extra: { amount: peso(refundAmount) },
+  }));
 
   return json({ payment: updated, paymongo_refund: paymongoData });
 });

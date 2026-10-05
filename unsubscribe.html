@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Email preferences · GGS Studio</title>
+<link rel="icon" type="image/png" href="assets/logo-nav.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<nav></nav>
+<main class="page-wrap narrow" id="main">
+  <div class="page-head"><div><h2 id="uTitle">Studio news emails</h2><p id="uSub">Stop or restart our occasional news and offers. Booking emails are not affected.</p></div></div>
+  <div class="panel-card" id="uRoot" aria-live="polite">
+    <p style="color:var(--text-2);margin-bottom:16px">Click below to stop getting news and offers from GGS Studio.</p>
+    <button type="button" class="btn-primary" id="uGo">Unsubscribe</button>
+    <p class="field-error" id="uErr" hidden></p>
+  </div>
+</main>
+<script type="module">
+  import { initAuthNav } from './js/auth.js';
+  import { publicApi } from './js/site.js';
+  initAuthNav();
+  const token = new URLSearchParams(location.search).get('t') || '';
+  const root = document.getElementById('uRoot');
+  const err = document.getElementById('uErr');
+  if (!token) {
+    root.innerHTML = '<p style="color:var(--text-2)">This page needs the unsubscribe link from one of our emails. You can also reply to any of our emails and ask us to remove you.</p>';
+  }
+  async function act(action) {
+    err.hidden = true;
+    try {
+      const r = await publicApi(action, { t: token });
+      if (r.status === 'unsubscribed') {
+        root.innerHTML = `<p style="margin-bottom:16px">You're unsubscribed. <strong>${r.email.replace(/[<>&]/g, '')}</strong> won't get any more news emails from us.</p>
+          <p style="color:var(--text-2);margin-bottom:16px">Changed your mind?</p><button type="button" class="btn-outline" id="uBack">Subscribe again</button>`;
+        document.getElementById('uBack').addEventListener('click', () => act('resubscribe'));
+      } else {
+        root.innerHTML = `<p>You're subscribed again. Thanks for staying with us.</p>`;
+      }
+    } catch (ex) {
+      err.textContent = ex.message;
+      err.hidden = false;
+    }
+  }
+  document.getElementById('uGo')?.addEventListener('click', () => act('unsubscribe'));
+</script>
+</body>
+</html>

@@ -19,14 +19,8 @@ function el(tag, attrs, children) {
   return node;
 }
 
-// "01", "02", … keeping the numbered look the hardcoded cards had.
-function cardNumber(index) {
-  return String(index + 1).padStart(2, '0');
-}
-
 function card({ index, title, description, price, requiresName }) {
   const parts = [
-    el('span', { class: 'num mono' }, [cardNumber(index)]),
     el('h3', {}, [title]),
     el('p', {}, [description || '']),
   ];
@@ -82,7 +76,7 @@ export async function initServicesSection() {
 
   grid.innerHTML = '';
   if (cards.length === 0) {
-    grid.appendChild(el('p', { class: 'muted', style: 'padding:32px;' }, ['Rates are being updated — please check back shortly.']));
+    grid.appendChild(el('p', { class: 'muted', style: 'padding:24px;' }, ['Rates are being updated. Please check back shortly.']));
     return;
   }
   cards.forEach((c, i) => grid.appendChild(card({ ...c, index: i })));
