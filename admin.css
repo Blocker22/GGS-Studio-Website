@@ -202,7 +202,7 @@ img { max-width: 100%; display: block; }
   background: var(--surface-3); color: var(--text); overflow: hidden;
 }
 .avatar.lg { width: 72px; height: 72px; border-radius: 2px; font-size: 1.5rem; }
-.content { padding: 24px 28px 64px; max-width: 1480px; width: 100%; }
+.content { padding: 24px 28px 64px; max-width: 1480px; width: 100%; margin-inline: auto; }
 .page-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
 .page-head h1 { font-size: 1.6rem; font-weight: 600; letter-spacing: -0.015em; line-height: 1.2; }
 .page-head p { color: var(--text-2); margin-top: 4px; max-width: 70ch; font-size: 0.95rem; }

@@ -1,5 +1,6 @@
 // Marketing > Social graphics: on-brand posts, vouchers and receipts without
-// a design tool. Ported from the Manson Pickleball pubmat maker.
+// a design tool. The engine follows the Manson Pickleball pubmat maker;
+// the layouts and presets are GGS Studio's own.
 //
 // Simple mode: pick a ready-made design, change the words, then the look
 // (layout, background, logo, footer, decorations, colors, photo). A spec is
@@ -16,7 +17,7 @@
 import { append, btn, clear, copy, customerName, fmtWhen, h, icon, loadCatalog, pageHead, paidAmount, peso, q, sb, state, toast } from '../core.js';
 import { loadBrand, PHOTOS } from '../pubmat/brand.js';
 import { CATEGORIES, PRESETS, receiptSpecFromBooking, specFromHours, specFromRates, specFromRule, voucherSpecFromVoucher } from '../pubmat/presets.js';
-import { BG_STYLES, DECORS, DOCUMENT_LAYOUTS, downloadCanvas, FOOTER_STYLES, FORMATS, LAYOUTS, LOGO_SIZES, LOGO_STYLES, paint, PHOTO_LAYOUTS, prepareSpec, THEMES } from '../pubmat/render.js';
+import { BG_STYLES, bgId, DECORS, DOCUMENT_LAYOUTS, downloadCanvas, FOOTER_STYLES, FORMATS, LAYOUTS, LOGO_SIZES, LOGO_STYLES, paint, PHOTO_LAYOUTS, prepareSpec, THEMES } from '../pubmat/render.js';
 import { fileToDataUrl, openEditor, readDraft } from '../pubmat/editor.js';
 import { sponsorPicker } from '../pubmat/sponsors.js';
 import { BOOKING_SELECT } from './booking-dialogs.js';
@@ -25,7 +26,7 @@ import { BOOKING_SELECT } from './booking-dialogs.js';
 const put = (node, ...kids) => append(node, kids);
 
 const WORD_FIELDS = ['badge', 'big', 'headline', 'body', 'details', 'cta', 'caption'];
-const BIG_LAYOUTS = new Set(['stat', 'ticket', 'center', 'bento', 'glow', 'magazine', 'voucher', 'giftcard', 'receipt']);
+const BIG_LAYOUTS = new Set(['field', 'stat', 'wave', 'label', 'quiet', 'cover', 'column', 'voucher', 'giftcard', 'receipt']);
 const DOC_FORMATS = new Set(['voucher', 'slip']);
 
 // Field names and hints change with the kind of design.
@@ -38,7 +39,8 @@ const FIELD_TEXT = {
     badge: ['Small label', ''],
     cta: ['Button text', ''],
   },
-  schedule: { details: ['Schedule rows', 'One per line, like "December 24: 10:00 AM to 4:00 PM".'] },
+  tracks: { details: ['List rows', 'One per line, like "December 24: 10:00 AM to 4:00 PM". Each row is numbered.'] },
+  label: { details: ['Fields', 'One per line, like "When: Saturday, 7:00 PM". Shown as boxes on the label.'] },
   voucher: {
     headline: ['Title', 'Like "Studio voucher".'],
     big: ['Value', 'Like ₱100 OFF or 1 FREE HOUR.'],
@@ -312,7 +314,7 @@ export async function render(root, params) {
     });
     put(lookBox, 
       h('fieldset', { class: 'pm-fieldset' }, h('legend', {}, 'Background'),
-        optionGrid(BG_STYLES.map((b) => ({ change: { bg: b.id }, label: b.label, selected: (spec.bg || 'site') === b.id, onPick: () => set('bg', b.id) })))),
+        optionGrid(BG_STYLES.map((b) => ({ change: { bg: b.id }, label: b.label, selected: bgId(spec.bg) === b.id, onPick: () => set('bg', b.id) })))),
       h('fieldset', { class: 'pm-fieldset' }, h('legend', {}, 'Logo'),
         optionGrid(LOGO_STYLES.map((l) => ({ change: { logoStyle: l.id }, label: l.label, selected: (spec.logoStyle || 'color') === l.id, onPick: () => set('logoStyle', l.id) }))),
         spec.logoStyle !== 'none' ? h('div', { class: 'seg', role: 'radiogroup', 'aria-label': 'Logo size', style: 'margin-top:8px' }, LOGO_SIZES.map((z) => h('button', {

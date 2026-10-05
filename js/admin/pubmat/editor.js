@@ -8,7 +8,7 @@
 import { append, btn, clear, h, icon } from '../core.js';
 
 import { boxOf, downloadCanvas, LOGO_SRC, loadImage, loadLayerImages, measurer, paint } from './render.js';
-import { drawSticker, isImportant, SCATTER_SHAPES, shade, STICKER_KINDS, STICKERS } from './decor.js';
+import { drawSticker, isImportant, SCATTER_SHAPES, STICKER_KINDS, STICKERS } from './decor.js';
 import { PHOTOS } from './brand.js';
 
 /** Appends children, skipping null and false (native append prints them). */
@@ -30,10 +30,10 @@ const PALETTE = [
   ['#ff5a4f', 'Red'],
 ];
 
-const TYPE_ICON = { text: 'text-t', image: 'image', rect: 'square', ellipse: 'circle', button: 'rectangle', chip: 'tag', court: 'wave-sine', dash: 'minus', blob: 'circle-dashed', halftone: 'dots-nine', deco: 'sticker', scatter: 'sparkle' };
-const TYPE_LABEL = { text: 'Words', image: 'Picture', rect: 'Box', ellipse: 'Circle', button: 'Button', chip: 'Label', court: 'Waveform', dash: 'Dashed line', blob: 'Soft blob', halftone: 'Halftone dots', deco: 'Sticker', scatter: 'Scattered pieces' };
+const TYPE_ICON = { text: 'text-t', image: 'image', rect: 'square', ellipse: 'circle', button: 'rectangle', chip: 'tag', court: 'wave-sine', dash: 'minus', blob: 'circle-dashed', halftone: 'dots-nine', deco: 'sticker', scatter: 'sparkle', wave: 'waveform', grid: 'grid-four' };
+const TYPE_LABEL = { text: 'Words', image: 'Picture', rect: 'Box', ellipse: 'Circle', button: 'Button', chip: 'Label', court: 'Waveform', dash: 'Dashed line', blob: 'Soft blob', halftone: 'Halftone dots', deco: 'Sticker', scatter: 'Scattered pieces', wave: 'Waveform', grid: 'Lines' };
 // Large background pieces are picked only when nothing else is under the pointer.
-const LOW_PRIORITY = new Set(['court', 'scatter', 'halftone', 'blob']);
+const LOW_PRIORITY = new Set(['court', 'scatter', 'halftone', 'blob', 'grid']);
 const HANDLES = {
   text: ['nw', 'ne', 'sw', 'se', 'w', 'e'],
   button: ['nw', 'ne', 'sw', 'se'],
@@ -387,9 +387,11 @@ export function openEditor(root, { doc: initialDoc, fileName, onExit }) {
     const s = Math.max(st.doc.w, st.doc.h) * 0.6;
     const light = luminance(bgLayer()?.fill) > 0.6;
     adding = null;
-    addLayer(type === 'blob'
-      ? { type, name: 'Soft blob', x: (st.doc.w - s) / 2, y: (st.doc.h - s) / 2, w: s, h: s, color: light ? '#ffd558' : '#4dffdb', alpha: light ? 0.3 : 0.3 }
-      : { type, name: 'Halftone dots', x: (st.doc.w - s) / 2, y: (st.doc.h - s) / 2, w: s, h: s * 0.8, color: light ? '#020304' : '#ffd558', alpha: 0.25, spacing: 16 * u() });
+    const W = st.doc.w;
+    const H = st.doc.h;
+    addLayer(type === 'wave'
+      ? { type, name: 'Waveform', x: W * 0.1, y: (H - s * 0.25) / 2, w: W * 0.8, h: s * 0.25, color: light ? '#020304' : '#ffd558', bars: 64, seed: (++gestureSeq * 2654435761) >>> 0 }
+      : { type, name: 'Lines', x: 0, y: 0, w: W, h: H, color: light ? 'rgba(2,3,4,0.08)' : 'rgba(255,255,255,0.07)', cols: Math.round(W / (108 * u())), rows: Math.round(H / (108 * u())), lineWidth: Math.max(1, 1.5 * u()) });
   };
   const patchSelected = (patch, key, opts) => {
     const L = selected();
@@ -498,8 +500,8 @@ export function openEditor(root, { doc: initialDoc, fileName, onExit }) {
         h('p', { class: 'pm-add-title', style: 'margin-top:16px' }, 'Scatter across the page'),
         h('div', { class: 'row' },
           Object.entries(SCATTER_SHAPES).map(([shape, label]) => btn(label, { size: 'sm', onClick: () => addScatter(shape) })),
-          btn('Soft blob', { size: 'sm', onClick: () => addBackdrop('blob') }),
-          btn('Halftone dots', { size: 'sm', onClick: () => addBackdrop('halftone') })));
+          btn('Waveform', { size: 'sm', onClick: () => addBackdrop('wave') }),
+          btn('Grid lines', { size: 'sm', onClick: () => addBackdrop('grid') })));
     }
   }
 
@@ -541,20 +543,9 @@ export function openEditor(root, { doc: initialDoc, fileName, onExit }) {
     if (L.type === 'ellipse') parts.push(swatches('Color', L.fill, (fill) => patchSelected({ fill }, 'fill')));
     if (L.type === 'rect' && !L.gradient && L.fill) parts.push(swatches('Color', L.fill, (fill) => patchSelected({ fill }, 'fill')));
     if (L.type === 'rect' && L.stroke) parts.push(swatches('Outline color', L.stroke, (stroke) => patchSelected({ stroke }, 'stroke')));
-    if (L.type === 'rect' && (L.fill || L.gradient)) {
-      const grad = h('input', { type: 'checkbox', checked: Boolean(L.gradient) });
-      grad.addEventListener('change', () => patchSelected({
-        gradient: grad.checked ? { kind: 'linear', angle: 160, stops: [[0, L.fill || '#ffd558'], [1, shade(L.fill || '#ffd558', -0.3)]] } : null,
-        fill: L.fill || L.gradient?.stops?.[0]?.[1] || '#ffd558',
-      }));
-      parts.push(h('label', { class: 'check' }, grad, h('span', {}, 'Soft gradient')));
-    }
     if (L.type === 'rect' && L.gradient) {
-      const g = L.gradient;
-      parts.push(
-        swatches('Start color', g.stops[0][1], (c) => patchSelected({ gradient: { ...g, stops: [[0, c], ...g.stops.slice(1)] } }, 'g0')),
-        swatches('End color', g.stops[g.stops.length - 1][1], (c) => patchSelected({ gradient: { ...g, stops: [...g.stops.slice(0, -1), [1, c]] } }, 'g1')));
-      if (g.kind !== 'radial') parts.push(slider('Direction', g.angle ?? 180, 0, 360, (angle) => patchSelected({ gradient: { ...g, angle } }, 'gangle', { inspect: false }), { format: (v) => `${Math.round(v)}°` }));
+      // Old designs only: a gradient flattens to its first color.
+      parts.push(btn('Make it one solid color', { size: 'sm', onClick: () => patchSelected({ gradient: null, fill: L.gradient.stops?.[0]?.[1] || L.fill || '#ffd558' }) }));
     }
     if (L.type === 'deco') {
       STICKERS[L.kind].colors.forEach((c, i) => {
@@ -574,6 +565,17 @@ export function openEditor(root, { doc: initialDoc, fileName, onExit }) {
         slider('Piece size', L.size, Math.round(6 * u()), Math.round(90 * u()), (size) => patchSelected({ size }, 'psize', { inspect: false })),
         swatches('Color (all pieces)', L.colors?.[0], (c) => patchSelected({ colors: [c] }, 'scolor')),
         btn('Shuffle pieces', { iconName: 'shuffle', onClick: () => patchSelected({ seed: Math.floor(Math.random() * 1e9) }) }));
+    }
+    if (L.type === 'wave') {
+      parts.push(
+        swatches('Color', L.color, (color) => patchSelected({ color }, 'wcolor')),
+        slider('Bars', L.bars || 64, 12, 160, (bars) => patchSelected({ bars }, 'bars', { inspect: false })),
+        btn('Shuffle', { iconName: 'shuffle', onClick: () => patchSelected({ seed: Math.floor(Math.random() * 1e9) }) }));
+    }
+    if (L.type === 'grid') {
+      parts.push(
+        slider('Columns', L.cols || 0, 0, 30, (cols) => patchSelected({ cols }, 'cols', { inspect: false })),
+        slider('Rows', L.rows || 0, 0, 40, (rows) => patchSelected({ rows }, 'rows', { inspect: false })));
     }
     if (L.type === 'blob' || L.type === 'halftone') {
       parts.push(

@@ -30,7 +30,7 @@ const p = (category, id, name, spec) => ({
   layout: 'field',
   theme: 'night',
   photo: 'photo1',
-  bg: 'site',
+  bg: 'lines',
   decor: 'none',
   badge: '',
   big: '',
@@ -46,21 +46,21 @@ const p = (category, id, name, spec) => ({
 export const PRESETS = [
   // Announcements
   p('announcement', 'now-booking', 'Now booking', {
-    layout: 'fade', photo: 'photo1', badge: 'Now booking',
-    headline: 'Track it. Mix it. Ship it.',
+    layout: 'cover', photo: 'photo1', badge: 'Now booking',
+    headline: 'Track it.\nMix it.\nShip it.',
     body: "Cebu's independent recording studio. An engineer in every session.",
     cta: BOOK,
     caption: `Sessions are open. Book the room and an engineer online at ${SITE_DOMAIN}.`,
   }),
   p('announcement', 'book-online', 'Book online', {
-    layout: 'minimal', theme: 'light', photo: 'photo2', badge: 'New',
+    layout: 'window', theme: 'light', photo: 'photo2', badge: 'New',
     headline: 'Book your session online',
     body: 'Pick a day and a time, choose your add-ons, and leave your details. No account needed.',
     cta: BOOK,
     caption: `You can now book GGS Studio online at ${SITE_DOMAIN}. Pick your time and we confirm by email.`,
   }),
   p('announcement', 'pay-online', 'Pay online', {
-    layout: 'split', photo: 'photo4', theme: 'teal', badge: 'New',
+    layout: 'column', photo: 'photo4', theme: 'teal', badge: 'New',
     headline: 'Pay your downpayment online',
     body: 'Send it from your banking app, upload the receipt, and your slot is held.',
     details: 'Scan, pay, upload your receipt\nWe check it and email you when it clears',
@@ -68,7 +68,7 @@ export const PRESETS = [
     caption: `You can now pay for your session online. Book at ${SITE_DOMAIN}, send the downpayment, and upload your receipt.`,
   }),
   p('announcement', 'new-gear', 'New gear', {
-    layout: 'photo', photo: 'photo12', decor: 'gear', badge: 'New in the room',
+    layout: 'window', photo: 'photo12', badge: 'New in the room',
     headline: 'Fresh gear in the room',
     body: 'Come hear it on your next session. Example gear: change it to what you got.',
     details: 'Example: a new vocal mic\nExample: new monitors',
@@ -76,7 +76,7 @@ export const PRESETS = [
     caption: 'New gear just landed in the studio. Book a session and try it out.',
   }),
   p('announcement', 'closed-maintenance', 'Closed for maintenance', {
-    layout: 'center', theme: 'gold', badge: 'Heads up',
+    layout: 'label', theme: 'gold', badge: 'Heads up',
     headline: 'Studio closed for maintenance',
     body: 'We are tuning up the room. Sessions resume right after.',
     details: 'Closed: Example date\nOpen again: Example date',
@@ -86,15 +86,15 @@ export const PRESETS = [
 
   // Updates
   p('update', 'schedule-change', 'Schedule update', {
-    layout: 'schedule', theme: 'night', badge: 'Schedule',
+    layout: 'tracks', theme: 'night', badge: 'Schedule',
     headline: 'Schedule update',
     body: 'Take note of these dates.',
-    details: 'Example: Dec 24: 10:00 AM to 4:00 PM\nExample: Dec 25: Closed',
+    details: 'Dec 24: 10:00 AM to 4:00 PM\nDec 25: Closed',
     cta: BOOK, sample: true,
     caption: `Schedule update for the coming days. Book your slot at ${SITE_DOMAIN}.`,
   }),
   p('update', 'fully-booked', 'Fully booked', {
-    layout: 'glow', theme: 'gold', badge: 'Fully booked',
+    layout: 'quiet', theme: 'gold', badge: 'Fully booked',
     headline: 'Fully booked',
     body: 'Every hour is taken that day. Pick another day and book early.',
     cta: BOOK,
@@ -103,7 +103,7 @@ export const PRESETS = [
 
   // Promos
   p('promo', 'weekday-promo', 'Weekday promo', {
-    layout: 'stat', theme: 'gold', decor: 'studio', badge: 'Weekdays only',
+    layout: 'stat', theme: 'gold', badge: 'Weekdays only',
     big: '20% OFF',
     headline: 'Weekday sessions',
     body: 'Book a Monday to Thursday session and save. Example offer: change it before posting.',
@@ -111,7 +111,7 @@ export const PRESETS = [
     caption: 'Weekday sessions are 20% off. Use the code when you book online.',
   }),
   p('promo', 'student-rate', 'Student rate', {
-    layout: 'bento', theme: 'night', photo: 'photo6', badge: 'Students',
+    layout: 'column', theme: 'night', photo: 'photo6', badge: 'Students',
     big: '₱50 OFF',
     headline: 'Student sessions',
     body: 'Show your school ID at the studio. Example offer: change it before posting.',
@@ -120,25 +120,25 @@ export const PRESETS = [
     caption: 'Students get a discount on every session. Bring your school ID.',
   }),
   p('promo', 'bundle', 'Record and mix bundle', {
-    layout: 'ticket', theme: 'teal', badge: 'Bundle',
+    layout: 'label', theme: 'teal', badge: 'Bundle',
     big: '3 HRS',
     headline: 'Record and mix in one go',
     body: 'Track it, mix it, leave with the song. Example offer: change it before posting.',
-    details: 'Recording, 3 hours\nMixing for one song',
+    details: 'Recording: 3 hours\nMixing: One song',
     cta: BOOK, sample: true,
     caption: 'Record and mix your song in one booking.',
   }),
 
   // Advertising
   p('advertising', 'the-room', 'The room', {
-    layout: 'magazine', photo: 'photo1', badge: 'GGS Studio',
+    layout: 'cover', photo: 'photo1', badge: 'GGS Studio',
     headline: 'Your next song starts here',
     body: 'A treated room, a full mic locker, and an engineer who listens.',
     cta: BOOK,
     caption: `Your next song starts here. Book GGS Studio at ${SITE_DOMAIN}.`,
   }),
   p('advertising', 'services', 'What we do', {
-    layout: 'collage', photo: 'photo2', theme: 'night',
+    layout: 'strip', photo: 'photo2', theme: 'night',
     headline: 'Recording, mixing and mastering',
     body: 'Hourly or by the project. Every session includes an engineer.',
     details: 'Vocals and full bands\nPodcasts and voice-overs\nMixing and mastering',
@@ -146,14 +146,14 @@ export const PRESETS = [
     caption: `Recording, mixing and mastering in Lapu-Lapu City. ${BOOK}.`,
   }),
   p('advertising', 'same-day-mix', 'Same-day rough mix', {
-    layout: 'side', photo: 'photo8', theme: 'night', badge: 'Every session',
+    layout: 'wave', theme: 'night', badge: 'Every session',
     headline: 'Leave with a rough mix the same day',
     body: 'Hear your song before you get home.',
     cta: BOOK,
     caption: 'Every session ends with a rough mix you can take home.',
   }),
   p('advertising', 'podcast', 'Podcast recording', {
-    layout: 'arch', photo: 'photo13', theme: 'teal', badge: 'Podcasts',
+    layout: 'column', photo: 'photo13', theme: 'teal', badge: 'Podcasts',
     headline: 'Record your podcast in a real studio',
     body: 'Clean sound, more than one mic, and an engineer at the desk.',
     cta: BOOK,
@@ -162,26 +162,26 @@ export const PRESETS = [
 
   // Events
   p('event', 'open-studio', 'Open studio night', {
-    layout: 'ticket', theme: 'night', decor: 'studio', badge: 'Event',
+    layout: 'label', theme: 'night', badge: 'Event',
     big: 'OCT 24',
     headline: 'Open studio night',
     body: 'Bring your demo, meet other artists, and hear the room. Example details: change before posting.',
-    details: 'Saturday, 7:00 PM\nFree entry, limited slots',
+    details: 'When: Saturday, 7:00 PM\nEntry: Free, limited slots',
     cta: 'Message us to join', sample: true,
     caption: 'Open studio night: bring your demo and meet other artists. Message us to join.',
   }),
   p('event', 'workshop', 'Workshop', {
-    layout: 'frame', photo: 'photo4', theme: 'gold', badge: 'Workshop',
+    layout: 'window', photo: 'photo4', theme: 'gold', badge: 'Workshop',
     headline: 'Home recording basics',
     body: 'A hands-on afternoon on mics, levels and a clean vocal take. Example details: change before posting.',
-    details: 'Example date, 2:00 PM\nExample fee',
+    details: 'When: Example date, 2:00 PM\nFee: Example fee',
     cta: 'Message us to sign up', sample: true,
     caption: 'Learn the basics of recording at home in one afternoon.',
   }),
 
   // Milestones
   p('milestone', 'sessions-count', 'Sessions milestone', {
-    layout: 'stat', theme: 'teal', decor: 'celebrate', badge: 'Thank you',
+    layout: 'stat', theme: 'teal', badge: 'Thank you',
     big: '100',
     headline: 'Sessions recorded',
     body: 'Thank you to every artist who walked through the door. Example number: change it before posting.',
@@ -189,14 +189,14 @@ export const PRESETS = [
     caption: 'Thank you to every artist who has recorded with us.',
   }),
   p('milestone', 'anniversary', 'Anniversary', {
-    layout: 'center', theme: 'gold', decor: 'sparkle', badge: 'Anniversary',
+    layout: 'quiet', theme: 'gold', badge: 'Anniversary',
     big: '1 YEAR',
     headline: 'of making music together',
     body: 'Thank you for every take, every mix, and every late night.',
     caption: 'One year of GGS Studio. Thank you for making music with us.',
   }),
   p('milestone', 'release', 'New release', {
-    layout: 'photo', photo: 'photo11', theme: 'night', decor: 'studio', badge: 'Out now',
+    layout: 'wave', theme: 'night', badge: 'Out now',
     headline: 'Recorded at GGS Studio',
     body: 'Example: Artist name, "Song title". Change it before posting.',
     cta: 'Listen now', sample: true,
@@ -205,13 +205,13 @@ export const PRESETS = [
 
   // Greetings
   p('greeting', 'thank-you', 'Thank you', {
-    layout: 'glow', theme: 'night', decor: 'sparkle',
+    layout: 'quiet', theme: 'night',
     headline: 'Thank you for making music with us',
     body: 'Every session means a lot to a small studio.',
     caption: 'Thank you for making music with us.',
   }),
   p('greeting', 'weekend', 'Have a good weekend', {
-    layout: 'minimal', theme: 'light', photo: 'photo6',
+    layout: 'window', theme: 'light', photo: 'photo6',
     headline: 'Weekend sessions are open',
     body: 'Make the weekend count. Grab a slot.',
     cta: BOOK,
@@ -220,20 +220,20 @@ export const PRESETS = [
 
   // Holidays
   p('holiday', 'christmas', 'Christmas', {
-    layout: 'center', decor: 'christmas',
+    layout: 'quiet', decor: 'christmas',
     headline: 'Merry Christmas from GGS Studio',
     body: 'Thank you for every song this year.',
     caption: 'Merry Christmas from all of us at GGS Studio.',
   }),
   p('holiday', 'new-year', 'New Year', {
-    layout: 'glow', decor: 'newyear', big: '2027',
+    layout: 'quiet', decor: 'newyear', big: '2027',
     headline: 'Happy New Year',
     body: 'New year, new songs. See you in the studio.',
     cta: BOOK,
     caption: 'Happy New Year! New year, new songs.',
   }),
   p('holiday', 'cny', 'Chinese New Year', {
-    layout: 'center', decor: 'cny',
+    layout: 'quiet', decor: 'cny',
     headline: 'Happy Chinese New Year',
     body: 'Wishing you a year of good music.',
     caption: 'Happy Chinese New Year from GGS Studio.',
@@ -252,7 +252,7 @@ export const PRESETS = [
     caption: 'Happy Halloween from GGS Studio.',
   }),
   p('holiday', 'independence', 'Independence Day', {
-    layout: 'center', decor: 'ph',
+    layout: 'quiet', decor: 'ph',
     headline: 'Happy Independence Day',
     body: 'Proud to make Filipino music.',
     caption: 'Happy Independence Day from GGS Studio.',
@@ -266,14 +266,14 @@ export const PRESETS = [
 
   // Reminders
   p('reminder', 'arrive-early', 'Arrive early', {
-    layout: 'schedule', theme: 'gold', badge: 'Reminder',
+    layout: 'tracks', theme: 'gold', badge: 'Reminder',
     headline: 'Booked time is booked time',
     body: 'Your session runs from your start time, so come a little early.',
     details: 'Arrive 10 minutes early\nBring your files and lyrics\nYour session ends on time',
     caption: 'Reminder: your session starts and ends at the times you booked. Come a little early.',
   }),
   p('reminder', 'id-reminder', 'Bring your ID', {
-    layout: 'center', theme: 'night', badge: 'Reminder',
+    layout: 'field', theme: 'night', badge: 'Reminder',
     headline: 'Paying at the studio? Bring your ID',
     body: 'We check it against the photo you sent when you booked.',
     caption: 'Paying at the studio? Bring the ID you uploaded when you booked.',
@@ -373,7 +373,7 @@ export function specFromRates(room, services) {
   const unit = (s) => (s.price_type === 'hourly' ? ' per hour' : s.price_type === 'unit' ? ` per ${s.unit_label || 'unit'}` : '');
   const lines = [`${room.name}: ${peso(room.hourly_rate)} per hour`, ...services.slice(0, 6).map((s) => `${s.name}: +${peso(s.price)}${unit(s)}`)];
   return p('update', 'rates', 'Rate card', {
-    layout: 'schedule', theme: 'night', format: 'portrait', badge: 'Rates',
+    layout: 'tracks', theme: 'night', format: 'portrait', badge: 'Rates',
     headline: 'Studio rates',
     body: 'Every session includes an engineer.',
     details: lines.join('\n'),
@@ -387,7 +387,7 @@ export function specFromHours(weekly) {
   const lines = [...weekly].sort((a, b) => a.day_of_week - b.day_of_week)
     .map((x) => `${DOW_NAMES[x.day_of_week]}: ${x.is_closed || !x.open_time ? 'Closed' : `${time12(x.open_time.slice(0, 5))} to ${time12(x.close_time.slice(0, 5))}`}`);
   return p('update', 'hours', 'Opening hours', {
-    layout: 'schedule', theme: 'teal', format: 'portrait', badge: 'Hours',
+    layout: 'tracks', theme: 'teal', format: 'portrait', badge: 'Hours',
     headline: 'Opening hours',
     body: 'Book online any time, day or night.',
     details: lines.join('\n'),
